@@ -1,20 +1,23 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import SignUp from './pages/SignUp';
+
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import HomePage from './pages/HomePage';
+import AuthSuccess from './pages/AuthSuccess';
 
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+     
         <Routes>
-          <Route path="/signup" element={<SignUp />} />
+          <Route path="/home" element={<HomePage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/" element={<Login />} />
+          <Route path="/auth/success" element={<AuthSuccess />} />
+          <Route path="/" element={<HomePage />} />
         </Routes>
-      </div>
+    
     </Router>
   );
 }
