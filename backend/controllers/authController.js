@@ -33,12 +33,22 @@ export const signup = (db) => (req, res) => {
             }
             
             // Send verification email
-            sendVerificationEmail(req.body.email, verificationToken);
-            
-            return res.json({
-                message: "User created successfully. Please check your email for verification instructions.",
-                requiresVerification: true
-            });
+            sendVerificationEmail(req.body.email, verificationToken)
+                .then(() => {
+                    return res.json({
+                        message: "User created successfully. Please check your email for verification instructions.",
+                        requiresVerification: true
+                    });
+                })
+                .catch(error => {
+                    console.error('Failed to send verification email:', error.message);
+                    // Still return success but warn about email issue
+                    return res.json({
+                        message: "User created successfully. Please check your email for verification instructions. (Note: Email delivery may be delayed)",
+                        requiresVerification: true,
+                        emailWarning: "Email delivery issue detected"
+                    });
+                });
         });
     });
 };
@@ -147,10 +157,17 @@ export const resendVerification = (db) => (req, res) => {
         }
         
         // Send verification email
-        sendVerificationEmail(email, verificationToken);
-        
-        return res.json({
-            message: "Verification email resent. Please check your inbox."
-        });
+        sendVerificationEmail(email, verificationToken)
+            .then(() => {
+                return res.json({
+                    message: "Verification email resent. Please check your inbox."
+                });
+            })
+            .catch(error => {
+                console.error('Failed to resend verification email:', error.message);
+                return res.status(500).json({
+                    message: "Failed to resend verification email. Please try again later."
+                });
+            });
     });
 };
