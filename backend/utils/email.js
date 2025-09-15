@@ -52,14 +52,14 @@ export const verifyEmailConfig = async () => {
 // Function to send verification email (returns a promise)
 export const sendVerificationEmail = async (email, token) => {
     console.log('📤 Attempting to send verification email to:', email);
-    
+
     const transporter = createTransporter();
     if (!transporter) {
         throw new Error('Email transporter not configured');
     }
 
     const verificationLink = `http://localhost:8800/verify-email?token=${token}`;
-    
+
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: email,
@@ -67,7 +67,7 @@ export const sendVerificationEmail = async (email, token) => {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #007bff;">Email Verification</h2>
-                <p>TITIGL NAKO</p>
+                
                  <p>TITIGL NAKO</p>
                  <p>TITIGL NAKO</p>
                  <p>TITIGL NAKO</p>
@@ -98,6 +98,58 @@ export const sendVerificationEmail = async (email, token) => {
         return info;
     } catch (error) {
         console.error('❌ Error sending verification email:', error.message);
+        console.error('🔧 Error details:', error.response || error);
+        throw error;
+    }
+};
+
+// Function to send password reset email (returns a promise)
+export const sendPasswordResetEmail = async (email, token) => {
+    console.log('📤 Attempting to send password reset email to:', email);
+
+    const transporter = createTransporter();
+    if (!transporter) {
+        throw new Error('Email transporter not configured');
+    }
+
+    const resetLink = `http://localhost:5173/reset-password?token=${token}`;
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Reset Your Password - Wash It Izzy',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #dc3545;">Password Reset Request</h2>
+                <p>You have requested to reset your password for your Wash It Izzy account.</p>
+                <p>Please click the button below to reset your password:</p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="${resetLink}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                        Reset Password
+                    </a>
+                </div>
+                <p>Or copy and paste this link in your browser:</p>
+                <p style="word-break: break-all; background-color: #f8f9fa; padding: 10px; border-radius: 4px;">
+                    ${resetLink}
+                </p>
+                <p style="color: #6c757d; font-size: 14px;">
+                    This link will expire in 1 hour. If you did not request a password reset, please ignore this email.
+                </p>
+                <hr style="border: none; border-top: 1px solid #e9ecef; margin: 20px 0;">
+                <p style="color: #6c757d; font-size: 12px;">
+                    This is an automated message from Wash It Izzy. Please do not reply to this email.
+                </p>
+            </div>
+        `
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Password reset email sent successfully:', info.response);
+        console.log('📧 Message ID:', info.messageId);
+        return info;
+    } catch (error) {
+        console.error('❌ Error sending password reset email:', error.message);
         console.error('🔧 Error details:', error.response || error);
         throw error;
     }

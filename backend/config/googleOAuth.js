@@ -2,16 +2,23 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import jwt from 'jsonwebtoken';
 
-// Google OAuth configuration
-const googleConfig = {
-  clientID: process.env.GOOGLE_CLIENT_ID || 'your-google-client-id',
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'your-google-client-secret',
-  callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:8800/auth/google/callback'
-};
 
 // Initialize Google Strategy
 export const initializeGoogleStrategy = (db) => {
-  passport.use(new GoogleStrategy(googleConfig, 
+  // Google OAuth configuration
+  const googleConfig = {
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:8800/auth/google/callback'
+  };
+
+  console.log('Google OAuth Config:', {
+    clientID: googleConfig.clientID ? 'Set' : 'Not set',
+    clientSecret: googleConfig.clientSecret ? 'Set' : 'Not set',
+    callbackURL: googleConfig.callbackURL
+  });
+
+  passport.use(new GoogleStrategy(googleConfig,
     async (accessToken, refreshToken, profile, done) => {
       try {
         console.log('Google profile received:', profile);
@@ -102,9 +109,7 @@ export const generateGoogleAuthToken = (user) => {
     authProvider: user.authProvider || 'google'
   };
   
-  return jwt.sign(tokenPayload, process.env.JWT_SECRET || 'your_jwt_secret', { 
-    expiresIn: '1h' 
+  return jwt.sign(tokenPayload, process.env.JWT_SECRET || 'your_jwt_secret', {
+    expiresIn: '1h'
   });
 };
-
-export default googleConfig;

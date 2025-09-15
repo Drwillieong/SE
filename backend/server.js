@@ -1,15 +1,24 @@
 import express from 'express';
-import cors from 'cors'; 
+import cors from 'cors';
 import mysql from 'mysql';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import passport from 'passport';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 import authRoutes from './routes/auth.js';
+import adminRoutes from './routes/admin.js';
+import orderRoutes from './routes/orders.js';
 import { initializeGoogleStrategy } from './config/googleOAuth.js';
 
 // Load environment variables from .env file
 dotenv.config();
+
+console.log('Loaded env vars:', {
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL
+});
 
 const app = express();
 app.use(express.json());
@@ -17,6 +26,16 @@ app.use(cors({
     origin: 'http://localhost:5173', // Your React app's URL
     credentials: true
 }));
+
+// Handle preflight OPTIONS requests
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(204);
+});
+
 app.use(cookieParser());
 
 // Session configuration
@@ -74,6 +93,10 @@ db.connect(async (err) => {
                     contact VARCHAR(20),
                     email VARCHAR(255) UNIQUE NOT NULL,
                     password VARCHAR(255),
+                    barangay VARCHAR(255),
+                    street VARCHAR(255),
+                    blockLot VARCHAR(255),
+                    landmark VARCHAR(255),
                     googleId VARCHAR(255) UNIQUE,
                     authProvider ENUM('email', 'google') DEFAULT 'email',
                     role ENUM('customer', 'admin') DEFAULT 'customer',
@@ -148,7 +171,7 @@ db.connect(async (err) => {
                         }
                     });
                 }
-                
+
                 if (columnNames.includes('password')) {
                     const makePasswordNullableSql = "ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NULL";
                     db.query(makePasswordNullableSql, (err) => {
@@ -159,13 +182,101 @@ db.connect(async (err) => {
                         }
                     });
                 }
+
+                // Add barangay column if it doesn't exist
+                if (!columnNames.includes('barangay')) {
+                    console.log('Adding barangay column to users table...');
+                    const addBarangaySql = "ALTER TABLE users ADD COLUMN barangay VARCHAR(255) NULL";
+                    db.query(addBarangaySql, (err) => {
+                        if (err) {
+                            console.error('Error adding barangay column:', err.message);
+                        } else {
+                            console.log('Barangay column added successfully');
+                        }
+                    });
+                }
+
+                // Add street column if it doesn't exist
+                if (!columnNames.includes('street')) {
+                    console.log('Adding street column to users table...');
+                    const addStreetSql = "ALTER TABLE users ADD COLUMN street VARCHAR(255) NULL";
+                    db.query(addStreetSql, (err) => {
+                        if (err) {
+                            console.error('Error adding street column:', err.message);
+                        } else {
+                            console.log('Street column added successfully');
+                        }
+                    });
+                }
+
+                // Add blockLot column if it doesn't exist
+                if (!columnNames.includes('blockLot')) {
+                    console.log('Adding blockLot column to users table...');
+                    const addBlockLotSql = "ALTER TABLE users ADD COLUMN blockLot VARCHAR(255) NULL";
+                    db.query(addBlockLotSql, (err) => {
+                        if (err) {
+                            console.error('Error adding blockLot column:', err.message);
+                        } else {
+                            console.log('BlockLot column added successfully');
+                        }
+                    });
+                }
+
+                // Add landmark column if it doesn't exist
+                if (!columnNames.includes('landmark')) {
+                    console.log('Adding landmark column to users table...');
+                    const addLandmarkSql = "ALTER TABLE users ADD COLUMN landmark VARCHAR(255) NULL";
+                    db.query(addLandmarkSql, (err) => {
+                        if (err) {
+                            console.error('Error adding landmark column:', err.message);
+                        } else {
+                            console.log('Landmark column added successfully');
+                        }
+                    });
+                }
             });
         }
     });
 });
 
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  console.log('verifyToken middleware called, authHeader:', authHeader);
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('Access token required');
+    return res.status(401).json({ message: 'Access token required' });
+  }
+
+  const token = authHeader.substring(7);
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    console.log('Token decoded:', decoded);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.log('Invalid token:', error.message);
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+};
+
 // Use auth routes
-app.use('/', authRoutes(db));
+app.use('/auth', authRoutes(db));
+
+// Use admin routes with JWT authentication
+const adminRouter = express.Router();
+adminRouter.use(verifyToken);
+adminRouter.use((req, res, next) => {
+  req.db = db;
+  next();
+});
+adminRouter.use(adminRoutes);
+app.use('/api/admin', adminRouter);
+
+// Use order routes with JWT authentication
+const orderRouter = express.Router();
+orderRouter.use(verifyToken);
+orderRouter.use(orderRoutes(db));
+app.use('/api/orders', orderRouter);
 
 app.get('/', (req, res) => {
     res.send('Server is running!');

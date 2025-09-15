@@ -63,7 +63,7 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
 
   const LoadingSpinner = () => {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
+      <div className="fixed inset-0 bg-white bg-opacity-50 flex items-center justify-center z-[1000]">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-pink-500 mb-4"></div>
           <p className="text-white font-medium">Creating your account...</p>
@@ -94,26 +94,88 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
     }
 
     try {
+      // Clear any existing localStorage data to avoid stale data
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      console.log('SignUpModal: Cleared localStorage before signup');
+
       // Prepare data for API (exclude confirmPassword and agreeToTerms)
       const { confirmPassword, agreeToTerms, ...userData } = formData;
-      
-      const response = await axios.post('http://localhost:8800/signup', userData);
-      
-      setShowSignUpModal(false);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      navigate("/CustomAccSet");
+
+      const response = await axios.post('/auth/signup', userData);
+      console.log('SignUpModal: Signup response:', response.data);
+
+      // Check if signup was successful and token is provided
+      if (response.data.token) {
+        const token = response.data.token;
+
+        // Store the token in localStorage
+        localStorage.setItem('token', token);
+        console.log('SignUpModal: Token stored in localStorage');
+
+        // Set default Authorization header for axios
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+        // Fetch user data using the token to check profileComplete
+        console.log('SignUpModal: Fetching user data from /auth/me');
+        const userResponse = await axios.get('/auth/me');
+        console.log('SignUpModal: User data received:', userResponse.data);
+
+        // Store the user data in localStorage
+        localStorage.setItem('user', JSON.stringify(userResponse.data));
+        console.log('SignUpModal: User data stored in localStorage');
+
+        // Check if user has completed their profile setup
+        const profileComplete = userResponse.data.profileComplete;
+        console.log('SignUpModal: Profile complete:', profileComplete);
+
+        setShowSignUpModal(false);
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Redirect based on profile completion status and user role
+        if (profileComplete) {
+          console.log('SignUpModal: Redirecting based on user role');
+          const userRole = userResponse.data.role || 'customer';
+          if (userRole === 'admin') {
+            navigate('/dashboard');
+          } else if(userRole === 'customer') {
+            navigate('/customer-dashboard');
+          }
+        } else {
+          console.log('SignUpModal: Redirecting to new account setup');
+          navigate('/newaccountsetup');
+        }
+      } else {
+        // Fallback to direct navigation if no token (shouldn't happen with our changes)
+        setShowSignUpModal(false);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        navigate("/newaccountsetup");
+      }
     } catch (error) {
       console.error("Error signing up:", error);
       let errorMessage = "Failed to sign up. Please try again.";
-      
+
       if (error.response) {
         // Server responded with error status
-        errorMessage = error.response.data.message || errorMessage;
+        const errorData = error.response.data;
+
+        if (error.response.status === 409) {
+          // Handle duplicate email errors
+          if (errorData.authProvider === 'google') {
+            errorMessage = "This email is already registered with Google. Please use 'Continue with Google' to sign in.";
+          } else if (errorData.requiresVerification) {
+            errorMessage = "This email is already registered but not verified. Please check your email for verification instructions.";
+          } else {
+            errorMessage = "This email is already registered. Please try logging in instead.";
+          }
+        } else {
+          errorMessage = errorData.Error || errorData.message || errorMessage;
+        }
       } else if (error.request) {
         // Request was made but no response received
         errorMessage = "Network error. Please check your connection.";
       }
-      
+
       setErrors(prev => ({...prev, form: errorMessage}));
     } finally {
       setIsLoading(false);
@@ -124,6 +186,11 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
   const handleGoogleSignUp = () => {
     setIsLoading(true);
     try {
+      // Clear any existing localStorage data to avoid stale data
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      console.log('SignUpModal: Cleared localStorage before Google OAuth');
+
       // Redirect to Google OAuth endpoint
       window.location.href = 'http://localhost:8800/auth/google';
     } catch (error) {
@@ -263,7 +330,7 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
 
       {/* Main Sign-Up Modal - lower z-index */}
       {showSignUpModal && !showEmailForm && !isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex justify-center items-center z-50 animate-fadeIn">
+        <div className="fixed inset-0  bg-opacity-30 backdrop-blur-sm flex justify-center items-center z-50 animate-fadeIn">
           <div className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border border-gray-200 transform transition-all duration-300 hover:shadow-lg">
             <div className="mb-6">
               <h2 className="text-3xl font-extrabold mb-2">Join Us</h2>
@@ -334,7 +401,7 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
 
       {/* Email Sign-Up Modal - lower z-index */}
       {showEmailForm && !isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex justify-center items-center z-50 animate-fadeIn">
+        <div className="fixed inset-0  bg-opacity-30 backdrop-blur-sm flex justify-center items-center z-50 animate-fadeIn">
           <div className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Create Account</h2>

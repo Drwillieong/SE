@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import pusa from "../assets/pusa.jpeg";
@@ -19,6 +19,60 @@ const LoginPage = () => {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
   const navigate = useNavigate();
+
+  // Handle Google OAuth callback
+  useEffect(() => {
+    const handleGoogleCallback = async () => {
+      try {
+        // Check if token is in URL parameters (from Google OAuth redirect)
+        const urlParams = new URLSearchParams(window.location.search);
+        const tokenFromUrl = urlParams.get('token');
+
+        if (tokenFromUrl) {
+          console.log('LoginPage: Token found in URL from Google OAuth');
+
+          // Store the token in localStorage
+          localStorage.setItem('token', tokenFromUrl);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${tokenFromUrl}`;
+
+          // Fetch user data using the token
+          console.log('LoginPage: Fetching user data from /auth/me');
+          const userResponse = await axios.get('http://localhost:8800/auth/me');
+          console.log('LoginPage: User data received:', userResponse.data);
+
+          // Store the user data in localStorage
+          localStorage.setItem('user', JSON.stringify(userResponse.data));
+
+          // Check if user has completed their profile setup
+          const profileComplete = userResponse.data.profileComplete;
+          console.log('LoginPage: Profile complete:', profileComplete);
+
+          // Clean up URL by removing token parameter
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+
+          // Redirect based on profile completion status and user role
+          if (profileComplete) {
+            console.log('LoginPage: Redirecting based on user role');
+            const userRole = userResponse.data.role || 'user';
+            if (userRole === 'admin') {
+              navigate('/dashboard');
+            } else if (userRole === 'user') {
+              navigate('/customer-dashboard');
+            }
+          } else {
+            console.log('LoginPage: Redirecting to new account setup');
+            navigate('/newaccountsetup');
+          }
+        }
+      } catch (error) {
+        console.error('LoginPage: Error handling Google OAuth callback:', error);
+        setError('Failed to complete Google authentication. Please try again.');
+      }
+    };
+
+    handleGoogleCallback();
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -41,27 +95,31 @@ const LoginPage = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:8800/login', {
+      const response = await axios.post('http://localhost:8800/auth/login', {
         email,
         password
       });
       
+      // Check if user data exists in response
+      if (!response.data.user) {
+        setError("Login failed: Invalid response from server. Please try again.");
+        return;
+      }
+
       // Store token and user data
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      
+
       // Reset failed attempts on successful login
       setFailedAttempts(0);
-      
+
       // Redirect based on user role
       if (response.data.user.role === "admin") {
         alert("Admin login successful! Redirecting to dashboard...");
         navigate("/dashboard");
-      } else if (response.data.user.role === "customer") {
-        alert("Customer login successful! Redirecting to your personal page...");
-        navigate("/dashboard");
       } else {
-        setError("Invalid user role.");
+        alert("Login successful! Redirecting to your dashboard...");
+        navigate("/customer-dashboard");
       }
     } catch (err) {
       // Increment failed attempts counter
@@ -96,7 +154,7 @@ const LoginPage = () => {
     setResendMessage("");
     
     try {
-      const response = await axios.post('http://localhost:8800/resend-verification', {
+      const response = await axios.post('http://localhost:8800/auth/resend-verification', {
         email: emailForVerification
       });
       
@@ -132,7 +190,7 @@ const LoginPage = () => {
 
     try {
       // Call your backend password reset endpoint
-      const response = await axios.post('http://localhost:8800/forgot-password', {
+      const response = await axios.post('http://localhost:8800/auth/forgot-password', {
         email: resetEmail
       });
       
