@@ -52,6 +52,9 @@ const Booking = () => {
   const [rejectModalIsOpen, setRejectModalIsOpen] = useState(false);
   const [bookingToReject, setBookingToReject] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [selectedDayBookings, setSelectedDayBookings] = useState([]);
+  const [dayBookingsModalIsOpen, setDayBookingsModalIsOpen] = useState(false);
+  const [dayBookingsSortBy, setDayBookingsSortBy] = useState('pickupDate');
   const [newBooking, setNewBooking] = useState({
     serviceType: "washFold",
     pickupDate: "",
@@ -129,6 +132,20 @@ const Booking = () => {
   };
 
   const formatBookingData = (id, data) => {
+    // Parse photos from JSON string to array if it's a string
+    let photos = [];
+    if (data.photos) {
+      if (typeof data.photos === 'string') {
+        try {
+          photos = JSON.parse(data.photos);
+        } catch (e) {
+          photos = [];
+        }
+      } else if (Array.isArray(data.photos)) {
+        photos = data.photos;
+      }
+    }
+
     return {
       id,
       name: data.name || "No Name",
@@ -143,7 +160,7 @@ const Booking = () => {
       status: data.status,
       createdAt: data.createdAt,
       paymentMethod: data.paymentMethod || "cash",
-      photos: data.photos || [],
+      photos: photos,
       totalPrice: data.totalPrice || (serviceTypes.find(s => s.value === (data.serviceType || "washFold"))?.price || 0) * (data.loadCount || 1)
     };
   };
@@ -323,6 +340,7 @@ const Booking = () => {
 
   // Convert bookings to calendar events
   const calendarEvents = approvedBookings.map((booking) => {
+    console.log('Creating calendar event for booking:', booking.id, booking.pickupDate, booking.pickupTime);
     const [startHour, endHour] = booking.pickupTime.includes('am') ?
       booking.pickupTime.replace('am', '').split('-').map((t) => parseInt(t)) :
       booking.pickupTime.replace('pm', '').split('-').map((t) => parseInt(t) + 12);
@@ -333,13 +351,52 @@ const Booking = () => {
     const endDate = new Date(booking.pickupDate);
     endDate.setHours(endHour);
 
-    return {
+    const event = {
       title: `${booking.name} - ${serviceTypes.find((s) => s.value === booking.serviceType)?.label || booking.serviceType}`,
       start: startDate,
       end: endDate,
       allDay: false,
       resource: booking
     };
+    console.log('Created event:', event);
+    return event;
+  });
+  console.log('Total calendar events created:', calendarEvents.length);
+
+  // Handle day click in calendar
+  const handleSelectSlot = (slotInfo) => {
+    console.log('handleSelectSlot called with:', slotInfo);
+    const clickedDate = slotInfo.start;
+    console.log('Clicked date:', clickedDate);
+    const dayString = clickedDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    console.log('Day string:', dayString);
+
+    // Get all bookings for the clicked day
+    // Handle both ISO string format and YYYY-MM-DD format
+    const dayBookings = approvedBookings.filter(booking => {
+      const bookingDate = booking.pickupDate.includes('T') ?
+        booking.pickupDate.split('T')[0] : booking.pickupDate;
+      return bookingDate === dayString;
+    });
+    console.log('Day bookings found:', dayBookings.length, dayBookings);
+
+    if (dayBookings.length > 0) {
+      console.log('Opening day bookings modal with', dayBookings.length, 'bookings');
+      setSelectedDayBookings(dayBookings);
+      setDayBookingsModalIsOpen(true);
+    } else {
+      console.log('No bookings for selected day');
+    }
+  };
+
+  // Sort day bookings
+  const sortedDayBookings = [...selectedDayBookings].sort((a, b) => {
+    if (dayBookingsSortBy === 'pickupDate') {
+      return new Date(a.pickupDate + ' ' + a.pickupTime) - new Date(b.pickupDate + ' ' + b.pickupTime);
+    } else if (dayBookingsSortBy === 'address') {
+      return a.address.localeCompare(b.address);
+    }
+    return 0;
   });
 
   if (loading) return (
@@ -391,9 +448,13 @@ const Booking = () => {
             endAccessor="end"
             style={{ height: '100%' }}
             onSelectEvent={(event) => setSelectedBooking(event.resource)}
+            onSelectSlot={handleSelectSlot}
+            selectable
+            views={['month', 'week', 'day']}
+            defaultView="month"
           />
-        </div>
-      ) : (
+      </div>
+    ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Approved Bookings Section */}
           <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-lg shadow-md">
@@ -514,9 +575,7 @@ const Booking = () => {
                 selectedBooking.paymentMethod === 'gcash' ? 'GCash' :
                 selectedBooking.paymentMethod === 'card' ? 'Credit/Debit Card' : 'Not specified'
               }</p>
-              {selectedBooking.paymentDetails?.gcashNumber && (
-                <p><span className="font-semibold">GCash Number:</span> {selectedBooking.paymentDetails.gcashNumber}</p>
-              )}
+
               {selectedBooking.instructions && (
                 <p><span className="font-semibold">Instructions:</span> {selectedBooking.instructions}</p>
               )}
@@ -777,6 +836,84 @@ const Booking = () => {
               </button>
             </div>
           </form>
+        </div>
+      </Modal>
+
+      {/* Day Bookings Modal */}
+      <Modal
+        isOpen={dayBookingsModalIsOpen}
+        onRequestClose={() => setDayBookingsModalIsOpen(false)}
+        style={customStyles}
+        contentLabel="Day Bookings"
+      >
+        <div className="p-4 sm:p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl sm:text-2xl font-semibold">
+              Bookings for {selectedDayBookings.length > 0 ? new Date(selectedDayBookings[0].pickupDate).toLocaleDateString() : ''}
+            </h2>
+            <button
+              onClick={() => setDayBookingsModalIsOpen(false)}
+              className="text-gray-500 hover:text-gray-700 text-xl"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Sorting Options */}
+          <div className="mb-4 flex gap-2">
+            <label className="text-sm font-medium text-gray-700">Sort by:</label>
+            <select
+              value={dayBookingsSortBy}
+              onChange={(e) => setDayBookingsSortBy(e.target.value)}
+              className="text-sm border rounded px-2 py-1"
+            >
+              <option value="pickupDate">Pickup Date & Time</option>
+              <option value="address">Address</option>
+            </select>
+          </div>
+
+          {/* Bookings List */}
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {sortedDayBookings.map((booking) => (
+              <div key={booking.id} className="border p-3 rounded-lg bg-gray-50">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg">{booking.name}</h3>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Service:</span> {serviceTypes.find((s) => s.value === booking.serviceType)?.label || booking.serviceType}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Time:</span> {booking.pickupTime}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Address:</span> {booking.address}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Loads:</span> {booking.loadCount} (₱{booking.totalPrice})
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedBooking(booking);
+                      setDayBookingsModalIsOpen(false);
+                    }}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                  >
+                    View Details
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={() => setDayBookingsModalIsOpen(false)}
+              className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-md transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </Modal>
 
