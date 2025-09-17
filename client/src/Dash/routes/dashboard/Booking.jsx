@@ -85,22 +85,12 @@ const Booking = () => {
         return;
       }
 
-      // Create AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        console.log('Request timed out');
-        controller.abort();
-      }, 10000); // 10 second timeout
-
       console.log('Making fetch request to /api/admin/bookings');
       const response = await fetch('http://localhost:8800/api/admin/bookings', {
         headers: {
           'Authorization': `Bearer ${token}`
-        },
-        signal: controller.signal
+        }
       });
-
-      clearTimeout(timeoutId);
       console.log('Response received, status:', response.status);
 
       if (response.ok) {

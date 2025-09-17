@@ -18,7 +18,7 @@ const OrderHistory = () => {
                 return;
             }
 
-            const response = await fetch('http://localhost:8800/api/orders', {
+            const response = await fetch('http://localhost:8800/api/bookings', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

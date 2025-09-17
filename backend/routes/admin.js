@@ -9,8 +9,8 @@ import { verifyToken, requireAdmin } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 // Booking routes
-router.get('/bookings', verifyToken, requireAdmin, getAllBookings);
-router.get('/bookings/:id', verifyToken, requireAdmin, getBookingById);
+router.get('/bookings', verifyToken, requireAdmin, (req, res) => getAllBookings(req.db)(req, res));
+router.get('/bookings/:id', verifyToken, requireAdmin, (req, res) => getBookingById(req.db)(req, res));
 router.post('/bookings', [
   body('serviceType').isIn(['washFold', 'dryCleaning', 'hangDry']).withMessage('Invalid service type'),
   body('pickupDate').isISO8601().withMessage('Invalid pickup date'),
@@ -20,14 +20,14 @@ router.post('/bookings', [
   body('contact').notEmpty().withMessage('Contact is required'),
   body('address').notEmpty().withMessage('Address is required'),
   body('paymentMethod').isIn(['cash', 'gcash', 'card']).withMessage('Invalid payment method')
-], verifyToken, requireAdmin, createBooking);
-router.put('/bookings/:id', verifyToken, requireAdmin, updateBooking);
-router.delete('/bookings/:id', verifyToken, requireAdmin, deleteBooking);
+], verifyToken, requireAdmin, (req, res) => createBooking(req.db)(req, res));
+router.put('/bookings/:id', verifyToken, requireAdmin, (req, res) => updateBooking(req.db)(req, res));
+router.delete('/bookings/:id', verifyToken, requireAdmin, (req, res) => deleteBooking(req.db)(req, res));
 
 // Order routes
-router.get('/orders', verifyToken, requireAdmin, getAllOrders);
-router.get('/orders/:id', verifyToken, requireAdmin, getOrderById);
-router.get('/orders/status/:status', verifyToken, requireAdmin, getOrdersByStatus);
+router.get('/orders', verifyToken, requireAdmin, (req, res) => getAllOrders(req.db)(req, res));
+router.get('/orders/:id', verifyToken, requireAdmin, (req, res) => getOrderById(req.db)(req, res));
+router.get('/orders/status/:status', verifyToken, requireAdmin, (req, res) => getOrdersByStatus(req.db)(req, res));
 router.post('/orders', [
   body('serviceType').isIn(['washFold', 'dryCleaning', 'hangDry']).withMessage('Invalid service type'),
   body('pickupDate').isISO8601().withMessage('Invalid pickup date'),
@@ -37,16 +37,16 @@ router.post('/orders', [
   body('contact').notEmpty().withMessage('Contact is required'),
   body('address').notEmpty().withMessage('Address is required'),
   body('paymentMethod').isIn(['cash', 'gcash', 'card']).withMessage('Invalid payment method')
-], verifyToken, requireAdmin, createOrder);
-router.put('/orders/:id', verifyToken, requireAdmin, updateOrder);
-router.delete('/orders/:id', verifyToken, requireAdmin, deleteOrder);
+], verifyToken, requireAdmin, (req, res) => createOrder(req.db)(req, res));
+router.put('/orders/:id', verifyToken, requireAdmin, (req, res) => updateOrder(req.db)(req, res));
+router.delete('/orders/:id', verifyToken, requireAdmin, (req, res) => deleteOrder(req.db)(req, res));
 
 // Dashboard routes
-router.get('/dashboard/stats', verifyToken, requireAdmin, getDashboardStats);
-router.get('/dashboard/revenue', verifyToken, requireAdmin, getMonthlyRevenue);
-router.get('/dashboard/weekly-orders', verifyToken, requireAdmin, getWeeklyOrders);
+router.get('/dashboard/stats', verifyToken, requireAdmin, (req, res) => getDashboardStats(req.db)(req, res));
+router.get('/dashboard/revenue', verifyToken, requireAdmin, (req, res) => getMonthlyRevenue(req.db)(req, res));
+router.get('/dashboard/weekly-orders', verifyToken, requireAdmin, (req, res) => getWeeklyOrders(req.db)(req, res));
 
 // User management routes (admin only)
-router.get('/users', verifyToken, requireAdmin, getAllUsers);
+router.get('/users', verifyToken, requireAdmin, (req, res) => getAllUsers(req.db)(req, res));
 
 export default router;
