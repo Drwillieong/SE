@@ -22,7 +22,7 @@ db.connect((err) => {
     const adminPassword = 'admin123';
 
     // Check if admin already exists
-    const checkAdminSql = "SELECT id FROM users WHERE email = ?";
+    const checkAdminSql = "SELECT user_id FROM users WHERE email = ?";
     db.query(checkAdminSql, [adminEmail], (err, results) => {
         if (err) {
             console.error('Error checking admin user:', err);

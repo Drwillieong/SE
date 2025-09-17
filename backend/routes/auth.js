@@ -2,25 +2,9 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import { signup, login, verifyEmail, resendVerification, forgotPassword, resetPassword, changePassword } from '../controllers/authController.js';
 import passport from 'passport';
+import { verifyToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
-
-// JWT middleware to verify tokens
-const verifyToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Access token required' });
-  }
-
-  const token = authHeader.substring(7);
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ message: 'Invalid token' });
-  }
-};
 
 // This function will be called from server.js to pass the db connection
 export default (db) => {
@@ -47,23 +31,23 @@ export default (db) => {
         (req, res) => {
             console.log('Google OAuth callback reached');
             console.log('User from Google:', req.user);
-            console.log('User ID:', req.user.id);
+            console.log('User ID:', req.user.user_id);
             console.log('User email:', req.user.email);
 
             // Check if user profile is complete
-            const checkProfileSql = "SELECT id, barangay, street, firstName, lastName, role FROM users WHERE id = ?";
-            console.log('Checking profile for user ID:', req.user.id);
-            db.query(checkProfileSql, [req.user.id], (err, profileResult) => {
+            const checkProfileSql = "SELECT user_id, barangay, street, firstName, lastName, role FROM users WHERE user_id = ?";
+            console.log('Checking profile for user ID:', req.user.user_id);
+            db.query(checkProfileSql, [req.user.user_id], (err, profileResult) => {
                 if (err) {
                     console.error('Error checking user profile:', err);
                     // On error, redirect to new account setup
                     const token = jwt.sign(
                         {
-                            id: req.user.id,
-                            email: req.user.email,
-                            firstName: req.user.firstName,
-                            lastName: req.user.lastName,
-                            role: req.user.role || 'user'
+                    user_id: req.user.user_id,
+                    email: req.user.email,
+                    firstName: req.user.firstName,
+                    lastName: req.user.lastName,
+                    role: req.user.role || 'user'
                         },
                         process.env.JWT_SECRET || 'your_jwt_secret',
                         { expiresIn: '1h' }
@@ -80,11 +64,11 @@ export default (db) => {
                     console.log('No profile found for user, redirecting to setup');
                     const token = jwt.sign(
                         {
-                            id: req.user.id,
-                            email: req.user.email,
-                            firstName: req.user.firstName,
-                            lastName: req.user.lastName,
-                            role: req.user.role || 'user'
+                    user_id: req.user.user_id,
+                    email: req.user.email,
+                    firstName: req.user.firstName,
+                    lastName: req.user.lastName,
+                    role: req.user.role || 'user'
                         },
                         process.env.JWT_SECRET || 'your_jwt_secret',
                         { expiresIn: '1h' }
@@ -96,7 +80,7 @@ export default (db) => {
 
                 const userProfile = profileResult[0];
                 console.log('User profile data:', {
-                    id: userProfile.id,
+                    user_id: userProfile.user_id,
                     barangay: userProfile.barangay,
                     street: userProfile.street,
                     firstName: userProfile.firstName,
@@ -113,7 +97,7 @@ export default (db) => {
                 // Generate JWT token
                 const token = jwt.sign(
                     {
-                        id: req.user.id,
+                        user_id: req.user.user_id,
                         email: req.user.email,
                         firstName: req.user.firstName,
                         lastName: req.user.lastName,
@@ -167,9 +151,9 @@ export default (db) => {
             console.log('Auth /me - Token decoded successfully:', decoded);
 
             // Get user data from database to check if profile is complete
-            const userId = decoded.id;
+            const userId = decoded.user_id;
             console.log('Auth /me - Fetching user data for ID:', userId);
-            const selectQuery = 'SELECT * FROM users WHERE id = ?';
+            const selectQuery = 'SELECT * FROM users WHERE user_id = ?';
             db.query(selectQuery, [userId], (err, rows) => {
                 if (err) {
                     console.error('Auth /me - Error fetching user:', err);
@@ -185,7 +169,7 @@ export default (db) => {
 
                 // Log user data for debugging
                 console.log('Auth /me - User data from DB:', {
-                    id: user.id,
+                    user_id: user.user_id,
                     email: user.email,
                     firstName: user.firstName,
                     lastName: user.lastName,
@@ -233,7 +217,7 @@ export default (db) => {
 
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
-            const userId = decoded.id;
+            const userId = decoded.user_id;
 
             const { firstName, lastName, contact, email, barangay, street, blockLot, landmark } = req.body;
 
@@ -241,7 +225,7 @@ export default (db) => {
             const updateQuery = `
                 UPDATE users
                 SET firstName = ?, lastName = ?, contact = ?, email = ?, barangay = ?, street = ?, blockLot = ?, landmark = ?
-                WHERE id = ?
+                WHERE user_id = ?
             `;
 
             db.query(updateQuery, [firstName, lastName, contact, email, barangay, street, blockLot, landmark, userId], (err, result) => {
@@ -255,7 +239,7 @@ export default (db) => {
                 }
 
                 // Get updated user data
-                const selectQuery = 'SELECT * FROM users WHERE id = ?';
+                const selectQuery = 'SELECT * FROM users WHERE user_id = ?';
                 db.query(selectQuery, [userId], (err, rows) => {
                     if (err) {
                         console.error('Error fetching updated user:', err);

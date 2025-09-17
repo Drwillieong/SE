@@ -67,7 +67,8 @@ export const sendVerificationEmail = async (email, token) => {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #007bff;">Email Verification</h2>
-                
+                  <p>Jackie Chan</p>
+                    <p>kakaltukan ko tong mga nasa harap natin pag dipa tumigil</p>
                  <p>TITIGL NAKO</p>
                  <p>TITIGL NAKO</p>
                  <p>TITIGL NAKO</p>

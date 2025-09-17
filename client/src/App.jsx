@@ -8,10 +8,10 @@ import Layout from "./Dash/routes/layout";
 import DashboardPage from "./Dash/routes/dashboard/Dashboard";
 import OrderManagement from "./Dash/routes/dashboard/OrderManagement";
 import Booking from "./Dash/routes/dashboard/Booking";
-import CustomerBooking from "./CustomerDash/routes/dashboard/Booking";
-import CustomerHistory from "./CustomerDash/routes/dashboard/OrderHistory";
+
+import BookHistory from "./CustomerDash/routes/dashboard/BookHistory";
 import CustomerProfile from "./CustomerDash/routes/dashboard/Profile";
-import CustomerScheduleOrder from "./CustomerDash/routes/dashboard/ScheduleOrder";
+import ScheduleBooking from "./CustomerDash/routes/dashboard/ScheduleBooking";
 
 import AdminHistory from "./Dash/routes/dashboard/AdminHistory";
 import AdminSettings from "./Dash/routes/dashboard/AdminSettings";
@@ -79,19 +79,15 @@ function App() {
             children: [
                 {
                     index: true,
-                    element: <CustomerBooking />,
+                    element: <ScheduleBooking />,
                 },
                 {
-                    path: "booking",
-                    element: <CustomerBooking />,
-                },
-                {
-                    path: "schedule-order",
-                    element: <CustomerScheduleOrder />,
+                    path: "schedule-booking",
+                    element: <ScheduleBooking />,
                 },
                 {
                     path: "history",
-                    element: <CustomerHistory />,
+                    element: <BookHistory />,
                 },
                 {
                     path: "profile",

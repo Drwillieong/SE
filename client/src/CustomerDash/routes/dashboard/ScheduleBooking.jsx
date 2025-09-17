@@ -20,7 +20,7 @@ const barangayPricing = {
   "La Mesa": 40
 };
 
-const ScheduleOrder = () => {
+const ScheduleBooking = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -29,7 +29,6 @@ const ScheduleOrder = () => {
   const [activeTab, setActiveTab] = useState('pickup');
   const [orders, setOrders] = useState([]);
   const [editingOrder, setEditingOrder] = useState(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showPaymentDetailsModal, setShowPaymentDetailsModal] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
@@ -121,7 +120,7 @@ const ScheduleOrder = () => {
           setDeliveryFee(calculateDeliveryFee(userRes.data.barangay));
         }
         // Fetch orders
-        const ordersRes = await axios.get('http://localhost:8800/api/orders', {
+        const ordersRes = await axios.get('http://localhost:8800/api/bookings', {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 10000,
           withCredentials: true
@@ -144,11 +143,6 @@ const ScheduleOrder = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handlePaymentChange = (e) => {
-    const { name, value } = e.target;
-    setPaymentDetails(prev => ({ ...prev, [name]: value }));
-  };
-
   const handlePaymentMethodChange = (method) => {
     setPaymentDetails(prev => ({ ...prev, method }));
     setFormData(prev => ({ ...prev, paymentMethod: method }));
@@ -160,21 +154,6 @@ const ScheduleOrder = () => {
 
   const handleServiceOptionChange = (option) => {
     setFormData(prev => ({ ...prev, serviceOption: option }));
-  };
-
-  const handlePaymentDetailsSubmit = () => {
-    // Validate payment details
-    if (paymentDetails.method === 'gcash' && !paymentDetails.gcashNumber) {
-      alert('Please enter your GCash number');
-      return;
-    }
-    if (paymentDetails.method === 'card') {
-      if (!paymentDetails.cardNumber || !paymentDetails.expiry || !paymentDetails.cvv) {
-        alert('Please fill in all card details');
-        return;
-      }
-    }
-    setShowPaymentDetailsModal(false);
   };
 
   const handleSubmit = (e) => {
@@ -221,15 +200,15 @@ const ScheduleOrder = () => {
 
       const token = localStorage.getItem('token');
       if (editingOrder) {
-        // Update existing order
-        await axios.put(`http://localhost:8800/api/orders/${editingOrder.id}`, orderPayload, {
+        // Update existing booking
+        await axios.put(`http://localhost:8800/api/bookings/${editingOrder.booking_id || editingOrder.id}`, orderPayload, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
-        alert('Order updated successfully!');
+        alert('Booking updated successfully!');
       } else {
-        // Create new order
-        await axios.post('http://localhost:8800/api/orders', orderPayload, {
+        // Create new booking
+        await axios.post('http://localhost:8800/api/bookings', orderPayload, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
@@ -241,7 +220,7 @@ const ScheduleOrder = () => {
       resetForm();
       setActiveTab('orders');
       // Refresh orders
-        const ordersRes = await axios.get('http://localhost:8800/api/orders', {
+        const ordersRes = await axios.get('http://localhost:8800/api/bookings', {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
@@ -268,35 +247,35 @@ const ScheduleOrder = () => {
     setActiveTab('pickup');
   };
 
-      const handleCancel = async (orderId) => {
-        if (window.confirm('Are you sure you want to cancel this booking?')) {
-          try {
-            setLoading(true);
-            const token = localStorage.getItem('token');
-            // Add content-type header for JSON
-            await axios.put(`http://localhost:8800/api/orders/${orderId}`, { status: 'cancelled' }, {
-              headers: { 
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              withCredentials: true
-            });
-            alert('Order cancelled successfully!');
-            // Refresh orders and filter out cancelled order
-            const ordersRes = await axios.get('http://localhost:8800/api/orders', {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            // Filter out cancelled orders from the list
-            const filteredOrders = ordersRes.data.filter(order => order.status !== 'cancelled');
-            setOrders(filteredOrders);
-          } catch (error) {
-            console.error('Error cancelling order:', error);
-            alert('Failed to cancel order. Please try again.');
-          } finally {
-            setLoading(false);
-          }
-        }
-      };
+  const handleCancel = async (orderId) => {
+    if (window.confirm('Are you sure you want to cancel this booking?')) {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        // Add content-type header for JSON
+        await axios.put(`http://localhost:8800/api/bookings/${orderId}`, { status: 'cancelled' }, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
+        });
+        alert('Booking cancelled successfully!');
+        // Refresh orders and filter out cancelled order
+        const ordersRes = await axios.get('http://localhost:8800/api/bookings', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        // Filter out cancelled orders from the list
+        const filteredOrders = ordersRes.data.filter(order => order.status !== 'cancelled');
+        setOrders(filteredOrders);
+      } catch (error) {
+        console.error('Error cancelling booking:', error);
+        alert('Failed to cancel booking. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -592,19 +571,19 @@ const ScheduleOrder = () => {
                     <p className="text-gray-600">Name:</p>
                     <p className="font-medium">{userData.firstName} {userData.lastName}</p>
                   </div>
-                  
+
                   <div>
                     <p className="text-gray-600">Contact:</p>
                     <p className="font-medium">{userData.contact || 'Not provided'}</p>
                   </div>
-                  
+
                   <div className="col-span-2">
                     <p className="text-gray-600">Address:</p>
                     <p className="font-medium">
                       {userData.street}{userData.blockLot ? `, Block ${userData.blockLot}` : ''}, {userData.barangay}, Calamba City
                     </p>
                   </div>
-                  
+
                 </div>
 
                 {formData.serviceOption !== 'pickupOnly' && (
@@ -663,8 +642,8 @@ const ScheduleOrder = () => {
                   You don't have any orders yet.
                 </div>
               ) : (
-                orders.map(order => (
-                  <div key={order.id} className="p-6">
+                orders.map((order, index) => (
+                  <div key={order.id || index} className="p-6">
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium">{services.find(s => s.id === order.serviceType)?.name || order.serviceType}</h3>
@@ -745,4 +724,4 @@ const ScheduleOrder = () => {
   );
 };
 
-export default ScheduleOrder;
+export default ScheduleBooking;

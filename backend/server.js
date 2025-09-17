@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import orderRoutes from './routes/orders.js';
+import bookingRoutes from './routes/bookings.js';
 import { initializeGoogleStrategy } from './config/googleOAuth.js';
 
 // Load environment variables from .env file
@@ -87,7 +88,7 @@ db.connect(async (err) => {
             console.log('Users table not found, creating it...');
             const createTableSql = `
                 CREATE TABLE users (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT AUTO_INCREMENT PRIMARY KEY,
                     firstName VARCHAR(255) NOT NULL,
                     lastName VARCHAR(255) NOT NULL,
                     contact VARCHAR(20),
@@ -99,7 +100,7 @@ db.connect(async (err) => {
                     landmark VARCHAR(255),
                     googleId VARCHAR(255) UNIQUE,
                     authProvider ENUM('email', 'google') DEFAULT 'email',
-                    role ENUM('customer', 'admin') DEFAULT 'customer',
+                    role ENUM('user', 'admin') DEFAULT 'user',
                     isVerified BOOLEAN DEFAULT FALSE,
                     verificationToken VARCHAR(255),
                     resetToken VARCHAR(255),
@@ -237,6 +238,67 @@ db.connect(async (err) => {
             });
         }
     });
+
+    // Check if bookings table exists, create it if not
+    const checkBookingsTableSql = "SHOW TABLES LIKE 'bookings'";
+    db.query(checkBookingsTableSql, (err, result) => {
+        if (err) {
+            console.error('Error checking bookings table:', err.message);
+            return;
+        }
+
+        if (result.length === 0) {
+            console.log('Bookings table not found, creating it...');
+            const createBookingsTableSql = `
+                CREATE TABLE bookings (
+                    booking_id INT AUTO_INCREMENT PRIMARY KEY,
+                    serviceType ENUM('washFold', 'dryCleaning', 'hangDry') NOT NULL,
+                    pickupDate DATE NOT NULL,
+                    pickupTime ENUM('7am-10am', '5pm-7pm') NOT NULL,
+                    loadCount INT NOT NULL DEFAULT 1,
+                    instructions TEXT,
+                    status ENUM('pending', 'approved', 'rejected', 'completed', 'cancelled') DEFAULT 'pending',
+                    rejectionReason TEXT,
+                    paymentMethod ENUM('cash', 'gcash', 'card') NOT NULL,
+                    name VARCHAR(255) NOT NULL,
+                    contact VARCHAR(20) NOT NULL,
+                    email VARCHAR(255),
+                    address TEXT NOT NULL,
+                    photos JSON,
+                    totalPrice DECIMAL(10, 2) NOT NULL,
+                    user_id INT,
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_status (status),
+                    INDEX idx_created_at (createdAt),
+                    INDEX idx_user_id (user_id),
+                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+                )
+            `;
+
+            db.query(createBookingsTableSql, (err) => {
+                if (err) {
+                    console.error('Error creating bookings table:', err.message);
+                } else {
+                    console.log('Bookings table created successfully');
+                }
+            });
+        } else {
+            console.log('Bookings table exists');
+
+            // Update existing users with role 'customer' to 'user'
+            const updateCustomerRoleSql = "UPDATE users SET role = 'user' WHERE role = 'customer'";
+            db.query(updateCustomerRoleSql, (err, result) => {
+                if (err) {
+                    console.error('Error updating customer roles:', err.message);
+                } else if (result.affectedRows > 0) {
+                    console.log(`Updated ${result.affectedRows} users from role 'customer' to 'user'`);
+                } else {
+                    console.log('No users with role \'customer\' found to update');
+                }
+            });
+        }
+    });
 });
 
 const verifyToken = (req, res, next) => {
@@ -277,6 +339,12 @@ const orderRouter = express.Router();
 orderRouter.use(verifyToken);
 orderRouter.use(orderRoutes(db));
 app.use('/api/orders', orderRouter);
+
+// Use booking routes with JWT authentication
+const bookingRouter = express.Router();
+bookingRouter.use(verifyToken);
+bookingRouter.use(bookingRoutes(db));
+app.use('/api/bookings', bookingRouter);
 
 app.get('/', (req, res) => {
     res.send('Server is running!');

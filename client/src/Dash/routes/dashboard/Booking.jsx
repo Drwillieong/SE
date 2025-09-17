@@ -92,8 +92,8 @@ const Booking = () => {
         controller.abort();
       }, 10000); // 10 second timeout
 
-      console.log('Making fetch request to /api/admin/orders');
-      const response = await fetch('http://localhost:8800/api/admin/orders', {
+      console.log('Making fetch request to /api/admin/bookings');
+      const response = await fetch('http://localhost:8800/api/admin/bookings', {
         headers: {
           'Authorization': `Bearer ${token}`
         },
@@ -193,7 +193,7 @@ const Booking = () => {
   const handleApproveBooking = async (bookingId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/orders/${bookingId}`, {
+      const response = await fetch(`http://localhost:8800/api/admin/bookings/${bookingId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -227,7 +227,7 @@ const Booking = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/orders/${bookingToReject.id}`, {
+      const response = await fetch(`http://localhost:8800/api/admin/bookings/${bookingToReject.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -278,7 +278,7 @@ const Booking = () => {
       };
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8800/api/admin/orders', {
+      const response = await fetch('http://localhost:8800/api/admin/bookings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -7,7 +7,7 @@ export const updateProfile = (db) => (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const userId = req.user.id; // Assuming middleware sets req.user
+  const userId = req.user.user_id; // Assuming middleware sets req.user
   const { firstName, lastName, contact, email, barangay, street, blockLot, landmark } = req.body;
 
   const sql = `UPDATE users SET
@@ -19,7 +19,7 @@ export const updateProfile = (db) => (req, res) => {
     street = ?,
     blockLot = ?,
     landmark = ?
-    WHERE id = ?`;
+    WHERE user_id = ?`;
 
   const values = [firstName, lastName, contact, email, barangay, street, blockLot, landmark, userId];
 
@@ -34,7 +34,7 @@ export const updateProfile = (db) => (req, res) => {
     }
 
     // Fetch updated user data
-    const selectSql = "SELECT id, firstName, lastName, contact, email, barangay, street, blockLot, landmark FROM users WHERE id = ?";
+    const selectSql = "SELECT user_id, firstName, lastName, contact, email, barangay, street, blockLot, landmark FROM users WHERE user_id = ?";
     db.query(selectSql, [userId], (err, userResult) => {
       if (err) {
         console.error('Error fetching updated user:', err);
@@ -48,9 +48,9 @@ export const updateProfile = (db) => (req, res) => {
 
 // Controller to get user profile
 export const getProfile = (db) => (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.user_id;
 
-  const sql = "SELECT id, firstName, lastName, contact, email, barangay, street, blockLot, landmark, role FROM users WHERE id = ?";
+  const sql = "SELECT user_id, firstName, lastName, contact, email, barangay, street, blockLot, landmark, role FROM users WHERE user_id = ?";
   db.query(sql, [userId], (err, results) => {
     if (err) {
       console.error('Error fetching profile:', err);
