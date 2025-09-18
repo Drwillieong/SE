@@ -4,32 +4,14 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import Modal from 'react-modal';
+import BookingDetailsModal from './components/BookingDetailsModal';
+import CreateBookingModal from './components/CreateBookingModal';
+import DayBookingsModal from './components/DayBookingsModal';
+import RejectBookingModal from './components/RejectBookingModal';
 
 // Initialize calendar localizer
 const localizer = momentLocalizer(moment);
 
-// Set modal styles
-const customStyles = {
-  content: {
-    top: '50%',
-    left: '50%',
-    right: 'auto',
-    bottom: 'auto',
-    marginRight: '-50%',
-    transform: 'translate(-50%, -50%)',
-    padding: 0,
-    border: 'none',
-    borderRadius: '0.5rem',
-    width: '90%',
-    maxWidth: '600px',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-  },
-  overlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 50,
-  },
-};
 
 Modal.setAppElement('#root');
 
@@ -389,15 +371,7 @@ const Booking = () => {
     }
   };
 
-  // Sort day bookings
-  const sortedDayBookings = [...selectedDayBookings].sort((a, b) => {
-    if (dayBookingsSortBy === 'pickupDate') {
-      return new Date(a.pickupDate + ' ' + a.pickupTime) - new Date(b.pickupDate + ' ' + b.pickupTime);
-    } else if (dayBookingsSortBy === 'address') {
-      return a.address.localeCompare(b.address);
-    }
-    return 0;
-  });
+
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -541,435 +515,44 @@ const Booking = () => {
         </div>
       )}
 
-      {/* Booking Details Modal */}
-      <Modal
-        isOpen={!!selectedBooking}
-        onRequestClose={() => setSelectedBooking(null)}
-        style={customStyles}
-        contentLabel="Booking Details"
-      >
-        {selectedBooking && (
-          <div className="p-4 sm:p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl sm:text-2xl font-semibold">Booking Details</h2>
-              <button 
-                onClick={() => setSelectedBooking(null)} 
-                className="text-gray-500 hover:text-gray-700 text-xl"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-3">
-              <p><span className="font-semibold">Customer:</span> {selectedBooking.name}</p>
-              <p><span className="font-semibold">Contact:</span> {selectedBooking.contact}</p>
-              <p><span className="font-semibold">Email:</span> {selectedBooking.email || "Not provided"}</p>
-              <p><span className="font-semibold">Service Type:</span> {
-                serviceTypes.find((s) => s.value === selectedBooking.serviceType)?.label || selectedBooking.serviceType
-              } (₱{selectedBooking.totalPrice})</p>
-              <p><span className="font-semibold">Pickup Date:</span> {selectedBooking.pickupDate}</p>
-              <p><span className="font-semibold">Pickup Time:</span> {selectedBooking.pickupTime}</p>
-              <p><span className="font-semibold">Address:</span> {selectedBooking.address}</p>
-              <p><span className="font-semibold">Load Count:</span> {selectedBooking.loadCount}</p>
-              <p><span className="font-semibold">Payment Method:</span> {
-                selectedBooking.paymentMethod === 'cash' ? 'Cash on pickup' :
-                selectedBooking.paymentMethod === 'gcash' ? 'GCash' :
-                selectedBooking.paymentMethod === 'card' ? 'Credit/Debit Card' : 'Not specified'
-              }</p>
+      <BookingDetailsModal
+        selectedBooking={selectedBooking}
+        setSelectedBooking={setSelectedBooking}
+        serviceTypes={serviceTypes}
+      />
 
-              {selectedBooking.instructions && (
-                <p><span className="font-semibold">Instructions:</span> {selectedBooking.instructions}</p>
-              )}
-              {selectedBooking.photos && selectedBooking.photos.length > 0 && (
-                <div>
-                  <p className="font-semibold">Item Photos:</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedBooking.photos.map((photo, index) => (
-                      <a 
-                        key={index} 
-                        href={photo} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <img 
-                          src={photo} 
-                          alt={`Laundry item ${index + 1}`}
-                          className="h-16 w-16 object-cover rounded border"
-                        />
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <p>
-                <span className="font-semibold">Status:</span> 
-                <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                  selectedBooking.status === 'pending' ? 'bg-yellow-200 text-yellow-800' :
-                  selectedBooking.status === 'approved' ? 'bg-green-200 text-green-800' :
-                  'bg-red-200 text-red-800'
-                }`}>
-                  {selectedBooking.status}
-                </span>
-              </p>
-              {selectedBooking.status === 'rejected' && selectedBooking.rejectionReason && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-                  <p className="font-semibold text-red-800">Rejection Reason:</p>
-                  <p className="text-red-700 mt-1">{selectedBooking.rejectionReason}</p>
-                </div>
-              )}
-              <p><span className="font-semibold">Created At:</span> {
-                selectedBooking.createdAt?.toLocaleString() || 'N/A'
-              }</p>
-            </div>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setSelectedBooking(null)}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <CreateBookingModal
+        modalIsOpen={modalIsOpen}
+        closeModal={closeModal}
+        newBooking={newBooking}
+        handleNewBookingChange={handleNewBookingChange}
+        handleCreateBooking={handleCreateBooking}
+        loading={loading}
+        photoFiles={photoFiles}
+        photoPreviews={photoPreviews}
+        handlePhotoUpload={handlePhotoUpload}
+        removePhoto={removePhoto}
+        serviceTypes={serviceTypes}
+      />
 
-      {/* Create Booking Modal */}
-      <Modal
-        isOpen={modalIsOpen}
-        onRequestClose={closeModal}
-        style={customStyles}
-        contentLabel="Create New Booking"
-      >
-        <div className="p-4 sm:p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl sm:text-2xl font-semibold">Create New Booking</h2>
-            <button 
-              onClick={closeModal} 
-              className="text-gray-500 hover:text-gray-700 text-xl"
-            >
-              ✕
-            </button>
-          </div>
-          <form onSubmit={handleCreateBooking} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={newBooking.name}
-                  onChange={handleNewBookingChange}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number *</label>
-                <input
-                  type="tel"
-                  name="contact"
-                  value={newBooking.contact}
-                  onChange={handleNewBookingChange}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={newBooking.email}
-                  onChange={handleNewBookingChange}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Service Type *</label>
-                <select
-                  name="serviceType"
-                  value={newBooking.serviceType}
-                  onChange={handleNewBookingChange}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                  required
-                >
-                  {serviceTypes.map(service => (
-                    <option key={service.value} value={service.value}>
-                      {service.label} (₱{service.price}/load)
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date *</label>
-                <input
-                  type="date"
-                  name="pickupDate"
-                  value={newBooking.pickupDate}
-                  onChange={handleNewBookingChange}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Time *</label>
-                <select
-                  name="pickupTime"
-                  value={newBooking.pickupTime}
-                  onChange={handleNewBookingChange}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                  required
-                >
-                  <option value="7am-10am">Morning (7am-10am)</option>
-                  <option value="5pm-7pm">Afternoon (5pm-7pm)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Loads *</label>
-                <input
-                  type="number"
-                  name="loadCount"
-                  value={newBooking.loadCount}
-                  onChange={handleNewBookingChange}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                  required
-                  min="1"
-                  max="2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
-                <select
-                  name="paymentMethod"
-                  value={newBooking.paymentMethod}
-                  onChange={handleNewBookingChange}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                  required
-                >
-                  <option value="cash">Cash on Pickup</option>
-                  <option value="gcash">GCash</option>
-                  <option value="card">Credit/Debit Card</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
-              <input
-                type="text"
-                name="address"
-                value={newBooking.address}
-                onChange={handleNewBookingChange}
-                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                required
-              />
-            </div>
-            
-            {/* Photo Upload Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Upload Photos of Laundry (Optional)
-                <span className="text-xs text-gray-500 ml-1">Max 5 photos</span>
-              </label>
-              <div className="mt-1 flex items-center">
-                <label className="cursor-pointer bg-white rounded-md font-medium text-pink-600 hover:text-pink-500 focus-within:outline-none">
-                  <span>Select photos</span>
-                  <input 
-                    type="file" 
-                    multiple 
-                    accept="image/*" 
-                    onChange={handlePhotoUpload}
-                    className="sr-only"
-                  />
-                </label>
-                <p className="text-xs text-gray-500 ml-2">
-                  {photoFiles.length} {photoFiles.length === 1 ? 'photo' : 'photos'} selected
-                </p>
-              </div>
-              
-              {/* Photo Previews */}
-              {photoPreviews.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {photoPreviews.map((preview, index) => (
-                    <div key={index} className="relative">
-                      <img 
-                        src={preview} 
-                        alt={`Laundry preview ${index + 1}`}
-                        className="h-20 w-20 object-cover rounded"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Special Instructions</label>
-              <textarea
-                name="instructions"
-                value={newBooking.instructions}
-                onChange={handleNewBookingChange}
-                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                rows={3}
-              />
-            </div>
-            <div className="flex justify-end space-x-4">
-              <button
-                type="button"
-                onClick={closeModal}
-                className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-md transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={uploadingPhotos || loading}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors disabled:opacity-50"
-              >
-                {uploadingPhotos ? 'Uploading...' : loading ? 'Creating...' : 'Create Booking'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </Modal>
+      <DayBookingsModal
+        dayBookingsModalIsOpen={dayBookingsModalIsOpen}
+        setDayBookingsModalIsOpen={setDayBookingsModalIsOpen}
+        selectedDayBookings={selectedDayBookings}
+        dayBookingsSortBy={dayBookingsSortBy}
+        setDayBookingsSortBy={setDayBookingsSortBy}
+        setSelectedBooking={setSelectedBooking}
+        serviceTypes={serviceTypes}
+      />
 
-      {/* Day Bookings Modal */}
-      <Modal
-        isOpen={dayBookingsModalIsOpen}
-        onRequestClose={() => setDayBookingsModalIsOpen(false)}
-        style={customStyles}
-        contentLabel="Day Bookings"
-      >
-        <div className="p-4 sm:p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl sm:text-2xl font-semibold">
-              Bookings for {selectedDayBookings.length > 0 ? new Date(selectedDayBookings[0].pickupDate).toLocaleDateString() : ''}
-            </h2>
-            <button
-              onClick={() => setDayBookingsModalIsOpen(false)}
-              className="text-gray-500 hover:text-gray-700 text-xl"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Sorting Options */}
-          <div className="mb-4 flex gap-2">
-            <label className="text-sm font-medium text-gray-700">Sort by:</label>
-            <select
-              value={dayBookingsSortBy}
-              onChange={(e) => setDayBookingsSortBy(e.target.value)}
-              className="text-sm border rounded px-2 py-1"
-            >
-              <option value="pickupDate">Pickup Date & Time</option>
-              <option value="address">Address</option>
-            </select>
-          </div>
-
-          {/* Bookings List */}
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {sortedDayBookings.map((booking) => (
-              <div key={booking.id} className="border p-3 rounded-lg bg-gray-50">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{booking.name}</h3>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Service:</span> {serviceTypes.find((s) => s.value === booking.serviceType)?.label || booking.serviceType}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Time:</span> {booking.pickupTime}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Address:</span> {booking.address}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Loads:</span> {booking.loadCount} (₱{booking.totalPrice})
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSelectedBooking(booking);
-                      setDayBookingsModalIsOpen(false);
-                    }}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors"
-                  >
-                    View Details
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <button
-              onClick={() => setDayBookingsModalIsOpen(false)}
-              className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-md transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Reject Booking Modal */}
-      <Modal
-        isOpen={rejectModalIsOpen}
-        onRequestClose={closeRejectModal}
-        style={customStyles}
-        contentLabel="Reject Booking"
-      >
-        <div className="p-4 sm:p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl sm:text-2xl font-semibold">Reject Booking</h2>
-            <button
-              onClick={closeRejectModal}
-              className="text-gray-500 hover:text-gray-700 text-xl"
-            >
-              ✕
-            </button>
-          </div>
-          {bookingToReject && (
-            <div className="mb-4">
-              <p className="text-sm text-gray-600">
-                Are you sure you want to reject the booking for <strong>{bookingToReject.name}</strong>?
-              </p>
-            </div>
-          )}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Rejection Reason *
-            </label>
-            <textarea
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-              rows={4}
-              placeholder="Please provide a reason for rejecting this booking..."
-              required
-            />
-          </div>
-          <div className="flex justify-end space-x-4">
-            <button
-              onClick={closeRejectModal}
-              className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-md transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmRejectBooking}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition-colors"
-            >
-              Reject Booking
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <RejectBookingModal
+        rejectModalIsOpen={rejectModalIsOpen}
+        closeRejectModal={closeRejectModal}
+        bookingToReject={bookingToReject}
+        rejectionReason={rejectionReason}
+        setRejectionReason={setRejectionReason}
+        confirmRejectBooking={confirmRejectBooking}
+      />
     </div>
   );
 };
