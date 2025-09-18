@@ -1,6 +1,6 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { getAllBookings, getBookingById, createBooking, updateBooking, deleteBooking } from '../controllers/bookingController.js';
+import { getAllBookings, getBookingById, createBooking, updateBooking, deleteBooking, sendPickupEmail } from '../controllers/bookingController.js';
 import { getAllOrders, getOrderById, createOrder, updateOrder, deleteOrder, getOrdersByStatus } from '../controllers/orderController.js';
 import { getDashboardStats, getMonthlyRevenue, getWeeklyOrders } from '../controllers/dashboardController.js';
 import { getAllUsers } from '../controllers/userController.js';
@@ -23,6 +23,7 @@ router.post('/bookings', [
 ], verifyToken, requireAdmin, (req, res) => createBooking(req.db)(req, res));
 router.put('/bookings/:id', verifyToken, requireAdmin, (req, res) => updateBooking(req.db)(req, res));
 router.delete('/bookings/:id', verifyToken, requireAdmin, (req, res) => deleteBooking(req.db)(req, res));
+router.post('/bookings/:id/pickup-email', verifyToken, requireAdmin, (req, res) => sendPickupEmail(req.db)(req, res));
 
 // Order routes
 router.get('/orders', verifyToken, requireAdmin, (req, res) => getAllOrders(req.db)(req, res));

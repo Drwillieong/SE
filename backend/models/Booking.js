@@ -18,7 +18,7 @@ export class Booking {
   // Get booking by ID
   getById(id) {
     return new Promise((resolve, reject) => {
-      const sql = "SELECT booking_id as id, * FROM bookings WHERE booking_id = ?";
+      const sql = "SELECT booking_id as id, serviceType, pickupDate, pickupTime, loadCount, instructions, status, rejectionReason, paymentMethod, name, contact, email, address, photos, totalPrice, user_id, createdAt, updatedAt FROM bookings WHERE booking_id = ?";
       this.db.query(sql, [id], (err, results) => {
         if (err) reject(err);
         else resolve(results.length > 0 ? results[0] : null);

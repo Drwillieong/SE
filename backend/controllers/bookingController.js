@@ -105,3 +105,36 @@ export const getBookingsByStatus = (db) => async (req, res) => {
     res.status(500).json({ message: 'Server error fetching bookings' });
   }
 };
+
+// Controller to send pickup notification email
+export const sendPickupEmail = (db) => async (req, res) => {
+  const bookingId = req.params.id;
+  const bookingModel = new Booking(db);
+
+  try {
+    // Get booking details
+    const booking = await bookingModel.getById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Check if booking is approved
+    if (booking.status !== 'approved') {
+      return res.status(400).json({ message: 'Can only send pickup notification for approved bookings' });
+    }
+
+    // Import email function
+    const { sendPickupEmail: sendEmail } = await import('../utils/email.js');
+
+    // Send email
+    await sendEmail(booking.email, booking.name, booking.address);
+
+    res.json({ message: 'Pickup notification email sent successfully' });
+  } catch (error) {
+    console.error('Error sending pickup email:', error);
+    if (error.message === 'Email transporter not configured') {
+      return res.status(500).json({ message: 'Email service not configured' });
+    }
+    res.status(500).json({ message: error.message || 'Server error sending pickup email' });
+  }
+};

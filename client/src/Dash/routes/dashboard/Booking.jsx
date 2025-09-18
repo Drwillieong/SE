@@ -37,6 +37,7 @@ const Booking = () => {
   const [selectedDayBookings, setSelectedDayBookings] = useState([]);
   const [dayBookingsModalIsOpen, setDayBookingsModalIsOpen] = useState(false);
   const [dayBookingsSortBy, setDayBookingsSortBy] = useState('pickupDate');
+  const [sortBy, setSortBy] = useState('dueToday'); // 'dueToday' or 'new'
   const [newBooking, setNewBooking] = useState({
     serviceType: "washFold",
     pickupDate: "",
@@ -53,10 +54,33 @@ const Booking = () => {
   const [photoFiles, setPhotoFiles] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [pickupLoading, setPickupLoading] = useState(false);
+  const [pickupError, setPickupError] = useState(null);
 
   useEffect(() => {
     fetchBookings();
   }, []);
+
+  // Function to sort approved bookings
+  const sortApprovedBookings = (bookings) => {
+    let sorted = [...bookings];
+    if (sortBy === 'new') {
+      sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } else if (sortBy === 'dueToday') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todays = sorted.filter(b => b.pickupDate === todayStr);
+      const others = sorted.filter(b => b.pickupDate !== todayStr).sort((a, b) => new Date(a.pickupDate) - new Date(b.pickupDate));
+      sorted = [...todays, ...others];
+    }
+    setApprovedBookings(sorted);
+  };
+
+  // Re-sort when sortBy changes
+  useEffect(() => {
+    if (approvedBookings.length > 0) {
+      sortApprovedBookings(approvedBookings);
+    }
+  }, [sortBy]);
 
   const fetchBookings = async () => {
     console.log('Starting fetchBookings...');
@@ -84,10 +108,22 @@ const Booking = () => {
         const pendingData = orders.filter((order) => order.status === 'pending');
         const approvedData = orders.filter((order) => order.status === 'approved');
 
-        console.log('Pending bookings:', pendingData.length, 'Approved bookings:', approvedData.length);
+        // Separate today's bookings and others
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todaysBookings = approvedData.filter(order => order.pickupDate === todayStr);
+        const otherBookings = approvedData.filter(order => order.pickupDate !== todayStr);
+
+        // Sort today's bookings to top
+        const sortedApproved = [...todaysBookings, ...otherBookings];
+
+        console.log('Pending bookings:', pendingData.length, 'Approved bookings:', sortedApproved.length);
         setPendingBookings(pendingData.map((order) => formatBookingData(order.id, order)));
-        setApprovedBookings(approvedData.map((order) => formatBookingData(order.id, order)));
+        setApprovedBookings(sortedApproved.map((order) => formatBookingData(order.id, order)));
         setError(null); // Clear any previous errors
+
+        // Sort approved bookings based on sortBy
+        const formattedApproved = sortedApproved.map((order) => formatBookingData(order.id, order));
+        sortApprovedBookings(formattedApproved);
       } else {
         console.error('Failed to fetch bookings, status:', response.status);
         if (response.status === 403) {
@@ -345,6 +381,31 @@ const Booking = () => {
   });
   console.log('Total calendar events created:', calendarEvents.length);
 
+  // Handle pickup now button click
+  const handlePickupNow = async (bookingId) => {
+    setPickupLoading(true);
+    setPickupError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8800/api/admin/bookings/${bookingId}/pickup-email`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        alert('Pickup notification email sent successfully.');
+      } else {
+        const data = await response.json();
+        setPickupError(data.message || 'Failed to send pickup notification email.');
+      }
+    } catch (error) {
+      setPickupError('Network error. Please try again.');
+    } finally {
+      setPickupLoading(false);
+    }
+  };
+
   // Handle day click in calendar
   const handleSelectSlot = (slotInfo) => {
     console.log('handleSelectSlot called with:', slotInfo);
@@ -432,45 +493,80 @@ const Booking = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Approved Bookings Section */}
           <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-lg shadow-md">
-            <h2 className="text-xl sm:text-2xl font-semibold text-center text-green-500 mb-4 sm:mb-6">Approved Bookings</h2>
-            {approvedBookings.length === 0 ? (
-              <p className="text-center text-gray-500 py-4">No approved bookings yet</p>
-            ) : (
-              <div className="space-y-4">
-                {approvedBookings.map((booking) => (
-                  <div key={booking.id} className="border p-4 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-lg">{booking.name}</h3>
-                        <p><span className="font-semibold">Service:</span> {
-                          serviceTypes.find((s) => s.value === booking.serviceType)?.label || booking.serviceType
-                        } (₱{booking.totalPrice})</p>
-                        <p><span className="font-semibold">Pickup:</span> {booking.pickupDate} at {booking.pickupTime}</p>
-                        <p><span className="font-semibold">Loads:</span> {booking.loadCount}</p>
-                        <p><span className="font-semibold">Payment:</span> {
-                          booking.paymentMethod === 'cash' ? 'Cash on pickup' :
-                          booking.paymentMethod === 'gcash' ? 'GCash' :
-                          booking.paymentMethod === 'card' ? 'Credit/Debit Card' : 'Not specified'
-                        }</p>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <button
-                          onClick={() => setSelectedBooking(booking)}
-                          className="text-blue-500 hover:text-blue-700 text-sm self-end sm:self-center"
-                        >
-                          View Details
-                        </button>
-                        {booking.photos?.length > 0 && (
-                          <span className="text-xs text-gray-500 self-end sm:self-center">
-                            {booking.photos.length} photo{booking.photos.length !== 1 ? 's' : ''}
-                          </span>
-                        )}
-                      </div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl sm:text-2xl font-semibold text-green-500">Approved Bookings</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSortBy('new')}
+                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                    sortBy === 'new' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  New Bookings
+                </button>
+                <button
+                  onClick={() => setSortBy('dueToday')}
+                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                    sortBy === 'dueToday' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Due Today
+                </button>
+              </div>
+            </div>
+        {approvedBookings.length === 0 ? (
+          <p className="text-center text-gray-500 py-4">No approved bookings yet</p>
+        ) : (
+          <div className="space-y-4">
+            {approvedBookings.map((booking) => {
+              const isToday = booking.pickupDate === new Date().toISOString().split('T')[0];
+              return (
+                <div
+                  key={booking.id}
+                  className={`border p-4 rounded-lg hover:bg-gray-50 transition-colors ${
+                    isToday ? 'bg-green-300 border-green-500' : ''
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg">{booking.name}</h3>
+                      <p><span className="font-semibold">Service:</span> {
+                        serviceTypes.find((s) => s.value === booking.serviceType)?.label || booking.serviceType
+                      } (₱{booking.totalPrice})</p>
+                      <p><span className="font-semibold">Pickup:</span> {booking.pickupDate} at {booking.pickupTime}</p>
+                      <p><span className="font-semibold">Loads:</span> {booking.loadCount}</p>
+                      <p><span className="font-semibold">Payment:</span> {
+                        booking.paymentMethod === 'cash' ? 'Cash on pickup' :
+                        booking.paymentMethod === 'gcash' ? 'GCash' :
+                        booking.paymentMethod === 'card' ? 'Credit/Debit Card' : 'Not specified'
+                      }</p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button
+                        onClick={() => setSelectedBooking(booking)}
+                        className="text-blue-500 hover:text-blue-700 text-sm self-end sm:self-center"
+                      >
+                        View Details
+                      </button>
+                      <button
+                        onClick={() => handlePickupNow(booking.id)}
+                        disabled={pickupLoading}
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center"
+                      >
+                        {pickupLoading ? 'Sending...' : 'Pick Up Now'}
+                      </button>
+                      {booking.photos?.length > 0 && (
+                        <span className="text-xs text-gray-500 self-end sm:self-center">
+                          {booking.photos.length} photo{booking.photos.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              );
+            })}
+          </div>
+        )}
           </div>
 
           {/* Pending Bookings Section */}

@@ -155,3 +155,44 @@ export const sendPasswordResetEmail = async (email, token) => {
         throw error;
     }
 };
+
+// Function to send pickup notification email (returns a promise)
+export const sendPickupEmail = async (email, name, address) => {
+    console.log('📤 Attempting to send pickup notification email to:', email);
+
+    const transporter = createTransporter();
+    if (!transporter) {
+        throw new Error('Email transporter not configured');
+    }
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Pickup Notification - Wash It Izzy',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #28a745;">Pickup Ready!</h2>
+                <p>Dear ${name},</p>
+                <p>Great news! The rider is ready to go to your home for pickup.</p>
+                <p><strong>Pickup Address:</strong> ${address}</p>
+                <p>Please be ready for the rider's arrival. If you have any questions or need to reschedule, please contact us.</p>
+                <p>Thank you for choosing Wash It Izzy!</p>
+                <hr style="border: none; border-top: 1px solid #e9ecef; margin: 20px 0;">
+                <p style="color: #6c757d; font-size: 12px;">
+                    This is an automated message from Wash It Izzy. Please do not reply to this email.
+                </p>
+            </div>
+        `
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Pickup notification email sent successfully:', info.response);
+        console.log('📧 Message ID:', info.messageId);
+        return info;
+    } catch (error) {
+        console.error('❌ Error sending pickup notification email:', error.message);
+        console.error('🔧 Error details:', error.response || error);
+        throw error;
+    }
+};
