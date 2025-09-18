@@ -1,6 +1,6 @@
 import express from 'express';
-import { createOrder, getAllOrders, getOrderById, updateOrder, deleteOrder, getOrdersByStatus } from '../controllers/orderController.js';
-import { verifyToken } from '../middleware/authMiddleware.js';
+import { createOrder, getAllOrders, getOrderById, updateOrder, deleteOrder, getOrdersByStatus, createOrderFromPickup } from '../controllers/orderController.js';
+import { verifyToken, requireAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -26,6 +26,9 @@ export default (db) => {
 
     // Delete order (only if it belongs to the authenticated user)
     router.delete('/:id', verifyToken, deleteOrder(db));
+
+    // Admin route to create order from pickup details
+    router.post('/admin/create-from-pickup', verifyToken, requireAdmin, createOrderFromPickup(db));
 
     return router;
 };

@@ -56,9 +56,33 @@ const Booking = () => {
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [pickupLoading, setPickupLoading] = useState(false);
   const [pickupError, setPickupError] = useState(null);
+  const [pickupSuccess, setPickupSuccess] = useState({});
+  const [checkOrderModalIsOpen, setCheckOrderModalIsOpen] = useState(false);
+  const [selectedBookingForOrder, setSelectedBookingForOrder] = useState(null);
+  const [orderFormData, setOrderFormData] = useState({
+    estimatedClothes: '',
+    kilos: '',
+    pants: '',
+    shorts: '',
+    tshirts: '',
+    bedsheets: '',
+    laundryPhoto: null
+  });
+  const [laundryPhotoFile, setLaundryPhotoFile] = useState(null);
+  const [laundryPhotoPreview, setLaundryPhotoPreview] = useState(null);
+  const [creatingOrder, setCreatingOrder] = useState(false);
 
   useEffect(() => {
     fetchBookings();
+    // Load pickup success state from localStorage
+    const savedPickupSuccess = localStorage.getItem('pickupSuccess');
+    if (savedPickupSuccess) {
+      try {
+        setPickupSuccess(JSON.parse(savedPickupSuccess));
+      } catch (error) {
+        console.error('Error parsing pickup success from localStorage:', error);
+      }
+    }
   }, []);
 
   // Function to sort approved bookings
@@ -81,6 +105,13 @@ const Booking = () => {
       sortApprovedBookings(approvedBookings);
     }
   }, [sortBy]);
+
+  // Save pickup success state to localStorage whenever it changes
+  useEffect(() => {
+    if (Object.keys(pickupSuccess).length > 0) {
+      localStorage.setItem('pickupSuccess', JSON.stringify(pickupSuccess));
+    }
+  }, [pickupSuccess]);
 
   const fetchBookings = async () => {
     console.log('Starting fetchBookings...');
@@ -394,6 +425,7 @@ const Booking = () => {
         }
       });
       if (response.ok) {
+        setPickupSuccess(prev => ({ ...prev, [bookingId]: true }));
         alert('Pickup notification email sent successfully.');
       } else {
         const data = await response.json();
@@ -429,6 +461,93 @@ const Booking = () => {
       setDayBookingsModalIsOpen(true);
     } else {
       console.log('No bookings for selected day');
+    }
+  };
+
+  // Handle order form input change
+  const handleOrderFormChange = (e) => {
+    const { name, value } = e.target;
+    setOrderFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handle laundry photo file change
+  const handleLaundryPhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setLaundryPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLaundryPhotoPreview(reader.result);
+        setOrderFormData(prev => ({ ...prev, laundryPhoto: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle order form submit
+  const handleOrderFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedBookingForOrder) return;
+
+    setCreatingOrder(true);
+    try {
+      const token = localStorage.getItem('token');
+      const orderPayload = {
+        serviceType: selectedBookingForOrder.serviceType,
+        pickupDate: selectedBookingForOrder.pickupDate,
+        pickupTime: selectedBookingForOrder.pickupTime,
+        loadCount: selectedBookingForOrder.loadCount,
+        instructions: selectedBookingForOrder.instructions,
+        status: 'pending',
+        paymentMethod: selectedBookingForOrder.paymentMethod,
+        name: selectedBookingForOrder.name,
+        contact: selectedBookingForOrder.contact,
+        email: selectedBookingForOrder.email,
+        address: selectedBookingForOrder.address,
+        photos: selectedBookingForOrder.photos,
+        totalPrice: selectedBookingForOrder.totalPrice,
+        userId: selectedBookingForOrder.userId,
+        estimatedClothes: parseInt(orderFormData.estimatedClothes) || 0,
+        kilos: parseFloat(orderFormData.kilos) || 0,
+        pants: parseInt(orderFormData.pants) || 0,
+        shorts: parseInt(orderFormData.shorts) || 0,
+        tshirts: parseInt(orderFormData.tshirts) || 0,
+        bedsheets: parseInt(orderFormData.bedsheets) || 0,
+        laundryPhoto: orderFormData.laundryPhoto ? [orderFormData.laundryPhoto] : []
+      };
+
+      const response = await fetch('http://localhost:8800/api/orders/admin/create-from-pickup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(orderPayload)
+      });
+
+      if (response.ok) {
+        alert('Order created successfully.');
+        setCheckOrderModalIsOpen(false);
+        setSelectedBookingForOrder(null);
+        setOrderFormData({
+          estimatedClothes: '',
+          kilos: '',
+          pants: '',
+          shorts: '',
+          tshirts: '',
+          bedsheets: '',
+          laundryPhoto: null
+        });
+        setLaundryPhotoFile(null);
+        setLaundryPhotoPreview(null);
+      } else {
+        const data = await response.json();
+        alert(data.message || 'Failed to create order.');
+      }
+    } catch (error) {
+      alert('Network error. Please try again.');
+    } finally {
+      setCreatingOrder(false);
     }
   };
 
@@ -548,13 +667,37 @@ const Booking = () => {
                       >
                         View Details
                       </button>
-                      <button
-                        onClick={() => handlePickupNow(booking.id)}
-                        disabled={pickupLoading}
-                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center"
-                      >
-                        {pickupLoading ? 'Sending...' : 'Pick Up Now'}
-                      </button>
+                      {pickupSuccess[booking.id] ? (
+                        <button
+                          onClick={() => {
+                            // When admin clicks "Check Order", open the order form modal
+                            setSelectedBookingForOrder(booking);
+                            setCheckOrderModalIsOpen(true);
+                            setOrderFormData({
+                              estimatedClothes: '',
+                              kilos: '',
+                              pants: '',
+                              shorts: '',
+                              tshirts: '',
+                              bedsheets: '',
+                              laundryPhoto: null
+                            });
+                            setLaundryPhotoFile(null);
+                            setLaundryPhotoPreview(null);
+                          }}
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center"
+                        >
+                          Check Order
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handlePickupNow(booking.id)}
+                          disabled={pickupLoading}
+                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center"
+                        >
+                          {pickupLoading ? 'Sending...' : 'Pick Up Now'}
+                        </button>
+                      )}
                       {booking.photos?.length > 0 && (
                         <span className="text-xs text-gray-500 self-end sm:self-center">
                           {booking.photos.length} photo{booking.photos.length !== 1 ? 's' : ''}
@@ -649,6 +792,132 @@ const Booking = () => {
         setRejectionReason={setRejectionReason}
         confirmRejectBooking={confirmRejectBooking}
       />
+
+      {/* Check Order Modal */}
+      <Modal
+        isOpen={checkOrderModalIsOpen}
+        onRequestClose={() => setCheckOrderModalIsOpen(false)}
+        contentLabel="Check Order Modal"
+        className="modal-content"
+        overlayClassName="modal-overlay"
+      >
+        <div className="p-6">
+          <h2 className="text-2xl font-bold mb-4">Order Details</h2>
+          <form onSubmit={handleOrderFormSubmit}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Estimated Total Clothes
+                </label>
+                <input
+                  type="number"
+                  name="estimatedClothes"
+                  value={orderFormData.estimatedClothes}
+                  onChange={handleOrderFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Kilos of Laundry
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  name="kilos"
+                  value={orderFormData.kilos}
+                  onChange={handleOrderFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Number of Pants
+                </label>
+                <input
+                  type="number"
+                  name="pants"
+                  value={orderFormData.pants}
+                  onChange={handleOrderFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Number of Shorts
+                </label>
+                <input
+                  type="number"
+                  name="shorts"
+                  value={orderFormData.shorts}
+                  onChange={handleOrderFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Number of T-Shirts
+                </label>
+                <input
+                  type="number"
+                  name="tshirts"
+                  value={orderFormData.tshirts}
+                  onChange={handleOrderFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Number of Bedsheets
+                </label>
+                <input
+                  type="number"
+                  name="bedsheets"
+                  value={orderFormData.bedsheets}
+                  onChange={handleOrderFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Photo of Laundry
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleLaundryPhotoChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {laundryPhotoPreview && (
+                <img
+                  src={laundryPhotoPreview}
+                  alt="Laundry Preview"
+                  className="mt-2 max-w-full h-32 object-cover rounded-md"
+                />
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCheckOrderModalIsOpen(false)}
+                className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={creatingOrder}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
+              >
+                {creatingOrder ? 'Creating...' : 'Create Order'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
     </div>
   );
 };

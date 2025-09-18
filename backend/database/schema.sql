@@ -46,6 +46,14 @@ CREATE TABLE IF NOT EXISTS orders (
   photos JSON, -- Store photo URLs as JSON array
   totalPrice DECIMAL(10, 2) NOT NULL,
   user_id INT, -- Reference to users table if order is from registered user
+  -- New fields for order details from pickup
+  estimatedClothes INT,
+  kilos DECIMAL(5, 2),
+  pants INT DEFAULT 0,
+  shorts INT DEFAULT 0,
+  tshirts INT DEFAULT 0,
+  bedsheets INT DEFAULT 0,
+  laundryPhoto JSON, -- Store laundry photo URL as JSON
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_status (status),

@@ -95,3 +95,25 @@ export const getOrdersByStatus = (db) => async (req, res) => {
     res.status(500).json({ message: 'Server error fetching orders' });
   }
 };
+
+// Controller to create order from pickup details (admin only)
+export const createOrderFromPickup = (db) => async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const orderModel = new Order(db);
+  try {
+    const orderData = {
+      ...req.body,
+      status: 'pending', // Set initial status for new orders from pickup
+      userId: req.body.userId || null // Link to user if available
+    };
+    const orderId = await orderModel.create(orderData);
+    res.status(201).json({ message: 'Order created successfully from pickup', orderId });
+  } catch (error) {
+    console.error('Error creating order from pickup:', error);
+    res.status(500).json({ message: 'Server error creating order from pickup' });
+  }
+};

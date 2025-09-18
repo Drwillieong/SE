@@ -6,7 +6,7 @@ export class Order {
   // Get all orders
   getAll() {
     return new Promise((resolve, reject) => {
-      const sql = "SELECT * FROM orders ORDER BY createdAt DESC";
+      const sql = "SELECT * FROM orders ORDER BY createdAt DESC LIMIT 1000";
       this.db.query(sql, (err, results) => {
         if (err) reject(err);
         else resolve(results);
@@ -42,18 +42,29 @@ export class Order {
         address,
         photos,
         totalPrice,
-        userId
+        userId,
+        estimatedClothes,
+        kilos,
+        pants,
+        shorts,
+        tshirts,
+        bedsheets,
+        laundryPhoto
       } = orderData;
 
       const sql = `INSERT INTO orders
-        (serviceType, pickupDate, pickupTime, loadCount, instructions, status, paymentMethod, name, contact, email, address, photos, totalPrice, userId, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
+        (serviceType, pickupDate, pickupTime, loadCount, instructions, status, paymentMethod, name, contact, email, address, photos, totalPrice, user_id, estimatedClothes, kilos, pants, shorts, tshirts, bedsheets, laundryPhoto, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
 
       const photosJson = photos ? JSON.stringify(photos) : JSON.stringify([]);
+      const laundryPhotoJson = laundryPhoto ? JSON.stringify(laundryPhoto) : JSON.stringify([]);
+
+      // Format pickupDate to MySQL DATE format (YYYY-MM-DD)
+      const formattedPickupDate = pickupDate ? new Date(pickupDate).toISOString().split('T')[0] : null;
 
       const values = [
         serviceType,
-        pickupDate,
+        formattedPickupDate,
         pickupTime,
         loadCount,
         instructions,
@@ -65,7 +76,14 @@ export class Order {
         address,
         photosJson,
         totalPrice,
-        userId
+        userId,
+        estimatedClothes,
+        kilos,
+        pants || 0,
+        shorts || 0,
+        tshirts || 0,
+        bedsheets || 0,
+        laundryPhotoJson
       ];
 
       this.db.query(sql, values, (err, result) => {
@@ -129,7 +147,7 @@ export class Order {
   // Get orders by user ID
   getByUserId(userId) {
     return new Promise((resolve, reject) => {
-      const sql = "SELECT * FROM orders WHERE userId = ? ORDER BY createdAt DESC";
+      const sql = "SELECT * FROM orders WHERE user_id = ? ORDER BY createdAt DESC";
       this.db.query(sql, [userId], (err, results) => {
         if (err) reject(err);
         else resolve(results);
