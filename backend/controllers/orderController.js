@@ -1,5 +1,42 @@
-import { validationResult } from 'express-validator';
 import { Order } from '../models/Order.js';
+import { Booking } from '../models/Booking.js';
+
+// Add near the other exports in orderController.js
+
+// Controller to get order statistics
+export const getOrderStats = (db) => async (req, res) => {
+  const orderModel = new Order(db);
+  try {
+    const stats = await orderModel.getDashboardStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching order stats:', error);
+    res.status(500).json({ message: 'Server error fetching order stats' });
+  }
+};
+// Auto-advance status endpoint (called by client when timer expires OR by server cron)
+export const autoAdvanceOrder = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const orderModel = new Order(db);
+  try {
+    const order = await orderModel.getById(orderId);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    // Determine next stage based on processStage or status
+    const current = order.processStage || order.status || 'pending';
+    const seq = ['pending','washing','drying','folding','ready'];
+    const idx = seq.indexOf(current);
+    const next = (idx >= 0 && idx < seq.length - 1) ? seq[idx + 1] : seq[seq.length - 1];
+
+    // Update both processStage and status to keep things consistent
+    await orderModel.update(orderId, { processStage: next, status: next });
+
+    res.json({ message: 'Order advanced', next });
+  } catch (error) {
+    console.error('Error auto-advancing order:', error);
+    res.status(500).json({ message: 'Server error auto-advancing order' });
+  }
+};
 
 // Controller to get all orders
 export const getAllOrders = (db) => async (req, res) => {
@@ -31,11 +68,6 @@ export const getOrderById = (db) => async (req, res) => {
 
 // Controller to create a new order
 export const createOrder = (db) => async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
   const orderModel = new Order(db);
   try {
     const orderId = await orderModel.create(req.body);
@@ -98,22 +130,66 @@ export const getOrdersByStatus = (db) => async (req, res) => {
 
 // Controller to create order from pickup details (admin only)
 export const createOrderFromPickup = (db) => async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
   const orderModel = new Order(db);
+  const bookingModel = new Booking(db);
   try {
+    // Ensure all required fields are present and properly formatted
+    // Map frontend serviceType to backend ENUM values
+    let mappedServiceType = req.body.serviceType;
+    if (mappedServiceType === 'washDryFold') {
+      mappedServiceType = 'washFold';
+    } else if (mappedServiceType === 'dryCleaning') {
+      mappedServiceType = 'dryCleaning';
+    } else if (mappedServiceType === 'hangDry') {
+      mappedServiceType = 'hangDry';
+    } else {
+      mappedServiceType = 'washFold'; // default fallback
+    }
+
     const orderData = {
-      ...req.body,
-      status: 'pending', // Set initial status for new orders from pickup
-      userId: req.body.userId || null // Link to user if available
+      serviceType: mappedServiceType,
+      pickupDate: req.body.pickupDate,
+      pickupTime: req.body.pickupTime,
+      loadCount: req.body.loadCount || 1,
+      instructions: req.body.instructions || '',
+      status: 'pending',
+      paymentMethod: req.body.paymentMethod || 'cash',
+      name: req.body.name,
+      contact: req.body.contact,
+      email: req.body.email || '',
+      address: req.body.address,
+      photos: req.body.photos || [],
+      totalPrice: req.body.totalPrice || 0,
+      userId: req.body.userId || null,
+      estimatedClothes: req.body.estimatedClothes || 0,
+      kilos: req.body.kilos || 0,
+      pants: req.body.pants || 0,
+      shorts: req.body.shorts || 0,
+      tshirts: req.body.tshirts || 0,
+      bedsheets: req.body.bedsheets || 0,
+      laundryPhoto: req.body.laundryPhoto || []
     };
+
+    console.log('Creating order with data:', orderData);
     const orderId = await orderModel.create(orderData);
+    console.log('Order created successfully with ID:', orderId);
+
+    // Mark the booking as completed if bookingId is provided
+    if (req.body.bookingId) {
+      try {
+        console.log('Updating booking status to completed for booking ID:', req.body.bookingId);
+        await bookingModel.update(req.body.bookingId, { status: 'completed' });
+        console.log('Booking status updated successfully');
+      } catch (bookingError) {
+        console.error('Error updating booking status:', bookingError);
+        // Don't fail the entire operation if booking update fails
+      }
+    }
+
     res.status(201).json({ message: 'Order created successfully from pickup', orderId });
   } catch (error) {
     console.error('Error creating order from pickup:', error);
-    res.status(500).json({ message: 'Server error creating order from pickup' });
+    console.error(error.stack);
+    res.status(500).json({ message: 'Server error creating order from pickup', error: error.message });
   }
 };

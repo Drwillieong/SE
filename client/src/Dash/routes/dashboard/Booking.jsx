@@ -8,6 +8,7 @@ import BookingDetailsModal from './components/BookingDetailsModal';
 import CreateBookingModal from './components/CreateBookingModal';
 import DayBookingsModal from './components/DayBookingsModal';
 import RejectBookingModal from './components/RejectBookingModal';
+import { calculateDeliveryFee } from '../../utils/deliveryFeeCalculator';
 
 // Initialize calendar localizer
 const localizer = momentLocalizer(moment);
@@ -15,11 +16,18 @@ const localizer = momentLocalizer(moment);
 
 Modal.setAppElement('#root');
 
-// Service type options - matches customer side
-const serviceTypes = [
-  { value: "washFold", label: "Wash & Fold", price: 189 },
-  { value: "dryCleaning", label: "Dry Cleaning", price: 250 },
-  { value: "hangDry", label: "Hang Dry", price: 220 }
+// Main service options - matches backend schema
+const mainServices = [
+  { value: "fullService", label: "Full Service (Wash, Dry & Fold)", price: 199 },
+  { value: "washDryFold", label: "Wash, Dry & Fold", price: 179 }
+];
+
+// Dry cleaning service options
+const dryCleaningServices = [
+  { id: 'dryCleanBarong', name: 'Dry Cleaning - Barong', price: 350 },
+  { id: 'dryCleanCoat', name: 'Dry Cleaning - Coat', price: 400 },
+  { id: 'dryCleanGown', name: 'Dry Cleaning - Gown', price: 650 },
+  { id: 'dryCleanWeddingGown', name: 'Dry Cleaning - Wedding Gown', price: 1500 }
 ];
 
 const Booking = () => {
@@ -39,7 +47,8 @@ const Booking = () => {
   const [dayBookingsSortBy, setDayBookingsSortBy] = useState('pickupDate');
   const [sortBy, setSortBy] = useState('dueToday'); // 'dueToday' or 'new'
   const [newBooking, setNewBooking] = useState({
-    serviceType: "washFold",
+    mainService: "washDryFold",
+    dryCleaningServices: [],
     pickupDate: "",
     pickupTime: "7am-10am",
     loadCount: 1,
@@ -49,7 +58,9 @@ const Booking = () => {
     name: "",
     contact: "",
     email: "",
-    address: ""
+    address: "",
+    serviceOption: "pickupAndDelivery",
+    deliveryFee: 0
   });
   const [photoFiles, setPhotoFiles] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
@@ -72,6 +83,104 @@ const Booking = () => {
   const [laundryPhotoPreview, setLaundryPhotoPreview] = useState(null);
   const [creatingOrder, setCreatingOrder] = useState(false);
 
+  // Health check function
+  const checkBackendHealth = async () => {
+    try {
+      console.log('Checking backend health...');
+      const response = await fetch('http://localhost:8800/', {
+        method: 'GET'
+      });
+      console.log('Backend health check response:', response.status);
+      if (response.ok) {
+        alert('Backend is running! ✅');
+      } else {
+        alert('Backend is not responding properly ❌');
+      }
+    } catch (error) {
+      console.error('Backend health check failed:', error);
+      alert('Backend is not running or not accessible ❌');
+    }
+  };
+
+  // Helper function to format date for database (YYYY-MM-DD)
+  const formatDateForDB = (dateString) => {
+    if (!dateString) return '';
+    // If it's already in YYYY-MM-DD format, return as is
+    if (dateString.length === 10 && dateString.includes('-')) {
+      return dateString;
+    }
+    // Extract date part from ISO string (YYYY-MM-DD)
+    return new Date(dateString).toISOString().split('T')[0];
+  };
+
+  // Test function to create a sample order
+  const createTestOrder = async () => {
+    if (!selectedBookingForOrder) {
+      alert('Please select a booking first');
+      return;
+    }
+
+    setCreatingOrder(true);
+    try {
+      const token = localStorage.getItem('token');
+      const testOrderPayload = {
+        serviceType: 'washFold',
+        pickupDate: formatDateForDB(selectedBookingForOrder.pickupDate),
+        pickupTime: selectedBookingForOrder.pickupTime,
+        loadCount: selectedBookingForOrder.loadCount || 1,
+        instructions: selectedBookingForOrder.instructions || 'Test order',
+        status: 'pending',
+        paymentMethod: selectedBookingForOrder.paymentMethod || 'cash',
+        name: selectedBookingForOrder.name,
+        contact: selectedBookingForOrder.contact,
+        email: selectedBookingForOrder.email || '',
+        address: selectedBookingForOrder.address,
+        photos: selectedBookingForOrder.photos || [],
+        totalPrice: selectedBookingForOrder.totalPrice || 199,
+        user_id: selectedBookingForOrder.userId || null,
+        booking_id: selectedBookingForOrder.id,
+        estimatedClothes: 10,
+        kilos: 5.0,
+        pants: 2,
+        shorts: 1,
+        tshirts: 3,
+        bedsheets: 1,
+        laundryPhoto: []
+      };
+
+      console.log('Creating test order with payload:', testOrderPayload);
+      const response = await fetch('http://localhost:8800/api/admin/orders/admin/create-from-pickup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(testOrderPayload)
+      });
+
+      console.log('Test order creation response status:', response.status);
+
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('Test order created successfully:', responseData);
+        alert('Test order created successfully!');
+        setCheckOrderModalIsOpen(false);
+        setSelectedBookingForOrder(null);
+        setApprovedBookings(prev => prev.filter(b => b.id !== selectedBookingForOrder.id));
+        navigate('/dashboard/order');
+      } else {
+        const data = await response.json();
+        console.error('Test order creation failed:', data);
+        alert('Test order creation failed: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Test order creation error:', error);
+      alert('Test order creation error: ' + error.message);
+    } finally {
+      setCreatingOrder(false);
+    }
+  };
+
   useEffect(() => {
     fetchBookings();
     // Load pickup success state from localStorage
@@ -83,6 +192,14 @@ const Booking = () => {
         console.error('Error parsing pickup success from localStorage:', error);
       }
     }
+
+    // Set up periodic refresh every 30 seconds
+    const intervalId = setInterval(() => {
+      fetchBookings();
+    }, 30000);
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
   }, []);
 
   // Function to sort approved bookings
@@ -195,6 +312,27 @@ const Booking = () => {
       }
     }
 
+    // Calculate delivery fee if not provided
+    let deliveryFee = data.deliveryFee || 0;
+    if (!deliveryFee && data.address && data.loadCount) {
+      // Extract barangay from address for delivery fee calculation
+      const addressParts = data.address.split(',').map(part => part.trim());
+      const barangay = addressParts.find(part =>
+        part.toLowerCase().includes('brgy') ||
+        part.toLowerCase().includes('barangay') ||
+        addressParts.indexOf(part) === addressParts.length - 2
+      ) || '';
+      deliveryFee = calculateDeliveryFee(barangay, parseInt(data.loadCount) || 1);
+    }
+
+    // Calculate total price including delivery fee
+    const mainServicePrice = (mainServices.find(s => s.value === (data.mainService || "washDryFold"))?.price || 0) * (data.loadCount || 1);
+    const dryCleaningPrice = (data.dryCleaningServices || []).reduce((sum, serviceId) => {
+      const service = dryCleaningServices.find(s => s.id === serviceId);
+      return sum + (service ? service.price : 0);
+    }, 0);
+    const totalPrice = mainServicePrice + dryCleaningPrice + (data.serviceOption !== 'pickupOnly' ? deliveryFee : 0);
+
     return {
       id,
       name: data.name || "No Name",
@@ -205,12 +343,15 @@ const Booking = () => {
       pickupTime: data.pickupTime,
       loadCount: data.loadCount || 1,
       instructions: data.instructions || "No Instructions",
-      serviceType: data.serviceType || "washFold",
+      mainService: data.mainService || "washDryFold",
+      dryCleaningServices: data.dryCleaningServices || [],
       status: data.status,
       createdAt: data.createdAt,
       paymentMethod: data.paymentMethod || "cash",
       photos: photos,
-      totalPrice: data.totalPrice || (serviceTypes.find(s => s.value === (data.serviceType || "washFold"))?.price || 0) * (data.loadCount || 1)
+      serviceOption: data.serviceOption || "pickupAndDelivery",
+      deliveryFee: deliveryFee,
+      totalPrice: data.totalPrice || totalPrice
     };
   };
 
@@ -320,13 +461,30 @@ const Booking = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const selectedService = serviceTypes.find(s => s.value === newBooking.serviceType);
-      const totalPrice = selectedService.price * newBooking.loadCount;
+      const selectedMainService = mainServices.find(s => s.value === newBooking.mainService);
+      const selectedDryCleaningServices = dryCleaningServices.filter(s => newBooking.dryCleaningServices.includes(s.id));
+
+      // Calculate delivery fee if not pickup only
+      let deliveryFee = 0;
+      if (newBooking.serviceOption !== 'pickupOnly' && newBooking.address) {
+        const addressParts = newBooking.address.split(',').map(part => part.trim());
+        const barangay = addressParts.find(part =>
+          part.toLowerCase().includes('brgy') ||
+          part.toLowerCase().includes('barangay') ||
+          addressParts.indexOf(part) === addressParts.length - 2
+        ) || '';
+        deliveryFee = calculateDeliveryFee(barangay, parseInt(newBooking.loadCount) || 1);
+      }
+
+      const mainServicePrice = selectedMainService.price * newBooking.loadCount;
+      const dryCleaningPrice = selectedDryCleaningServices.reduce((sum, s) => sum + s.price, 0);
+      const totalPrice = mainServicePrice + dryCleaningPrice + deliveryFee;
 
       const bookingData = {
         ...newBooking,
+        deliveryFee,
         totalPrice,
-        serviceName: selectedService.label,
+        serviceName: selectedMainService.label,
         paymentDetails: newBooking.paymentMethod === 'cash' ? null : {
           method: newBooking.paymentMethod,
           status: 'pending'
@@ -370,7 +528,8 @@ const Booking = () => {
 
   const resetForm = () => {
     setNewBooking({
-      serviceType: "washFold",
+      mainService: "washDryFold",
+      dryCleaningServices: [],
       pickupDate: "",
       pickupTime: "7am-10am",
       loadCount: 1,
@@ -380,7 +539,9 @@ const Booking = () => {
       name: "",
       contact: "",
       email: "",
-      address: ""
+      address: "",
+      serviceOption: "pickupAndDelivery",
+      deliveryFee: 0
     });
     setPhotoFiles([]);
     setPhotoPreviews([]);
@@ -400,8 +561,12 @@ const Booking = () => {
     const endDate = new Date(booking.pickupDate);
     endDate.setHours(endHour);
 
+    const mainServiceLabel = mainServices.find((s) => s.value === booking.mainService)?.label || booking.mainService;
+    const dryCleaningLabels = booking.dryCleaningServices?.map(id => dryCleaningServices.find(s => s.id === id)?.name).filter(Boolean).join(', ') || '';
+    const title = `${booking.name} - ${mainServiceLabel}${dryCleaningLabels ? ` + ${dryCleaningLabels}` : ''}`;
+
     const event = {
-      title: `${booking.name} - ${serviceTypes.find((s) => s.value === booking.serviceType)?.label || booking.serviceType}`,
+      title,
       start: startDate,
       end: endDate,
       allDay: false,
@@ -493,22 +658,23 @@ const Booking = () => {
     try {
       const token = localStorage.getItem('token');
       const orderPayload = {
-        serviceType: selectedBookingForOrder.serviceType,
-        pickupDate: selectedBookingForOrder.pickupDate,
+        serviceType: selectedBookingForOrder.mainService || 'washFold',
+        pickupDate: formatDateForDB(selectedBookingForOrder.pickupDate),
         pickupTime: selectedBookingForOrder.pickupTime,
-        loadCount: selectedBookingForOrder.loadCount,
-        instructions: selectedBookingForOrder.instructions,
+        loadCount: selectedBookingForOrder.loadCount || 1,
+        instructions: selectedBookingForOrder.instructions || '',
         status: 'pending',
-        paymentMethod: selectedBookingForOrder.paymentMethod,
+        paymentMethod: selectedBookingForOrder.paymentMethod || 'cash',
         name: selectedBookingForOrder.name,
         contact: selectedBookingForOrder.contact,
-        email: selectedBookingForOrder.email,
+        email: selectedBookingForOrder.email || '',
         address: selectedBookingForOrder.address,
-        photos: selectedBookingForOrder.photos,
-        totalPrice: selectedBookingForOrder.totalPrice,
-        userId: selectedBookingForOrder.userId,
-        estimatedClothes: parseInt(orderFormData.estimatedClothes) || 0,
-        kilos: parseFloat(orderFormData.kilos) || 0,
+        photos: selectedBookingForOrder.photos || [],
+        totalPrice: selectedBookingForOrder.totalPrice || 0,
+        user_id: selectedBookingForOrder.userId || null,
+        booking_id: selectedBookingForOrder.id,
+        estimatedClothes: parseInt(orderFormData.estimatedClothes) || 1,
+        kilos: parseFloat(orderFormData.kilos) || 1.0,
         pants: parseInt(orderFormData.pants) || 0,
         shorts: parseInt(orderFormData.shorts) || 0,
         tshirts: parseInt(orderFormData.tshirts) || 0,
@@ -516,7 +682,10 @@ const Booking = () => {
         laundryPhoto: orderFormData.laundryPhoto ? [orderFormData.laundryPhoto] : []
       };
 
-      const response = await fetch('http://localhost:8800/api/orders/admin/create-from-pickup', {
+      console.log('Order payload being sent:', orderPayload);
+
+      console.log('Creating order with payload:', orderPayload);
+      const response = await fetch('http://localhost:8800/api/admin/orders/admin/create-from-pickup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -525,10 +694,17 @@ const Booking = () => {
         body: JSON.stringify(orderPayload)
       });
 
+      console.log('Order creation response status:', response.status);
+      console.log('Order creation response headers:', response.headers);
+
       if (response.ok) {
+        const responseData = await response.json();
+        console.log('Order created successfully:', responseData);
         alert('Order created successfully.');
         setCheckOrderModalIsOpen(false);
         setSelectedBookingForOrder(null);
+        // Remove the booking from approvedBookings
+        setApprovedBookings(prev => prev.filter(b => b.id !== selectedBookingForOrder.id));
         setOrderFormData({
           estimatedClothes: '',
           kilos: '',
@@ -540,8 +716,15 @@ const Booking = () => {
         });
         setLaundryPhotoFile(null);
         setLaundryPhotoPreview(null);
+
+        // Navigate to Order Management to see the newly created order
+        console.log('Order created successfully, navigating to order management...');
+        console.log('About to navigate to /dashboard/order');
+        navigate('/dashboard/order');
+        console.log('Navigation completed');
       } else {
         const data = await response.json();
+        console.error('Order creation failed:', data);
         alert(data.message || 'Failed to create order.');
       }
     } catch (error) {
@@ -583,6 +766,12 @@ const Booking = () => {
             className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors"
           >
             {calendarView ? "List View" : "Calendar View"}
+          </button>
+          <button
+            onClick={checkBackendHealth}
+            className="w-full sm:w-auto bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md transition-colors"
+          >
+            Check Backend
           </button>
           <button
             onClick={openModal}
@@ -650,10 +839,22 @@ const Booking = () => {
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{booking.name}</h3>
                       <p><span className="font-semibold">Service:</span> {
-                        serviceTypes.find((s) => s.value === booking.serviceType)?.label || booking.serviceType
+                        mainServices.find((s) => s.value === booking.mainService)?.label || booking.mainService
                       } (₱{booking.totalPrice})</p>
+                      {booking.dryCleaningServices && booking.dryCleaningServices.length > 0 && (
+                        <p><span className="font-semibold">Dry Cleaning:</span> {
+                          booking.dryCleaningServices.map(id => dryCleaningServices.find(s => s.id === id)?.name).filter(Boolean).join(', ')
+                        }</p>
+                      )}
+                      <p><span className="font-semibold">Service Option:</span> {
+                        booking.serviceOption === 'pickupOnly' ? 'Pickup Only' :
+                        booking.serviceOption === 'deliveryOnly' ? 'Delivery Only' : 'Pickup & Delivery'
+                      }</p>
                       <p><span className="font-semibold">Pickup:</span> {booking.pickupDate} at {booking.pickupTime}</p>
                       <p><span className="font-semibold">Loads:</span> {booking.loadCount}</p>
+                      {booking.serviceOption !== 'pickupOnly' && booking.deliveryFee > 0 && (
+                        <p><span className="font-semibold">Delivery Fee:</span> ₱{booking.deliveryFee}</p>
+                      )}
                       <p><span className="font-semibold">Payment:</span> {
                         booking.paymentMethod === 'cash' ? 'Cash on pickup' :
                         booking.paymentMethod === 'gcash' ? 'GCash' :
@@ -723,9 +924,21 @@ const Booking = () => {
                   <div key={booking.id} className="border p-4 rounded-lg  hover:bg-gray-50 transition-colors">
                     <h3 className="font-bold text-lg">{booking.name}</h3>
                     <p><span className="font-semibold">Service:</span> {
-                      serviceTypes.find((s) => s.value === booking.serviceType)?.label || booking.serviceType
+                      mainServices.find((s) => s.value === booking.mainService)?.label || booking.mainService
                     } (₱{booking.totalPrice})</p>
+                    {booking.dryCleaningServices && booking.dryCleaningServices.length > 0 && (
+                      <p><span className="font-semibold">Dry Cleaning:</span> {
+                        booking.dryCleaningServices.map(id => dryCleaningServices.find(s => s.id === id)?.name).filter(Boolean).join(', ')
+                      }</p>
+                    )}
+                    <p><span className="font-semibold">Service Option:</span> {
+                      booking.serviceOption === 'pickupOnly' ? 'Pickup Only' :
+                      booking.serviceOption === 'deliveryOnly' ? 'Delivery Only' : 'Pickup & Delivery'
+                    }</p>
                     <p><span className="font-semibold">Pickup:</span> {booking.pickupDate} at {booking.pickupTime}</p>
+                    {booking.serviceOption !== 'pickupOnly' && booking.deliveryFee > 0 && (
+                      <p><span className="font-semibold">Delivery Fee:</span> ₱{booking.deliveryFee}</p>
+                    )}
                     <div className="flex flex-wrap justify-end gap-2 mt-2">
                       <button
                         onClick={() => handleApproveBooking(booking.id)}
@@ -757,7 +970,8 @@ const Booking = () => {
       <BookingDetailsModal
         selectedBooking={selectedBooking}
         setSelectedBooking={setSelectedBooking}
-        serviceTypes={serviceTypes}
+        mainServices={mainServices}
+        dryCleaningServices={dryCleaningServices}
       />
 
       <CreateBookingModal
@@ -771,7 +985,8 @@ const Booking = () => {
         photoPreviews={photoPreviews}
         handlePhotoUpload={handlePhotoUpload}
         removePhoto={removePhoto}
-        serviceTypes={serviceTypes}
+        mainServices={mainServices}
+        dryCleaningServices={dryCleaningServices}
       />
 
       <DayBookingsModal
@@ -781,7 +996,8 @@ const Booking = () => {
         dayBookingsSortBy={dayBookingsSortBy}
         setDayBookingsSortBy={setDayBookingsSortBy}
         setSelectedBooking={setSelectedBooking}
-        serviceTypes={serviceTypes}
+        mainServices={mainServices}
+        dryCleaningServices={dryCleaningServices}
       />
 
       <RejectBookingModal
@@ -816,6 +1032,7 @@ const Booking = () => {
                   onChange={handleOrderFormChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
+                  min="1"
                 />
               </div>
               <div>
@@ -906,6 +1123,14 @@ const Booking = () => {
                 className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                onClick={createTestOrder}
+                disabled={creatingOrder}
+                className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50"
+              >
+                {creatingOrder ? 'Creating...' : 'Test Order'}
               </button>
               <button
                 type="submit"

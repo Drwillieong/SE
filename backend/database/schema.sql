@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS orders (
   tshirts INT DEFAULT 0,
   bedsheets INT DEFAULT 0,
   laundryPhoto JSON, -- Store laundry photo URL as JSON
+  bookingId INT, -- Reference to bookings table for orders created from bookings
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_status (status),
@@ -65,7 +66,8 @@ CREATE TABLE IF NOT EXISTS orders (
 
 CREATE TABLE IF NOT EXISTS bookings (
   booking_id INT AUTO_INCREMENT PRIMARY KEY,
-  serviceType ENUM('washFold', 'dryCleaning', 'hangDry') NOT NULL,
+  mainService ENUM('fullService', 'washDryFold') NOT NULL,
+  dryCleaningServices JSON, -- Store array of dry cleaning service IDs as JSON
   pickupDate DATE NOT NULL,
   pickupTime ENUM('7am-10am', '5pm-7pm') NOT NULL,
   loadCount INT NOT NULL DEFAULT 1,
@@ -82,6 +84,8 @@ CREATE TABLE IF NOT EXISTS bookings (
   user_id INT, -- Reference to users table if order is from registered user
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  serviceOption varchar(50),
+  deliveryFee decimal(10,2),
   INDEX idx_status (status),
   INDEX idx_created_at (createdAt),
   INDEX idx_user_id (user_id),

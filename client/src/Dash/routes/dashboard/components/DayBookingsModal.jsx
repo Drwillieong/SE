@@ -30,7 +30,8 @@ const DayBookingsModal = ({
   dayBookingsSortBy,
   setDayBookingsSortBy,
   setSelectedBooking,
-  serviceTypes
+  mainServices,
+  dryCleaningServices
 }) => {
   const sortedDayBookings = [...selectedDayBookings].sort((a, b) => {
     if (dayBookingsSortBy === 'pickupDate') {
@@ -82,8 +83,13 @@ const DayBookingsModal = ({
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg">{booking.name}</h3>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">Service:</span> {serviceTypes.find((s) => s.value === booking.serviceType)?.label || booking.serviceType}
+                    <span className="font-medium">Main Service:</span> {mainServices.find((s) => s.value === booking.mainService)?.label || booking.mainService}
                   </p>
+                  {booking.dryCleaningServices && booking.dryCleaningServices.length > 0 && (
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Dry Cleaning Services:</span> {booking.dryCleaningServices.map(id => dryCleaningServices.find(s => s.id === id)?.name).filter(Boolean).join(', ')}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Time:</span> {booking.pickupTime}
                   </p>
@@ -122,3 +128,4 @@ const DayBookingsModal = ({
 };
 
 export default DayBookingsModal;
+

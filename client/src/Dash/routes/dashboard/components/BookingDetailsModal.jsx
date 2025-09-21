@@ -23,7 +23,7 @@ const customStyles = {
   },
 };
 
-const BookingDetailsModal = ({ selectedBooking, setSelectedBooking, serviceTypes }) => {
+const BookingDetailsModal = ({ selectedBooking, setSelectedBooking, mainServices, dryCleaningServices }) => {
   return (
     <Modal
       isOpen={!!selectedBooking}
@@ -42,13 +42,69 @@ const BookingDetailsModal = ({ selectedBooking, setSelectedBooking, serviceTypes
               ✕
             </button>
           </div>
+          {/* Total Price Section - Prominent Display */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-bold text-gray-800">Total Price</h3>
+              <div className="text-2xl font-bold text-blue-600">
+                ₱{selectedBooking.totalPrice?.toLocaleString() || '0'}
+              </div>
+            </div>
+
+            {/* Price Breakdown */}
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Main Service:</span>
+                <span className="font-medium">
+                  {mainServices.find((s) => s.value === selectedBooking.mainService)?.label || selectedBooking.mainService}
+                  (₱{(mainServices.find((s) => s.value === selectedBooking.mainService)?.price || 0) * (selectedBooking.loadCount || 1)})
+                </span>
+              </div>
+
+              {selectedBooking.dryCleaningServices && selectedBooking.dryCleaningServices.length > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Dry Cleaning:</span>
+                  <span className="font-medium">
+                    {selectedBooking.dryCleaningServices.map(id => dryCleaningServices.find(s => s.id === id)?.name).filter(Boolean).join(', ')}
+                    (₱{selectedBooking.dryCleaningServices.reduce((sum, serviceId) => {
+                      const service = dryCleaningServices.find(s => s.id === serviceId);
+                      return sum + (service ? service.price : 0);
+                    }, 0)})
+                  </span>
+                </div>
+              )}
+
+              {selectedBooking.serviceOption !== 'pickupOnly' && selectedBooking.deliveryFee > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Delivery Fee:</span>
+                  <span className="font-medium">₱{selectedBooking.deliveryFee}</span>
+                </div>
+              )}
+
+              <div className="border-t border-blue-300 pt-1 mt-2">
+                <div className="flex justify-between font-semibold">
+                  <span>Service Option:</span>
+                  <span>
+                    {selectedBooking.serviceOption === 'pickupOnly' ? 'Pickup Only' :
+                     selectedBooking.serviceOption === 'deliveryOnly' ? 'Delivery Only' : 'Pickup & Delivery'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-3">
             <p><span className="font-semibold">Customer:</span> {selectedBooking.name}</p>
             <p><span className="font-semibold">Contact:</span> {selectedBooking.contact}</p>
             <p><span className="font-semibold">Email:</span> {selectedBooking.email || "Not provided"}</p>
-            <p><span className="font-semibold">Service Type:</span> {
-              serviceTypes.find((s) => s.value === selectedBooking.serviceType)?.label || selectedBooking.serviceType
+            <p><span className="font-semibold">Main Service:</span> {
+              mainServices.find((s) => s.value === selectedBooking.mainService)?.label || selectedBooking.mainService
             } (₱{selectedBooking.totalPrice})</p>
+            {selectedBooking.dryCleaningServices && selectedBooking.dryCleaningServices.length > 0 && (
+              <p><span className="font-semibold">Dry Cleaning Services:</span> {
+                selectedBooking.dryCleaningServices.map(id => dryCleaningServices.find(s => s.id === id)?.name).filter(Boolean).join(', ')
+              }</p>
+            )}
             <p><span className="font-semibold">Pickup Date:</span> {selectedBooking.pickupDate}</p>
             <p><span className="font-semibold">Pickup Time:</span> {selectedBooking.pickupTime}</p>
             <p><span className="font-semibold">Address:</span> {selectedBooking.address}</p>

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Modal from "react-modal";
+import { calculateDeliveryFee, getDeliveryFeeInfo } from "../../../utils/deliveryFeeCalculator";
 
 const customStyles = {
   content: {
@@ -13,7 +14,7 @@ const customStyles = {
     border: 'none',
     borderRadius: '0.5rem',
     width: '90%',
-    maxWidth: '600px',
+    maxWidth: '700px',
     maxHeight: '90vh',
     overflowY: 'auto',
   },
@@ -34,8 +35,46 @@ const CreateBookingModal = ({
   photoPreviews,
   handlePhotoUpload,
   removePhoto,
-  serviceTypes
+  mainServices,
+  dryCleaningServices
 }) => {
+  const [deliveryFee, setDeliveryFee] = useState(0);
+  const [serviceOption, setServiceOption] = useState('pickupAndDelivery');
+  const [showServiceOption, setShowServiceOption] = useState(true);
+
+  // Calculate delivery fee when address or load count changes
+  useEffect(() => {
+    if (newBooking.address && newBooking.loadCount) {
+      // Extract barangay from address (simple extraction - you might want to improve this)
+      const addressParts = newBooking.address.split(',').map(part => part.trim());
+      const barangay = addressParts.find(part =>
+        part.toLowerCase().includes('brgy') ||
+        part.toLowerCase().includes('barangay') ||
+        addressParts.indexOf(part) === addressParts.length - 2 // Usually barangay is second to last
+      ) || '';
+
+      const fee = calculateDeliveryFee(barangay, parseInt(newBooking.loadCount) || 1);
+      setDeliveryFee(fee);
+    }
+  }, [newBooking.address, newBooking.loadCount]);
+
+  const handleServiceOptionChange = (option) => {
+    setServiceOption(option);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    // Add service option and delivery fee to the booking data
+    const bookingWithServiceOption = {
+      ...newBooking,
+      serviceOption: serviceOption,
+      deliveryFee: serviceOption === 'pickupOnly' ? 0 : deliveryFee
+    };
+
+    handleCreateBooking(e, bookingWithServiceOption);
+  };
+
   return (
     <Modal
       isOpen={modalIsOpen}
@@ -53,7 +92,7 @@ const CreateBookingModal = ({
             ✕
           </button>
         </div>
-        <form onSubmit={handleCreateBooking} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
@@ -88,20 +127,47 @@ const CreateBookingModal = ({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Service Type *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Main Service *</label>
               <select
-                name="serviceType"
-                value={newBooking.serviceType}
+                name="mainService"
+                value={newBooking.mainService}
                 onChange={handleNewBookingChange}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 required
               >
-                {serviceTypes.map(service => (
+                {mainServices.map(service => (
                   <option key={service.value} value={service.value}>
                     {service.label} (₱{service.price}/load)
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dry Cleaning Services (Optional)</label>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {dryCleaningServices.map(service => (
+                  <div key={service.id} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={service.id}
+                      checked={newBooking.dryCleaningServices.includes(service.id)}
+                      onChange={(e) => {
+                        const isChecked = e.target.checked;
+                        const updatedServices = isChecked
+                          ? [...newBooking.dryCleaningServices, service.id]
+                          : newBooking.dryCleaningServices.filter(id => id !== service.id);
+                        handleNewBookingChange({
+                          target: { name: 'dryCleaningServices', value: updatedServices }
+                        });
+                      }}
+                      className="mr-2"
+                    />
+                    <label htmlFor={service.id} className="text-sm">
+                      {service.name} (₱{service.price})
+                    </label>
+                  </div>
+                ))}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date *</label>
@@ -137,7 +203,7 @@ const CreateBookingModal = ({
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 required
                 min="1"
-                max="2"
+                max="5"
               />
             </div>
             <div>
@@ -155,43 +221,43 @@ const CreateBookingModal = ({
               </select>
             </div>
           </div>
+
+          {/* Service Option Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
-            <input
-              type="text"
-              name="address"
-              value={newBooking.address}
-              onChange={handleNewBookingChange}
-              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-              required
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-3">Service Option *</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => handleServiceOptionChange('pickupOnly')}
+                className={`p-4 border rounded-lg text-center ${serviceOption === 'pickupOnly' ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}`}
+              >
+                <h3 className="font-medium">Pickup Only</h3>
+                <p className="text-sm text-gray-600">We'll pick up your laundry and you'll collect it at our location</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleServiceOptionChange('pickupAndDelivery')}
+                className={`p-4 border rounded-lg text-center ${serviceOption === 'pickupAndDelivery' ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}`}
+              >
+                <h3 className="font-medium">Pickup & Delivery</h3>
+                <p className="text-sm text-gray-600">We'll pick up your laundry and deliver it back to you</p>
+              </button>
+            </div>
           </div>
 
           {/* Photo Upload Section */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Upload Photos of Laundry (Optional)
-              <span className="text-xs text-gray-500 ml-1">Max 5 photos</span>
-            </label>
-            <div className="mt-1 flex items-center">
-              <label className="cursor-pointer bg-white rounded-md font-medium text-pink-600 hover:text-pink-500 focus-within:outline-none">
-                <span>Select photos</span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="sr-only"
-                />
-              </label>
-              <p className="text-xs text-gray-500 ml-2">
-                {photoFiles.length} {photoFiles.length === 1 ? 'photo' : 'photos'} selected
-              </p>
-            </div>
-
-            {/* Photo Previews */}
+            <label className="block text-sm font-medium text-gray-700 mb-1">Photos (Optional)</label>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+            />
             {photoPreviews.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 grid grid-cols-3 gap-2">
                 {photoPreviews.map((preview, index) => (
                   <div key={index} className="relative">
                     <img

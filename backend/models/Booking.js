@@ -7,10 +7,20 @@ export class Booking {
   getAll() {
     return new Promise((resolve, reject) => {
       // Select all columns except booking_id, alias booking_id as id to avoid duplicate columns
-      const sql = "SELECT booking_id as id, serviceType, pickupDate, pickupTime, loadCount, instructions, status, rejectionReason, paymentMethod, name, contact, email, address, photos, totalPrice, user_id, createdAt, updatedAt FROM bookings ORDER BY createdAt DESC";
+      const sql = "SELECT booking_id as id, mainService, dryCleaningServices, pickupDate, pickupTime, loadCount, instructions, status, rejectionReason, paymentMethod, name, contact, email, address, photos, totalPrice, serviceOption, deliveryFee, user_id, createdAt, updatedAt FROM bookings ORDER BY createdAt DESC";
       this.db.query(sql, (err, results) => {
         if (err) reject(err);
-        else resolve(results);
+        else {
+          // Parse dryCleaningServices JSON
+          results.forEach(booking => {
+            if (booking.dryCleaningServices) {
+              booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+            } else {
+              booking.dryCleaningServices = [];
+            }
+          });
+          resolve(results);
+        }
       });
     });
   }
@@ -18,10 +28,20 @@ export class Booking {
   // Get booking by ID
   getById(id) {
     return new Promise((resolve, reject) => {
-      const sql = "SELECT booking_id as id, serviceType, pickupDate, pickupTime, loadCount, instructions, status, rejectionReason, paymentMethod, name, contact, email, address, photos, totalPrice, user_id, createdAt, updatedAt FROM bookings WHERE booking_id = ?";
+      const sql = "SELECT booking_id as id, mainService, dryCleaningServices, pickupDate, pickupTime, loadCount, instructions, status, rejectionReason, paymentMethod, name, contact, email, address, photos, totalPrice, serviceOption, deliveryFee, user_id, createdAt, updatedAt FROM bookings WHERE booking_id = ?";
       this.db.query(sql, [id], (err, results) => {
         if (err) reject(err);
-        else resolve(results.length > 0 ? results[0] : null);
+        else if (results.length > 0) {
+          const booking = results[0];
+          if (booking.dryCleaningServices) {
+            booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+          } else {
+            booking.dryCleaningServices = [];
+          }
+          resolve(booking);
+        } else {
+          resolve(null);
+        }
       });
     });
   }
@@ -30,7 +50,8 @@ export class Booking {
   create(bookingData) {
     return new Promise((resolve, reject) => {
       const {
-        serviceType,
+        mainService,
+        dryCleaningServices,
         pickupDate,
         pickupTime,
         loadCount,
@@ -43,17 +64,21 @@ export class Booking {
         address,
         photos,
         totalPrice,
+        serviceOption,
+        deliveryFee,
         user_id
       } = bookingData;
 
       const sql = `INSERT INTO bookings
-        (serviceType, pickupDate, pickupTime, loadCount, instructions, status, paymentMethod, name, contact, email, address, photos, totalPrice, user_id, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
+        (mainService, dryCleaningServices, pickupDate, pickupTime, loadCount, instructions, status, paymentMethod, name, contact, email, address, photos, totalPrice, serviceOption, deliveryFee, user_id, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
 
       const photosJson = photos ? JSON.stringify(photos) : JSON.stringify([]);
+      const dryCleaningJson = dryCleaningServices ? JSON.stringify(dryCleaningServices) : JSON.stringify([]);
 
       const values = [
-        serviceType,
+        mainService,
+        dryCleaningJson,
         pickupDate,
         pickupTime,
         loadCount,
@@ -66,6 +91,8 @@ export class Booking {
         address,
         photosJson,
         totalPrice,
+        serviceOption || 'pickupAndDelivery',
+        deliveryFee || 0,
         user_id
       ];
 
@@ -81,6 +108,9 @@ export class Booking {
     return new Promise((resolve, reject) => {
       if (updates.photos) {
         updates.photos = JSON.stringify(updates.photos);
+      }
+      if (updates.dryCleaningServices) {
+        updates.dryCleaningServices = JSON.stringify(updates.dryCleaningServices);
       }
 
       const fields = Object.keys(updates);
@@ -129,10 +159,20 @@ export class Booking {
   // Get bookings by user ID
   getByUserId(user_id) {
     return new Promise((resolve, reject) => {
-      const sql = "SELECT booking_id as id, serviceType, pickupDate, pickupTime, loadCount, instructions, status, rejectionReason, paymentMethod, name, contact, email, address, photos, totalPrice, user_id, createdAt, updatedAt FROM bookings WHERE user_id = ? ORDER BY createdAt DESC";
+      const sql = "SELECT booking_id as id, mainService, dryCleaningServices, pickupDate, pickupTime, loadCount, instructions, status, rejectionReason, paymentMethod, name, contact, email, address, photos, totalPrice, serviceOption, deliveryFee, user_id, createdAt, updatedAt FROM bookings WHERE user_id = ? ORDER BY createdAt DESC";
       this.db.query(sql, [user_id], (err, results) => {
         if (err) reject(err);
-        else resolve(results);
+        else {
+          // Parse dryCleaningServices JSON
+          results.forEach(booking => {
+            if (booking.dryCleaningServices) {
+              booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+            } else {
+              booking.dryCleaningServices = [];
+            }
+          });
+          resolve(results);
+        }
       });
     });
   }

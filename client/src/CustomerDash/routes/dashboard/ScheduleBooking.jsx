@@ -5,19 +5,19 @@ import { useNavigate } from 'react-router-dom';
 // Define free pickup barangays and their fees
 const freePickupBarangays = [
   "Brgy. 1", "Brgy. 2", "Brgy. 3", "Brgy. 4", "Brgy. 5", "Brgy. 6", "Brgy. 7",
-  "Lecheria (Up to City Cemetery)", "San Juan", "San Jose",
-  "Looc (Bukana, Mahogany, Vermont)", "Bañadero (Bukana, Bria Homes)",
-  "Palingon", "Lingga", "Sampiruhan", "Parian (Bantayan/Villa Carpio)"
+  "Lecheria", "San Juan", "San Jose",
+  "Looc", "Bañadero",
+  "Palingong", "Lingga", "Sampiruhan", "Parian"
 ];
 
 // Define barangays with special pricing
 const barangayPricing = {
-  "Mapagong": 65,
-  "Bubuyan": 65,
-  "Burol": 65,
-  "Bucal": 40,
-  "Camaligan": 40,
-  "La Mesa": 40
+  "Mapagong": 30,
+  "Bubuyan": 30,
+  "Burol": 30,
+  "Bucal": 30,
+  "Camaligan": 30,
+  "La Mesa": 30
 };
 
 const ScheduleBooking = () => {
@@ -42,36 +42,76 @@ const ScheduleBooking = () => {
 
   // Booking form state
   const [formData, setFormData] = useState({
-    serviceType: 'washFold',
+    mainService: 'washDryFold',
+    dryCleaningServices: [],
     pickupDate: '',
     pickupTime: '7am-10am',
+    loadCount: 1,
     instructions: '',
     status: 'pending',
     paymentMethod: 'cash',
     serviceOption: 'pickupAndDelivery' // New field: 'pickupOnly', 'deliveryOnly', 'pickupAndDelivery'
   });
 
-  // Available services
-  const services = [
+  // Separate main services and dry cleaning services
+  const mainServices = [
     {
-      id: 'washFold',
-      name: 'Wash & Fold',
-      description: 'The perfect service for your everyday laundry needs.',
-      price: 189,
-      priceText: '₱189/load up to 7 kilos (Detergent and Fab Con INCLUDED)'
+      id: 'fullService',
+      name: 'Full Service (Wash, Dry & Fold)',
+      description: 'Complete laundry service with all supplies included.',
+      price: 199,
+      priceText: '₱199/load (Detergent, Fabcon, Colorsafe Bleach INCLUDED)'
+    },
+    {
+      id: 'washDryFold',
+      name: 'Wash, Dry & Fold',
+      description: 'Standard wash, dry, and fold service.',
+      price: 179,
+      priceText: '₱179/load (Bring your own detergent and fabcon)'
+    }
+  ];
+
+  const dryCleaningServices = [
+    {
+      id: 'dryCleanBarong',
+      name: 'Dry Cleaning - Barong',
+      description: 'Professional dry cleaning for barong.',
+      price: 350,
+      priceText: '₱350 per item'
+    },
+    {
+      id: 'dryCleanCoat',
+      name: 'Dry Cleaning - Coat',
+      description: 'Professional dry cleaning for coat.',
+      price: 400,
+      priceText: '₱400 per item'
+    },
+    {
+      id: 'dryCleanGown',
+      name: 'Dry Cleaning - Gown',
+      description: 'Professional dry cleaning for gown.',
+      price: 650,
+      priceText: '₱650 per item'
+    },
+    {
+      id: 'dryCleanWeddingGown',
+      name: 'Dry Cleaning - Wedding Gown',
+      description: 'Professional dry cleaning for wedding gown.',
+      price: 1500,
+      priceText: '₱1,500 per item'
     },
   ];
 
-  // Calculate delivery fee based on barangay
-  const calculateDeliveryFee = (barangay) => {
+  // Calculate delivery fee based on barangay and load count
+  const calculateDeliveryFee = (barangay, loadCount) => {
     if (!barangay) return 0;
 
-    // Check if barangay is in free pickup list
+    // Check if barangay is in free pickup list and loadCount >= 2 for free delivery
     const isFree = freePickupBarangays.some(freeBrgy =>
       barangay.toLowerCase().includes(freeBrgy.toLowerCase().split(' ')[0])
     );
 
-    if (isFree) return 0;
+    if (isFree && loadCount >= 2) return 0;
 
     // Check for special pricing
     for (const [brgy, fee] of Object.entries(barangayPricing)) {
@@ -117,7 +157,7 @@ const ScheduleBooking = () => {
         setUserData(userRes.data);
         setUser({ id: userRes.data.id, name: `${userRes.data.firstName} ${userRes.data.lastName}` });
         if (userRes.data.barangay) {
-          setDeliveryFee(calculateDeliveryFee(userRes.data.barangay));
+          setDeliveryFee(calculateDeliveryFee(userRes.data.barangay, formData.loadCount));
         }
         // Fetch orders
         const ordersRes = await axios.get('http://localhost:8800/api/bookings', {
@@ -137,6 +177,13 @@ const ScheduleBooking = () => {
     };
     fetchUserData();
   }, [navigate]);
+
+  // Recalculate delivery fee when loadCount changes
+  useEffect(() => {
+    if (userData && userData.barangay) {
+      setDeliveryFee(calculateDeliveryFee(userData.barangay, formData.loadCount));
+    }
+  }, [formData.loadCount, userData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -177,15 +224,17 @@ const ScheduleBooking = () => {
   const confirmOrder = async () => {
     try {
       setLoading(true);
-      const selectedService = services.find(s => s.id === formData.serviceType);
+      const selectedMainService = mainServices.find(s => s.id === formData.mainService);
+      const selectedDryCleaningServices = dryCleaningServices.filter(s => formData.dryCleaningServices.includes(s.id));
 
       const userAddress = `${userData.street || ''}${userData.blockLot ? `, Block ${userData.blockLot}` : ''}, ${userData.barangay || ''}, Calamba City`;
 
       const orderPayload = {
-        serviceType: formData.serviceType,
+        mainService: formData.mainService,
+        dryCleaningServices: formData.dryCleaningServices,
         pickupDate: formData.pickupDate,
         pickupTime: formData.pickupTime,
-        loadCount: 1, // Assuming 1 load as default
+        loadCount: formData.loadCount,
         instructions: formData.instructions,
         status: 'pending',
         paymentMethod: formData.paymentMethod,
@@ -194,8 +243,8 @@ const ScheduleBooking = () => {
         email: userData.email,
         address: userAddress,
         photos: [],
-        totalPrice: selectedService.price + (formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee),
-        userId: user.id,
+        totalPrice: (selectedMainService.price * formData.loadCount) + selectedDryCleaningServices.reduce((sum, s) => sum + s.price, 0) + (formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee),
+        user_id: user.id,
       };
 
       const token = localStorage.getItem('token');
@@ -236,9 +285,11 @@ const ScheduleBooking = () => {
   const handleEdit = (order) => {
     setEditingOrder(order);
     setFormData({
-      serviceType: order.serviceType,
+      mainService: order.mainService || 'washDryFold',
+      dryCleaningServices: order.dryCleaningServices || [],
       pickupDate: order.pickupDate,
       pickupTime: order.pickupTime,
+      loadCount: order.loadCount || 1,
       instructions: order.instructions,
       paymentMethod: order.paymentMethod,
       status: order.status,
@@ -279,9 +330,11 @@ const ScheduleBooking = () => {
 
   const resetForm = () => {
     setFormData({
-      serviceType: 'washFold',
+      mainService: 'washDryFold',
+      dryCleaningServices: [],
       pickupDate: '',
       pickupTime: '7am-10am',
+      loadCount: 1,
       instructions: '',
       status: 'pending',
       paymentMethod: 'cash',
@@ -322,9 +375,11 @@ const ScheduleBooking = () => {
     );
   }
 
-  const selectedService = services.find(s => s.id === formData.serviceType);
-  const servicePrice = selectedService.price;
-  const totalPrice = servicePrice + (formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee);
+  const selectedMainService = mainServices.find(s => s.id === formData.mainService);
+  const selectedDryCleaningServices = dryCleaningServices.filter(s => formData.dryCleaningServices.includes(s.id));
+  const mainServicePrice = selectedMainService ? selectedMainService.price * formData.loadCount : 0;
+  const dryCleaningPrice = selectedDryCleaningServices.reduce((sum, s) => sum + s.price, 0);
+  const totalPrice = mainServicePrice + dryCleaningPrice + (formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee);
 
   return (
     <div className="min-h-fit bg-gray-50">
@@ -354,30 +409,73 @@ const ScheduleBooking = () => {
             <div className="p-6">
               <div className="mb-6">
                 <h2 className="text-xl font-bold mb-4">Choose Your Service</h2>
-                <div className="space-y-4">
-                  {services.map(service => (
-                    <div
-                      key={service.id}
-                      className={`p-4 border rounded-lg cursor-pointer ${formData.serviceType === service.id ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}`}
-                      onClick={() => setFormData(prev => ({ ...prev, serviceType: service.id }))}
-                    >
-                      <div className="flex items-start">
-                        <input
-                          type="radio"
-                          id={service.id}
-                          name="serviceType"
-                          checked={formData.serviceType === service.id}
-                          onChange={() => {}}
-                          className="mt-1"
-                        />
-                        <div className="ml-3">
-                          <label htmlFor={service.id} className="font-medium">{service.name}</label>
-                          <p className="text-sm text-gray-600">{service.description}</p>
-                          <p className="text-sm text-pink-600 mt-1">{service.priceText}</p>
+
+                {/* Main Services */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-3">Laundry Services</h3>
+                  <div className="space-y-3">
+                    {mainServices.map(service => (
+                      <div
+                        key={service.id}
+                        className={`p-4 border rounded-lg cursor-pointer ${formData.mainService === service.id ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}`}
+                        onClick={() => setFormData(prev => ({ ...prev, mainService: service.id }))}
+                      >
+                        <div className="flex items-start">
+                          <input
+                            type="radio"
+                            id={service.id}
+                            name="mainService"
+                            checked={formData.mainService === service.id}
+                            onChange={() => {}}
+                            className="mt-1"
+                          />
+                          <div className="ml-3">
+                            <label htmlFor={service.id} className="font-medium">{service.name}</label>
+                            <p className="text-sm text-gray-600">{service.description}</p>
+                            <p className="text-sm text-pink-600 mt-1">{service.priceText}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dry Cleaning Services */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-3">Dry Cleaning Services (Optional)</h3>
+                  <div className="space-y-3">
+                    {dryCleaningServices.map(service => (
+                      <div
+                        key={service.id}
+                        className={`p-4 border rounded-lg cursor-pointer ${formData.dryCleaningServices.includes(service.id) ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}`}
+                        onClick={() => {
+                          const isSelected = formData.dryCleaningServices.includes(service.id);
+                          setFormData(prev => ({
+                            ...prev,
+                            dryCleaningServices: isSelected
+                              ? prev.dryCleaningServices.filter(id => id !== service.id)
+                              : [...prev.dryCleaningServices, service.id]
+                          }));
+                        }}
+                      >
+                        <div className="flex items-start">
+                          <input
+                            type="checkbox"
+                            id={service.id}
+                            name="dryCleaningServices"
+                            checked={formData.dryCleaningServices.includes(service.id)}
+                            onChange={() => {}}
+                            className="mt-1"
+                          />
+                          <div className="ml-3">
+                            <label htmlFor={service.id} className="font-medium">{service.name}</label>
+                            <p className="text-sm text-gray-600">{service.description}</p>
+                            <p className="text-sm text-pink-600 mt-1">{service.priceText}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -407,7 +505,7 @@ const ScheduleBooking = () => {
 
               <div className="mb-6">
                 <h2 className="text-xl font-bold mb-4">Pickup Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date *</label>
                     <div className="grid grid-cols-3 gap-2">
@@ -437,6 +535,24 @@ const ScheduleBooking = () => {
                     </select>
                     <p className="text-xs text-gray-500 mt-1">
                       We'll contact you 30 minutes before arrival
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Load Count *</label>
+                    <select
+                      name="loadCount"
+                      value={formData.loadCount}
+                      onChange={handleChange}
+                      className="w-full border-gray-300 rounded-md shadow-sm focus:border-pink-500 focus:ring-pink-500"
+                    >
+                      <option value={1}>1 Load</option>
+                      <option value={2}>2 Loads</option>
+                      <option value={3}>3 Loads</option>
+                      <option value={4}>4 Loads</option>
+                      <option value={5}>5 Loads</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Minimum 2 loads for free delivery in selected areas
                     </p>
                   </div>
                 </div>
@@ -532,8 +648,8 @@ const ScheduleBooking = () => {
                 <h3 className="font-bold text-lg mb-3">Service Details</h3>
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <p className="text-gray-600">Service:</p>
-                    <p className="font-medium">{selectedService.name}</p>
+                    <p className="text-gray-600">Main Service:</p>
+                    <p className="font-medium">{selectedMainService?.name || 'None selected'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">Service Option:</p>
@@ -554,6 +670,14 @@ const ScheduleBooking = () => {
                       {formData.pickupTime === '7am-10am' ? 'Morning (7am-10am)' : 'Afternoon (5pm-7pm)'}
                     </p>
                   </div>
+                  {selectedDryCleaningServices.length > 0 && (
+                    <div className="col-span-2">
+                      <p className="text-gray-600">Dry Cleaning Services:</p>
+                      <p className="font-medium">
+                        {selectedDryCleaningServices.map(s => s.name).join(', ')}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {formData.instructions && (
@@ -599,10 +723,18 @@ const ScheduleBooking = () => {
               <div className="bg-gray-50 p-4 rounded-lg mb-6">
                 <h3 className="font-bold text-lg mb-3">Payment Summary</h3>
                 <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Service Fee:</span>
-                    <span>₱{servicePrice}</span>
-                  </div>
+                  {selectedMainService && (
+                    <div className="flex justify-between">
+                      <span>Main Service ({selectedMainService.name}):</span>
+                      <span>₱{mainServicePrice}</span>
+                    </div>
+                  )}
+                  {selectedDryCleaningServices.length > 0 && (
+                    <div className="flex justify-between">
+                      <span>Dry Cleaning:</span>
+                      <span>₱{dryCleaningPrice}</span>
+                    </div>
+                  )}
                   {formData.serviceOption !== 'pickupOnly' && (
                     <div className="flex justify-between">
                       <span>Delivery Fee:</span>
@@ -646,7 +778,14 @@ const ScheduleBooking = () => {
                   <div key={order.id || index} className="p-6">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-medium">{services.find(s => s.id === order.serviceType)?.name || order.serviceType}</h3>
+                        <h3 className="font-medium">
+                          {mainServices.find(s => s.id === order.mainService)?.name || order.mainService}
+                          {order.dryCleaningServices && order.dryCleaningServices.length > 0 && (
+                            <span className="text-sm text-gray-500">
+                              {' + ' + order.dryCleaningServices.map(id => dryCleaningServices.find(s => s.id === id)?.name).join(', ')}
+                            </span>
+                          )}
+                        </h3>
                         <p className="text-sm text-gray-600">
                           {new Date(order.pickupDate).toLocaleDateString()} at {order.pickupTime}
                         </p>

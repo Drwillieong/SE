@@ -83,7 +83,10 @@ const OrderHistory = () => {
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                         <div>
-                                            <p><span className="font-medium">Service:</span> {order.serviceType}</p>
+                                            <p><span className="font-medium">Service:</span> {order.mainService}</p>
+                                            {order.dryCleaningServices && order.dryCleaningServices.length > 0 && (
+                                                <p><span className="font-medium">Dry Cleaning:</span> {order.dryCleaningServices.join(', ')}</p>
+                                            )}
                                             <p><span className="font-medium">Pickup:</span> {order.pickupDate} at {order.pickupTime}</p>
                                             <p><span className="font-medium">Loads:</span> {order.loadCount}</p>
                                         </div>

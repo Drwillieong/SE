@@ -74,10 +74,10 @@ db.connect(async (err) => {
         return;
     }
     console.log('Connected to MySQL database');
-
+    
     // Initialize Google OAuth strategy
     initializeGoogleStrategy(db);
-
+    
     // Check if users table exists, create it if not
     const checkTableSql = "SHOW TABLES LIKE 'users'";
     db.query(checkTableSql, (err, result) => {
@@ -85,7 +85,7 @@ db.connect(async (err) => {
             console.error('Error checking users table:', err.message);
             return;
         }
-
+        
         if (result.length === 0) {
             console.log('Users table not found, creating it...');
             const createTableSql = `
@@ -111,7 +111,7 @@ db.connect(async (err) => {
                     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 )
             `;
-
+            
             db.query(createTableSql, (err) => {
                 if (err) {
                     console.error('Error creating users table:', err.message);
@@ -121,22 +121,22 @@ db.connect(async (err) => {
             });
         } else {
             console.log('Users table exists');
-
+            
             // Check if we need to update the table structure
             const checkColumnsSql = `
-                SELECT COLUMN_NAME
-                FROM INFORMATION_SCHEMA.COLUMNS
+                SELECT COLUMN_NAME 
+                FROM INFORMATION_SCHEMA.COLUMNS 
                 WHERE TABLE_NAME = 'users' AND TABLE_SCHEMA = 'wash'
             `;
-
+            
             db.query(checkColumnsSql, (err, columns) => {
                 if (err) {
                     console.error('Error checking table columns:', err.message);
                     return;
                 }
-
+                
                 const columnNames = columns.map(col => col.COLUMN_NAME);
-
+                
                 // Add googleId column if it doesn't exist
                 if (!columnNames.includes('googleId')) {
                     console.log('Adding googleId column to users table...');
@@ -149,7 +149,7 @@ db.connect(async (err) => {
                         }
                     });
                 }
-
+                
                 // Add authProvider column if it doesn't exist
                 if (!columnNames.includes('authProvider')) {
                     console.log('Adding authProvider column to users table...');
@@ -162,7 +162,7 @@ db.connect(async (err) => {
                         }
                     });
                 }
-
+                
                 // Make contact and password columns nullable if they aren't already
                 if (columnNames.includes('contact')) {
                     const makeContactNullableSql = "ALTER TABLE users MODIFY COLUMN contact VARCHAR(20) NULL";
@@ -299,63 +299,6 @@ db.connect(async (err) => {
                     console.log('No users with role \'customer\' found to update');
                 }
             });
-        }
-    });
-
-    // Check if orders table exists, create it if not
-    const checkOrdersTableSql = "SHOW TABLES LIKE 'orders'";
-    db.query(checkOrdersTableSql, (err, result) => {
-        if (err) {
-            console.error('Error checking orders table:', err.message);
-            return;
-        }
-
-        if (result.length === 0) {
-            console.log('Orders table not found, creating it...');
-            const createOrdersTableSql = `
-                CREATE TABLE orders (
-                    order_id INT AUTO_INCREMENT PRIMARY KEY,
-                    serviceType ENUM('washFold', 'dryCleaning', 'hangDry') NOT NULL,
-                    pickupDate DATE NOT NULL,
-                    pickupTime ENUM('7am-10am', '5pm-7pm') NOT NULL,
-                    loadCount INT NOT NULL DEFAULT 1,
-                    instructions TEXT,
-                    status ENUM('pending', 'approved', 'rejected', 'completed', 'cancelled') DEFAULT 'pending',
-                    rejectionReason TEXT,
-                    paymentMethod ENUM('cash', 'gcash', 'card') NOT NULL,
-                    name VARCHAR(255) NOT NULL,
-                    contact VARCHAR(20) NOT NULL,
-                    email VARCHAR(255),
-                    address TEXT NOT NULL,
-                    photos JSON,
-                    totalPrice DECIMAL(10, 2) NOT NULL,
-                    user_id INT,
-                    estimatedClothes INT,
-                    kilos DECIMAL(5, 2),
-                    pants INT DEFAULT 0,
-                    shorts INT DEFAULT 0,
-                    tshirts INT DEFAULT 0,
-                    bedsheets INT DEFAULT 0,
-                    laundryPhoto JSON,
-                    bookingId INT,
-                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    INDEX idx_status (status),
-                    INDEX idx_created_at (createdAt),
-                    INDEX idx_user_id (user_id),
-                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
-                )
-            `;
-
-            db.query(createOrdersTableSql, (err) => {
-                if (err) {
-                    console.error('Error creating orders table:', err.message);
-                } else {
-                    console.log('Orders table created successfully');
-                }
-            });
-        } else {
-            console.log('Orders table exists');
         }
     });
 });
