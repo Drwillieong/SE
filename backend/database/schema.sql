@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS orders (
   pickupTime ENUM('7am-10am', '5pm-7pm') NOT NULL,
   loadCount INT NOT NULL DEFAULT 1,
   instructions TEXT,
-  status ENUM('pending', 'approved', 'rejected', 'completed', 'cancelled') DEFAULT 'pending',
+  status ENUM('pending', 'washing', 'drying', 'folding', 'ready', 'completed') DEFAULT 'pending',
   rejectionReason TEXT,
   paymentMethod ENUM('cash', 'gcash', 'card') NOT NULL,
   name VARCHAR(255) NOT NULL,
@@ -55,6 +55,11 @@ CREATE TABLE IF NOT EXISTS orders (
   bedsheets INT DEFAULT 0,
   laundryPhoto JSON, -- Store laundry photo URL as JSON
   bookingId INT, -- Reference to bookings table for orders created from bookings
+  -- Timer fields for order management
+  timer_start DATETIME NULL,
+  timer_end DATETIME NULL,
+  auto_advance_enabled BOOLEAN DEFAULT FALSE,
+  current_timer_status VARCHAR(20) NULL,
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_status (status),

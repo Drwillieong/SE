@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from 'react-modal';
 import OrderDetailsModal from './components/OrderDetailsModal';
+import TimerDisplay from './components/TimerDisplay';
+import TimerProgressBar from './components/TimerProgressBar';
+import StatusIcon from './components/StatusIcon';
 
 // Initialize modal
 Modal.setAppElement('#root');
@@ -35,6 +38,8 @@ const OrderManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+  const [timerStatuses, setTimerStatuses] = useState({});
+  const [loadingStatus, setLoadingStatus] = useState({});
 
   useEffect(() => {
     console.log('OrderManagement component mounted/updated');
@@ -49,6 +54,18 @@ const OrderManagement = () => {
 
     return () => clearInterval(intervalId);
   }, []);
+
+  // Fetch timer statuses for all orders
+  useEffect(() => {
+    const fetchAllTimerStatuses = async () => {
+      if (orders.length > 0) {
+        const timerPromises = orders.map(order => fetchTimerStatus(order.order_id));
+        await Promise.all(timerPromises);
+      }
+    };
+
+    fetchAllTimerStatuses();
+  }, [orders]);
 
   // Filter and sort orders when dependencies change
   useEffect(() => {
@@ -107,8 +124,12 @@ const OrderManagement = () => {
       });
 
       if (response.ok) {
-        const ordersData = await response.json();
-        console.log('Fetched orders from API:', ordersData);
+        const responseData = await response.json();
+        console.log('Fetched orders from API:', responseData);
+
+        // Handle both old format (direct array) and new format (object with orders array)
+        const ordersData = Array.isArray(responseData) ? responseData : responseData.orders || [];
+
         // Transform the data to match frontend expectations
         const transformedOrders = ordersData.map(order => ({
           ...order,
@@ -212,6 +233,134 @@ const OrderManagement = () => {
       console.error('Error auto-advancing order:', error);
       alert('Failed to auto-advance order');
     }
+  };
+
+  // Timer management functions
+  const fetchTimerStatus = async (orderId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/timer/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const timerStatus = await response.json();
+        setTimerStatuses(prev => ({
+          ...prev,
+          [orderId]: timerStatus
+        }));
+        return timerStatus;
+      }
+    } catch (error) {
+      console.error('Error fetching timer status:', error);
+    }
+    return null;
+  };
+
+  const startOrderTimer = async (orderId, status) => {
+    try {
+      setLoadingStatus(prev => ({ ...prev, [orderId]: true }));
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/timer/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (response.ok) {
+        await fetchTimerStatus(orderId);
+        // Update order status if starting timer for a new status
+        if (status !== 'pending') {
+          setOrders(prev => prev.map(order =>
+            order.order_id === orderId ? { ...order, status } : order
+          ));
+        }
+      } else {
+        alert('Failed to start timer');
+      }
+    } catch (error) {
+      console.error('Error starting timer:', error);
+      alert('Failed to start timer');
+    } finally {
+      setLoadingStatus(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const toggleAutoAdvance = async (orderId, enabled) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/auto-advance/toggle`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ enabled })
+      });
+
+      if (response.ok) {
+        setTimerStatuses(prev => ({
+          ...prev,
+          [orderId]: {
+            ...prev[orderId],
+            autoAdvanceEnabled: enabled
+          }
+        }));
+      } else {
+        alert('Failed to toggle auto-advance');
+      }
+    } catch (error) {
+      console.error('Error toggling auto-advance:', error);
+      alert('Failed to toggle auto-advance');
+    }
+  };
+
+  const advanceToNextStatus = async (orderId) => {
+    try {
+      setLoadingStatus(prev => ({ ...prev, [orderId]: true }));
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/status/next`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update local state
+        setOrders(prev => prev.map(order =>
+          order.order_id === orderId ? { ...order, status: data.order.status } : order
+        ));
+        // Refresh timer status
+        await fetchTimerStatus(orderId);
+      } else {
+        alert('Failed to advance order status');
+      }
+    } catch (error) {
+      console.error('Error advancing order status:', error);
+      alert('Failed to advance order status');
+    } finally {
+      setLoadingStatus(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const handleTimerExpired = async (orderId) => {
+    console.log('Timer expired for order:', orderId);
+    // Auto-advance if enabled
+    const timerStatus = timerStatuses[orderId];
+    if (timerStatus && timerStatus.autoAdvanceEnabled) {
+      await advanceToNextStatus(orderId);
+    }
+  };
+
+  const handleOrderNumberClick = (order) => {
+    setSelectedOrder(order);
   };
 
   const getStatusColor = (status) => {
@@ -381,15 +530,24 @@ const OrderManagement = () => {
                   <tr key={order.order_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <button
+                          onClick={() => handleOrderNumberClick(order)}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-900 hover:underline cursor-pointer"
+                        >
                           Order #{order.order_id}
-                        </div>
+                        </button>
                         <div className="text-sm text-gray-500">
                           {formatDate(order.createdAt)}
                         </div>
                         <div className="text-sm text-gray-500">
                           Pickup: {order.pickupDate} at {order.pickupTime}
                         </div>
+                        {/* Timer Display */}
+                        <TimerDisplay
+                          orderId={order.order_id}
+                          timerStatus={timerStatuses[order.order_id]}
+                          onTimerExpired={handleTimerExpired}
+                        />
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -414,10 +572,38 @@ const OrderManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        <span className="mr-1">{getStatusIcon(order.status)}</span>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </span>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <StatusIcon
+                            status={order.status}
+                            isClickable={['pending', 'washing', 'drying', 'folding'].includes(order.status)}
+                            onClick={() => advanceToNextStatus(order.order_id)}
+                            isLoading={loadingStatus[order.order_id]}
+                          />
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </span>
+                        </div>
+                        {/* Timer Progress Bar */}
+                        <TimerProgressBar
+                          timerStatus={timerStatuses[order.order_id]}
+                          size="sm"
+                        />
+                        {/* Auto-advance toggle */}
+                        {timerStatuses[order.order_id]?.isActive && (
+                          <div className="flex items-center gap-1">
+                            <label className="flex items-center gap-1 text-xs">
+                              <input
+                                type="checkbox"
+                                checked={timerStatuses[order.order_id]?.autoAdvanceEnabled || false}
+                                onChange={(e) => toggleAutoAdvance(order.order_id, e.target.checked)}
+                                className="w-3 h-3"
+                              />
+                              Auto-advance
+                            </label>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       ₱{order.totalPrice?.toLocaleString()}
@@ -425,17 +611,18 @@ const OrderManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex flex-col gap-2">
                         <button
-                          onClick={() => setSelectedOrder(order)}
-                          className="text-blue-600 hover:text-blue-900"
+                          onClick={() => startOrderTimer(order.order_id, order.status)}
+                          className="text-purple-600 hover:text-purple-900 text-xs"
+                          disabled={timerStatuses[order.order_id]?.isActive}
                         >
-                          View Details
+                          {timerStatuses[order.order_id]?.isActive ? 'Timer Active' : 'Start Timer'}
                         </button>
-                        {order.status !== 'completed' && (
+                        {timerStatuses[order.order_id]?.isActive && (
                           <button
-                            onClick={() => autoAdvanceOrder(order.order_id)}
-                            className="text-green-600 hover:text-green-900 text-xs"
+                            onClick={() => toggleAutoAdvance(order.order_id, !timerStatuses[order.order_id]?.autoAdvanceEnabled)}
+                            className="text-orange-600 hover:text-orange-900 text-xs"
                           >
-                            Auto Advance
+                            {timerStatuses[order.order_id]?.autoAdvanceEnabled ? 'Disable Auto' : 'Enable Auto'}
                           </button>
                         )}
                       </div>

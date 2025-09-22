@@ -2,7 +2,24 @@ import express from 'express';
 import { body } from 'express-validator';
 import { getAllBookings, getBookingById, createBooking, updateBooking, deleteBooking, sendPickupEmail } from '../controllers/bookingController.js';
 import { getAllUsers } from '../controllers/userController.js';
-import { getAllOrders, getOrderById, createOrder, updateOrder, deleteOrder, getOrdersByStatus, createOrderFromPickup, getOrderStats, autoAdvanceOrder } from '../controllers/orderController.js';
+import {
+  getAllOrders,
+  getOrderById,
+  createOrder,
+  updateOrder,
+  deleteOrder,
+  getOrdersByStatus,
+  createOrderFromPickup,
+  getOrderStats,
+  autoAdvanceOrder,
+  startOrderTimer,
+  stopOrderTimer,
+  getOrderTimerStatus,
+  toggleOrderAutoAdvance,
+  advanceOrderToNextStatus,
+  getOrdersWithActiveTimers,
+  getOrdersWithExpiredTimers
+} from '../controllers/orderController.js';
 import { verifyToken, requireAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -43,6 +60,15 @@ router.post('/orders/admin/create-from-pickup', verifyToken, requireAdmin, (req,
 router.put('/orders/:id', verifyToken, requireAdmin, (req, res) => updateOrder(req.db)(req, res));
 router.put('/orders/:id/auto-advance', verifyToken, requireAdmin, (req, res) => autoAdvanceOrder(req.db)(req, res));
 router.delete('/orders/:id', verifyToken, requireAdmin, (req, res) => deleteOrder(req.db)(req, res));
+
+// Timer management routes
+router.post('/orders/:id/timer/start', verifyToken, requireAdmin, (req, res) => startOrderTimer(req.db)(req, res));
+router.post('/orders/:id/timer/stop', verifyToken, requireAdmin, (req, res) => stopOrderTimer(req.db)(req, res));
+router.get('/orders/:id/timer/status', verifyToken, requireAdmin, (req, res) => getOrderTimerStatus(req.db)(req, res));
+router.put('/orders/:id/auto-advance/toggle', verifyToken, requireAdmin, (req, res) => toggleOrderAutoAdvance(req.db)(req, res));
+router.put('/orders/:id/status/next', verifyToken, requireAdmin, (req, res) => advanceOrderToNextStatus(req.db)(req, res));
+router.get('/orders/timers/active', verifyToken, requireAdmin, (req, res) => getOrdersWithActiveTimers(req.db)(req, res));
+router.get('/orders/timers/expired', verifyToken, requireAdmin, (req, res) => getOrdersWithExpiredTimers(req.db)(req, res));
 
 // User management routes (admin only)
 router.get('/users', verifyToken, requireAdmin, (req, res) => getAllUsers(req.db)(req, res));

@@ -38,12 +38,44 @@ export const autoAdvanceOrder = (db) => async (req, res) => {
   }
 };
 
-// Controller to get all orders
+// Controller to get all orders with pagination
 export const getAllOrders = (db) => async (req, res) => {
   const orderModel = new Order(db);
   try {
-    const orders = await orderModel.getAll();
-    res.json(orders);
+    // Parse pagination parameters from query string
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+
+    // Validate pagination parameters
+    if (page < 1) {
+      return res.status(400).json({ message: 'Page must be greater than 0' });
+    }
+    if (limit < 1 || limit > 100) {
+      return res.status(400).json({ message: 'Limit must be between 1 and 100' });
+    }
+
+    // Get paginated orders and total count
+    const [orders, totalCount] = await Promise.all([
+      orderModel.getAll(page, limit),
+      orderModel.getTotalCount()
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    res.json({
+      orders,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount,
+        limit,
+        hasNextPage,
+        hasPrevPage
+      }
+    });
   } catch (error) {
     console.error('Error fetching orders:', error);
     res.status(500).json({ message: 'Server error fetching orders' });
@@ -191,5 +223,148 @@ export const createOrderFromPickup = (db) => async (req, res) => {
     console.error('Error creating order from pickup:', error);
     console.error(error.stack);
     res.status(500).json({ message: 'Server error creating order from pickup', error: error.message });
+  }
+};
+
+// Timer Management Controllers
+
+// Start timer for an order
+export const startOrderTimer = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const { status } = req.body;
+  const orderModel = new Order(db);
+
+  try {
+    const timerData = await orderModel.startTimer(orderId, status);
+    res.json({
+      message: 'Timer started successfully',
+      timerData
+    });
+  } catch (error) {
+    console.error('Error starting timer:', error);
+    if (error.message === 'Order not found') {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    res.status(500).json({ message: 'Server error starting timer' });
+  }
+};
+
+// Stop timer for an order
+export const stopOrderTimer = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const orderModel = new Order(db);
+
+  try {
+    await orderModel.stopTimer(orderId);
+    res.json({ message: 'Timer stopped successfully' });
+  } catch (error) {
+    console.error('Error stopping timer:', error);
+    if (error.message === 'Order not found') {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    res.status(500).json({ message: 'Server error stopping timer' });
+  }
+};
+
+// Get timer status for an order
+export const getOrderTimerStatus = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const orderModel = new Order(db);
+
+  try {
+    const timerStatus = await orderModel.getTimerStatus(orderId);
+    res.json(timerStatus);
+  } catch (error) {
+    console.error('Error getting timer status:', error);
+    res.status(500).json({ message: 'Server error getting timer status' });
+  }
+};
+
+// Toggle auto-advance for an order
+export const toggleOrderAutoAdvance = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const { enabled } = req.body;
+  const orderModel = new Order(db);
+
+  try {
+    await orderModel.toggleAutoAdvance(orderId, enabled);
+    res.json({
+      message: `Auto-advance ${enabled ? 'enabled' : 'disabled'} successfully`,
+      autoAdvanceEnabled: enabled
+    });
+  } catch (error) {
+    console.error('Error toggling auto-advance:', error);
+    if (error.message === 'Order not found') {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    res.status(500).json({ message: 'Server error toggling auto-advance' });
+  }
+};
+
+// Advance order to next status
+export const advanceOrderToNextStatus = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const orderModel = new Order(db);
+
+  try {
+    // Get order details before updating to send email if needed
+    const order = await orderModel.getById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const previousStatus = order.status;
+    await orderModel.advanceToNextStatus(orderId);
+    const updatedOrder = await orderModel.getById(orderId);
+
+    // Send email notification if status changed to "ready"
+    if (previousStatus !== 'ready' && updatedOrder.status === 'ready' && order.email) {
+      try {
+        const { sendReadyForPickupEmail } = await import('../utils/email.js');
+        await sendReadyForPickupEmail(order.email, order.name, order.order_id, order.serviceType);
+        console.log('✅ Ready for pickup email sent successfully to:', order.email);
+      } catch (emailError) {
+        console.error('❌ Error sending ready for pickup email:', emailError.message);
+        // Don't fail the status update if email fails, just log the error
+        console.error('💡 Order status was updated to ready but email notification failed. This is not critical but should be investigated.');
+      }
+    }
+
+    res.json({
+      message: 'Order advanced to next status successfully',
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Error advancing order status:', error);
+    if (error.message === 'Order not found') {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    res.status(500).json({ message: 'Server error advancing order status' });
+  }
+};
+
+// Get all orders with active timers
+export const getOrdersWithActiveTimers = (db) => async (req, res) => {
+  const orderModel = new Order(db);
+
+  try {
+    const orders = await orderModel.getOrdersWithActiveTimers();
+    res.json(orders);
+  } catch (error) {
+    console.error('Error fetching orders with active timers:', error);
+    res.status(500).json({ message: 'Server error fetching orders with active timers' });
+  }
+};
+
+// Get all orders with expired timers
+export const getOrdersWithExpiredTimers = (db) => async (req, res) => {
+  const orderModel = new Order(db);
+
+  try {
+    const orders = await orderModel.getOrdersWithExpiredTimers();
+    res.json(orders);
+  } catch (error) {
+    console.error('Error fetching orders with expired timers:', error);
+    res.status(500).json({ message: 'Server error fetching orders with expired timers' });
   }
 };
