@@ -196,3 +196,55 @@ export const sendPickupEmail = async (email, name, address) => {
         throw error;
     }
 };
+
+// Function to send booking rejection email (returns a promise)
+export const sendRejectionEmail = async (email, name, rejectionReason) => {
+    console.log('📤 Attempting to send booking rejection email to:', email);
+
+    const transporter = createTransporter();
+    if (!transporter) {
+        throw new Error('Email transporter not configured');
+    }
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Booking Update - Wash It Izzy',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #dc3545;">Booking Update</h2>
+                <p>Dear ${name},</p>
+                <p>We regret to inform you that your laundry booking request has been <strong>rejected</strong>.</p>
+
+                <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                    <h3 style="color: #721c24; margin-top: 0;">Reason for Rejection:</h3>
+                    <p style="color: #721c24; margin-bottom: 0; font-weight: 500;">${rejectionReason}</p>
+                </div>
+
+                <p>If you have any questions about this rejection or would like to submit a new booking with different details, please don't hesitate to contact us:</p>
+                <ul>
+                    <li>Phone: 0968-856-3288</li>
+                    <li>Email: ${process.env.EMAIL_USER}</li>
+                </ul>
+
+                <p>Thank you for considering Wash It Izzy for your laundry needs.</p>
+
+                <hr style="border: none; border-top: 1px solid #e9ecef; margin: 20px 0;">
+                <p style="color: #6c757d; font-size: 12px;">
+                    This is an automated message from Wash It Izzy. Please do not reply to this email.
+                </p>
+            </div>
+        `
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Booking rejection email sent successfully:', info.response);
+        console.log('📧 Message ID:', info.messageId);
+        return info;
+    } catch (error) {
+        console.error('❌ Error sending booking rejection email:', error.message);
+        console.error('🔧 Error details:', error.response || error);
+        throw error;
+    }
+};

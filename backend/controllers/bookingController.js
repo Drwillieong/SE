@@ -79,7 +79,28 @@ export const updateBooking = (db) => async (req, res) => {
   }
 
   try {
+    // Get booking details before updating to send rejection email if needed
+    let booking = null;
+    if (updates.status === 'rejected') {
+      booking = await bookingModel.getById(bookingId);
+    }
+
+    // Update the booking
     await bookingModel.update(bookingId, updates);
+
+    // Send rejection email if status is rejected and we have booking details
+    if (updates.status === 'rejected' && booking && booking.email) {
+      try {
+        const { sendRejectionEmail } = await import('../utils/email.js');
+        await sendRejectionEmail(booking.email, booking.name, updates.rejectionReason);
+        console.log('✅ Rejection email sent successfully to:', booking.email);
+      } catch (emailError) {
+        console.error('❌ Error sending rejection email:', emailError.message);
+        // Don't fail the booking update if email fails, just log the error
+        console.error('💡 Booking was rejected but email notification failed. This is not critical but should be investigated.');
+      }
+    }
+
     res.json({ message: 'Booking updated successfully' });
   } catch (error) {
     console.error('Error updating booking:', error);

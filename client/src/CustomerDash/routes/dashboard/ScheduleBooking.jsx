@@ -793,8 +793,15 @@ const ScheduleBooking = () => {
                           order.status === 'pending' ? 'text-yellow-600' :
                           order.status === 'approved' ? 'text-green-600' :
                           order.status === 'completed' ? 'text-blue-600' :
-                          order.status === 'cancelled' ? 'text-red-600' : 'text-gray-600'
+                          order.status === 'cancelled' ? 'text-red-600' :
+                          order.status === 'rejected' ? 'text-red-600' : 'text-gray-600'
                         }`}>{order.status}</span></p>
+                        {order.status === 'rejected' && order.rejectionReason && (
+                          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                            <p className="text-sm font-medium text-red-800 mb-1">Rejection Reason:</p>
+                            <p className="text-sm text-red-700">{order.rejectionReason}</p>
+                          </div>
+                        )}
                         <p className="text-sm text-gray-600">Total: ₱{order.totalPrice}</p>
                       </div>
                       <div className="flex space-x-2">

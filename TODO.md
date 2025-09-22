@@ -1,44 +1,34 @@
-# OrderManagement Component Implementation
+# Booking Rejection Email & Display Feature
 
-## Implementation Steps
+## Plan Implementation Steps:
 
-### 1. Core OrderManagement Component ✅
-- [x] Implement order listing with table/grid view
-- [x] Add status filtering and sorting functionality
-- [x] Add search functionality for orders
-- [x] Integrate dashboard statistics display
-- [x] Add loading and error states
-- [x] Implement responsive design
+### Backend Changes:
+1. **Add `sendRejectionEmail` function to `backend/utils/email.js`**
+   - Create email template for booking rejection
+   - Include rejection reason in email body
+   - Use customer's email from booking data
 
-### 2. OrderDetailsModal Component ✅
-- [x] Create new OrderDetailsModal.jsx component
-- [x] Display complete order information
-- [x] Add customer details section
-- [x] Add service and laundry details display
-- [x] Implement status management controls
-- [x] Add photo display for laundry items
+2. **Modify `updateBooking` function in `backend/controllers/bookingController.js`**
+   - Add logic to send rejection email when status changes to 'rejected'
+   - Import and call the new email function
+   - Handle email sending errors gracefully
 
-### 3. Status Management System ✅
-- [x] Implement manual status updates
-- [x] Add auto-advance functionality
-- [x] Add status-based color coding
-- [x] Add progress tracking display
+### Frontend Changes:
+3. **Update customer dashboard (`client/src/CustomerDash/routes/dashboard/ScheduleBooking.jsx`)**
+   - Add rejection reason display for rejected bookings
+   - Make rejection reason prominent in the UI
+   - Style it appropriately (red background, clear messaging)
 
-### 4. API Integration ✅
-- [x] Implement API calls for fetching orders
-- [x] Add API calls for updating order status
-- [x] Add API calls for dashboard statistics
-- [x] Implement error handling for all API calls
+### Testing:
+4. **Test the complete flow:**
+   - Admin rejects booking with reason
+   - Email sent to customer with rejection reason
+   - Customer dashboard shows rejection reason
+   - Verify email content and formatting
 
-### 5. Data Management ✅
-- [x] Add data transformation utilities
-- [x] Implement real-time updates
-- [x] Add search and filter functionality
-- [x] Add sorting capabilities
-
-### 6. Testing
-- [ ] Test order creation flow from Booking.jsx
-- [ ] Verify API endpoints functionality
-- [ ] Test status management and auto-advance
-- [ ] Validate responsive design
-- [ ] Check error handling scenarios
+## Progress Tracking:
+- [x] Add sendRejectionEmail function to email.js
+- [x] Modify updateBooking function to send rejection email
+- [x] Update customer dashboard to display rejection reasons
+- [ ] Test complete rejection flow
+- [ ] Verify email configuration and SMTP settings
