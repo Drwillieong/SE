@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import SocketClient from '../../components/SocketClient';
+import RealTimeUpdates from '../../components/RealTimeUpdates';
+import StatusIcon from '../../components/StatusIcon';
+import BookingDetailsModal from './BookingDetailsModal';
 
 // Define free pickup barangays and their fees
 const freePickupBarangays = [
-  "Brgy. 1", "Brgy. 2", "Brgy. 3", "Brgy. 4", "Brgy. 5", "Brgy. 6", "Brgy. 7",
   "Lecheria", "San Juan", "San Jose",
   "Looc", "Bañadero",
   "Palingong", "Lingga", "Sampiruhan", "Parian"
@@ -39,6 +42,10 @@ const ScheduleBooking = () => {
     expiry: '',
     cvv: ''
   });
+
+  // Real-time updates state
+  const [socketClient, setSocketClient] = useState(null);
+  const [realTimeOrders, setRealTimeOrders] = useState([]);
 
   // Booking form state
   const [formData, setFormData] = useState({
@@ -160,13 +167,13 @@ const ScheduleBooking = () => {
           setDeliveryFee(calculateDeliveryFee(userRes.data.barangay, formData.loadCount));
         }
         // Fetch orders
-        const ordersRes = await axios.get('http://localhost:8800/api/bookings', {
+        const ordersRes = await axios.get('http://localhost:8800/api/orders', {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 10000,
           withCredentials: true
         });
         // Filter out cancelled orders from the list
-        const filteredOrders = ordersRes.data.filter(order => order.status !== 'cancelled');
+        const filteredOrders = ordersRes.data.orders.filter(order => order.status !== 'cancelled');
         setOrders(filteredOrders);
       } catch (error) {
         console.error('Error fetching user data or orders:', error);
@@ -249,19 +256,19 @@ const ScheduleBooking = () => {
 
       const token = localStorage.getItem('token');
       if (editingOrder) {
-        // Update existing booking
-        await axios.put(`http://localhost:8800/api/bookings/${editingOrder.booking_id || editingOrder.id}`, orderPayload, {
+        // Update existing order
+        await axios.put(`http://localhost:8800/api/orders/${editingOrder.booking_id || editingOrder.id}`, orderPayload, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
-        alert('Booking updated successfully!');
+        alert('Order updated successfully!');
       } else {
-        // Create new booking
-        await axios.post('http://localhost:8800/api/bookings', orderPayload, {
+        // Create new order
+        await axios.post('http://localhost:8800/api/orders', orderPayload, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
-        alert('Booking submitted successfully! Our team will review your request.');
+        alert('Order submitted successfully! Our team will review your request.');
       }
 
       setShowConfirmation(false);
@@ -269,11 +276,11 @@ const ScheduleBooking = () => {
       resetForm();
       setActiveTab('orders');
       // Refresh orders
-        const ordersRes = await axios.get('http://localhost:8800/api/bookings', {
+        const ordersRes = await axios.get('http://localhost:8800/api/orders', {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
-      setOrders(ordersRes.data);
+      setOrders(ordersRes.data.orders);
     } catch (error) {
       console.error('Error saving order:', error);
       alert(error.message || 'Failed to save order. Please try again.');
@@ -348,6 +355,62 @@ const ScheduleBooking = () => {
       cvv: ''
     });
     setEditingOrder(null);
+  };
+
+  // Real-time update handlers
+  const handleOrderUpdate = (type, data) => {
+    console.log('Order update received:', type, data);
+
+    switch (type) {
+      case 'created':
+      case 'updated':
+      case 'status_advanced':
+      case 'global_status_changed':
+        // Update existing order in the list
+        setOrders(prevOrders =>
+          prevOrders.map(order =>
+            (order.id === data.id || order.id === data.orderId || order.booking_id === data.id) ?
+              { ...order, ...data, status: data.status || data.newStatus || order.status } :
+              order
+          )
+        );
+        break;
+
+      case 'your-order-created':
+      case 'your-order-updated':
+      case 'your-order-status-advanced':
+        // Update specific user's order
+        setOrders(prevOrders =>
+          prevOrders.map(order =>
+            (order.id === data.orderId || order.booking_id === data.orderId) ?
+              { ...order, ...data, status: data.newStatus || data.status || order.status } :
+              order
+          )
+        );
+        break;
+
+      default:
+        console.log('Unhandled order update type:', type);
+        break;
+    }
+  };
+
+  const handleNewOrder = (newOrder) => {
+    console.log('New order received:', newOrder);
+    // Add new order to the beginning of the list
+    setOrders(prevOrders => [newOrder, ...prevOrders]);
+  };
+
+  const handleBookingToOrder = (bookingData) => {
+    console.log('Booking converted to order:', bookingData);
+    // Handle when admin converts booking to order
+    setOrders(prevOrders =>
+      prevOrders.map(order =>
+        order.id === bookingData.id || order.booking_id === bookingData.bookingId ?
+          { ...order, ...bookingData, status: 'approved' } :
+          order
+      )
+    );
   };
 
   if (userDataLoading) {
@@ -789,13 +852,7 @@ const ScheduleBooking = () => {
                         <p className="text-sm text-gray-600">
                           {new Date(order.pickupDate).toLocaleDateString()} at {order.pickupTime}
                         </p>
-                        <p className="text-sm text-gray-600">Status: <span className={`font-medium ${
-                          order.status === 'pending' ? 'text-yellow-600' :
-                          order.status === 'approved' ? 'text-green-600' :
-                          order.status === 'completed' ? 'text-blue-600' :
-                          order.status === 'cancelled' ? 'text-red-600' :
-                          order.status === 'rejected' ? 'text-red-600' : 'text-gray-600'
-                        }`}>{order.status}</span></p>
+                        <div className="text-sm text-gray-600">Status: <StatusIcon status={order.status} /></div>
                         {order.status === 'rejected' && order.rejectionReason && (
                           <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
                             <p className="text-sm font-medium text-red-800 mb-1">Rejection Reason:</p>
@@ -866,6 +923,21 @@ const ScheduleBooking = () => {
           </div>
         </div>
       )}
+
+      {/* Real-time Updates Components */}
+      <SocketClient
+        userId={user?.id}
+        userRole="user"
+        onOrderUpdate={handleOrderUpdate}
+        onBookingUpdate={handleOrderUpdate}
+        onNotification={(notification) => console.log('Notification:', notification)}
+        onNewOrder={handleNewOrder}
+        onBookingToOrder={handleBookingToOrder}
+      />
+      <RealTimeUpdates
+        orders={orders}
+        onOrderUpdate={handleOrderUpdate}
+      />
     </div>
   );
 };

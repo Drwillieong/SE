@@ -1,8 +1,6 @@
 import { Order } from '../models/Order.js';
 import { Booking } from '../models/Booking.js';
 
-// Add near the other exports in orderController.js
-
 // Controller to get order statistics
 export const getOrderStats = (db) => async (req, res) => {
   const orderModel = new Order(db);
@@ -14,6 +12,7 @@ export const getOrderStats = (db) => async (req, res) => {
     res.status(500).json({ message: 'Server error fetching order stats' });
   }
 };
+
 // Auto-advance status endpoint (called by client when timer expires OR by server cron)
 export const autoAdvanceOrder = (db) => async (req, res) => {
   const orderId = req.params.id;
@@ -103,6 +102,25 @@ export const createOrder = (db) => async (req, res) => {
   const orderModel = new Order(db);
   try {
     const orderId = await orderModel.create(req.body);
+
+    // Emit WebSocket notification for new order
+    if (req.io) {
+      req.io.emit('order-created', {
+        orderId,
+        message: 'New order created',
+        timestamp: new Date().toISOString()
+      });
+
+      // Also send to specific user if userId is provided
+      if (req.body.userId) {
+        req.io.to(`user_${req.body.userId}`).emit('your-order-created', {
+          orderId,
+          message: 'Your order has been created',
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
     res.status(201).json({ message: 'Order created successfully', orderId });
   } catch (error) {
     console.error('Error creating order:', error);
@@ -117,7 +135,41 @@ export const updateOrder = (db) => async (req, res) => {
   const orderModel = new Order(db);
 
   try {
+    // Get order before update for comparison
+    const orderBefore = await orderModel.getById(orderId);
+    if (!orderBefore) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
     await orderModel.update(orderId, updates);
+
+    // Get updated order
+    const orderAfter = await orderModel.getById(orderId);
+
+    // Emit WebSocket notification for order update
+    if (req.io) {
+      const notificationData = {
+        orderId,
+        previousStatus: orderBefore.status,
+        newStatus: orderAfter.status,
+        updates,
+        timestamp: new Date().toISOString()
+      };
+
+      req.io.emit('order-status-changed', notificationData);
+
+      // Also send to specific user if userId is provided
+      if (orderAfter.user_id) {
+        req.io.to(`user_${orderAfter.user_id}`).emit('your-order-updated', {
+          orderId,
+          previousStatus: orderBefore.status,
+          newStatus: orderAfter.status,
+          message: `Your order status has been updated to ${orderAfter.status}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
     res.json({ message: 'Order updated successfully' });
   } catch (error) {
     console.error('Error updating order:', error);
@@ -137,6 +189,16 @@ export const deleteOrder = (db) => async (req, res) => {
   const orderModel = new Order(db);
   try {
     await orderModel.delete(orderId);
+
+    // Emit WebSocket notification for order deletion
+    if (req.io) {
+      req.io.emit('order-deleted', {
+        orderId,
+        message: 'Order deleted',
+        timestamp: new Date().toISOString()
+      });
+    }
+
     res.json({ message: 'Order deleted successfully' });
   } catch (error) {
     console.error('Error deleting order:', error);
@@ -206,11 +268,51 @@ export const createOrderFromPickup = (db) => async (req, res) => {
     const orderId = await orderModel.create(orderData);
     console.log('Order created successfully with ID:', orderId);
 
-    // Mark the booking as completed if bookingId is provided
-    if (req.body.bookingId) {
+    // Emit WebSocket notification for new order from pickup
+    if (req.io) {
+      const notificationData = {
+        orderId,
+        message: 'New order created from pickup',
+        serviceType: mappedServiceType,
+        userId: req.body.userId,
+        timestamp: new Date().toISOString()
+      };
+
+      req.io.emit('order-created-from-pickup', notificationData);
+
+      // Send to specific user if userId is provided
+      if (req.body.userId) {
+        req.io.to(`user_${req.body.userId}`).emit('your-booking-converted-to-order', {
+          orderId,
+          bookingId: req.body.bookingId,
+          message: 'Your booking has been converted to an order',
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    // Mark the booking as completed if bookingId is provided (handle both bookingId and booking_id)
+    const bookingId = req.body.bookingId || req.body.booking_id;
+    if (bookingId) {
       try {
-        console.log('Updating booking status to completed for booking ID:', req.body.bookingId);
-        await bookingModel.update(req.body.bookingId, { status: 'completed' });
+        console.log('Updating booking status to completed for booking ID:', bookingId);
+        const updateResult = await bookingModel.update(bookingId, { status: 'completed' });
+        console.log('Booking update result:', updateResult);
+
+        // Verify the update worked
+        const updatedBooking = await bookingModel.getById(bookingId);
+        console.log('Updated booking status:', updatedBooking ? updatedBooking.status : 'NOT FOUND');
+
+        // Emit WebSocket notification for booking completion
+        if (req.io) {
+          req.io.emit('booking-completed', {
+            bookingId: req.body.bookingId,
+            orderId,
+            message: 'Booking converted to order',
+            timestamp: new Date().toISOString()
+          });
+        }
+
         console.log('Booking status updated successfully');
       } catch (bookingError) {
         console.error('Error updating booking status:', bookingError);
@@ -236,6 +338,18 @@ export const startOrderTimer = (db) => async (req, res) => {
 
   try {
     const timerData = await orderModel.startTimer(orderId, status);
+
+    // Emit WebSocket notification for timer start
+    if (req.io) {
+      req.io.emit('order-timer-started', {
+        orderId,
+        status,
+        timerData,
+        message: 'Order timer started',
+        timestamp: new Date().toISOString()
+      });
+    }
+
     res.json({
       message: 'Timer started successfully',
       timerData
@@ -256,6 +370,16 @@ export const stopOrderTimer = (db) => async (req, res) => {
 
   try {
     await orderModel.stopTimer(orderId);
+
+    // Emit WebSocket notification for timer stop
+    if (req.io) {
+      req.io.emit('order-timer-stopped', {
+        orderId,
+        message: 'Order timer stopped',
+        timestamp: new Date().toISOString()
+      });
+    }
+
     res.json({ message: 'Timer stopped successfully' });
   } catch (error) {
     console.error('Error stopping timer:', error);
@@ -288,6 +412,17 @@ export const toggleOrderAutoAdvance = (db) => async (req, res) => {
 
   try {
     await orderModel.toggleAutoAdvance(orderId, enabled);
+
+    // Emit WebSocket notification for auto-advance toggle
+    if (req.io) {
+      req.io.emit('order-auto-advance-toggled', {
+        orderId,
+        enabled,
+        message: `Auto-advance ${enabled ? 'enabled' : 'disabled'}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     res.json({
       message: `Auto-advance ${enabled ? 'enabled' : 'disabled'} successfully`,
       autoAdvanceEnabled: enabled
@@ -316,6 +451,30 @@ export const advanceOrderToNextStatus = (db) => async (req, res) => {
     const previousStatus = order.status;
     await orderModel.advanceToNextStatus(orderId);
     const updatedOrder = await orderModel.getById(orderId);
+
+    // Emit WebSocket notification for status advancement
+    if (req.io) {
+      const notificationData = {
+        orderId,
+        previousStatus,
+        newStatus: updatedOrder.status,
+        message: `Order advanced from ${previousStatus} to ${updatedOrder.status}`,
+        timestamp: new Date().toISOString()
+      };
+
+      req.io.emit('order-status-advanced', notificationData);
+
+      // Send to specific user if userId is provided
+      if (updatedOrder.user_id) {
+        req.io.to(`user_${updatedOrder.user_id}`).emit('your-order-status-advanced', {
+          orderId,
+          previousStatus,
+          newStatus: updatedOrder.status,
+          message: `Your order has been advanced to ${updatedOrder.status}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
 
     // Send email notification if status changed to "ready"
     if (previousStatus !== 'ready' && updatedOrder.status === 'ready' && order.email) {

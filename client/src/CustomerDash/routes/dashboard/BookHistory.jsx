@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import BookingDetailsModal from "./BookingDetailsModal";
 
 const OrderHistory = () => {
     const navigate = useNavigate();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedBooking, setSelectedBooking] = useState(null);
 
     useEffect(() => {
         fetchOrders();
@@ -71,7 +73,11 @@ const OrderHistory = () => {
             ) : (
                 <div className="space-y-4">
                     {orders.map((order) => (
-                        <div key={order.id} className="bg-white rounded-lg shadow p-6 border">
+                        <div
+                            key={order.id}
+                            className="bg-white rounded-lg shadow p-6 border cursor-pointer hover:shadow-lg transition-shadow"
+                            onClick={() => setSelectedBooking(order)}
+                        >
                             <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-3 mb-2">
@@ -116,6 +122,12 @@ const OrderHistory = () => {
                     ))}
                 </div>
             )}
+
+            {/* Booking Details Modal */}
+            <BookingDetailsModal
+                selectedBooking={selectedBooking}
+                setSelectedBooking={setSelectedBooking}
+            />
         </div>
     );
 };

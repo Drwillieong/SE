@@ -6,6 +6,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import Modal from 'react-modal';
 import BookingDetailsModal from './components/BookingDetailsModal';
 import CreateBookingModal from './components/CreateBookingModal';
+import EditBookingModal from './components/EditBookingModal';
 import DayBookingsModal from './components/DayBookingsModal';
 import RejectBookingModal from './components/RejectBookingModal';
 import { calculateDeliveryFee } from '../../utils/deliveryFeeCalculator';
@@ -82,25 +83,28 @@ const Booking = () => {
   const [laundryPhotoFile, setLaundryPhotoFile] = useState(null);
   const [laundryPhotoPreview, setLaundryPhotoPreview] = useState(null);
   const [creatingOrder, setCreatingOrder] = useState(false);
-
-  // Health check function
-  const checkBackendHealth = async () => {
-    try {
-      console.log('Checking backend health...');
-      const response = await fetch('http://localhost:8800/', {
-        method: 'GET'
-      });
-      console.log('Backend health check response:', response.status);
-      if (response.ok) {
-        alert('Backend is running! ✅');
-      } else {
-        alert('Backend is not responding properly ❌');
-      }
-    } catch (error) {
-      console.error('Backend health check failed:', error);
-      alert('Backend is not running or not accessible ❌');
-    }
-  };
+  const [editModalIsOpen, setEditModalIsOpen] = useState(false);
+  const [bookingToEdit, setBookingToEdit] = useState(null);
+  const [editBooking, setEditBooking] = useState({
+    mainService: "washDryFold",
+    dryCleaningServices: [],
+    pickupDate: "",
+    pickupTime: "7am-10am",
+    loadCount: 1,
+    instructions: "",
+    status: "approved",
+    paymentMethod: "cash",
+    name: "",
+    contact: "",
+    email: "",
+    address: "",
+    serviceOption: "pickupAndDelivery",
+    deliveryFee: 0
+  });
+  const [editPhotoFiles, setEditPhotoFiles] = useState([]);
+  const [editPhotoPreviews, setEditPhotoPreviews] = useState([]);
+  const [updatingBooking, setUpdatingBooking] = useState(false);
+  const [deletingBooking, setDeletingBooking] = useState(false);
 
   // Helper function to format date for database (YYYY-MM-DD)
   const formatDateForDB = (dateString) => {
@@ -166,7 +170,19 @@ const Booking = () => {
         alert('Test order created successfully!');
         setCheckOrderModalIsOpen(false);
         setSelectedBookingForOrder(null);
-        setApprovedBookings(prev => prev.filter(b => b.id !== selectedBookingForOrder.id));
+
+        // Immediately remove from local state for instant UI feedback
+        setApprovedBookings(prev => {
+          const filtered = prev.filter(b => b.id !== selectedBookingForOrder.id);
+          return filtered;
+        });
+
+        // Also refresh from server as backup
+        setTimeout(() => {
+          console.log('Test order: Refreshing bookings list from server...');
+          fetchBookings();
+        }, 300);
+
         navigate('/dashboard/order');
       } else {
         const data = await response.json();
@@ -230,6 +246,8 @@ const Booking = () => {
     }
   }, [pickupSuccess]);
 
+
+
   const fetchBookings = async () => {
     console.log('Starting fetchBookings...');
     try {
@@ -255,6 +273,7 @@ const Booking = () => {
         console.log('Orders received:', orders.length);
         const pendingData = orders.filter((order) => order.status === 'pending');
         const approvedData = orders.filter((order) => order.status === 'approved');
+        const completedData = orders.filter((order) => order.status === 'completed');
 
         // Separate today's bookings and others
         const todayStr = new Date().toISOString().split('T')[0];
@@ -265,6 +284,9 @@ const Booking = () => {
         const sortedApproved = [...todaysBookings, ...otherBookings];
 
         console.log('Pending bookings:', pendingData.length, 'Approved bookings:', sortedApproved.length);
+        console.log('Completed bookings found:', completedData.length);
+        console.log('All bookings statuses:', orders.map(o => ({ id: o.id, status: o.status })));
+
         setPendingBookings(pendingData.map((order) => formatBookingData(order.id, order)));
         setApprovedBookings(sortedApproved.map((order) => formatBookingData(order.id, order)));
         setError(null); // Clear any previous errors
@@ -450,6 +472,183 @@ const Booking = () => {
     setRejectModalIsOpen(false);
     setBookingToReject(null);
     setRejectionReason('');
+  };
+
+  // Delete booking function
+  const handleDeleteBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingBooking(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8800/api/admin/bookings/${bookingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        alert('Booking deleted successfully!');
+        fetchBookings(); // Refresh the bookings
+      } else {
+        const data = await response.json();
+        alert('Failed to delete booking: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      alert('Failed to delete booking: ' + error.message);
+    } finally {
+      setDeletingBooking(false);
+    }
+  };
+
+  // Edit booking functions
+  const handleEditBooking = (booking) => {
+    setBookingToEdit(booking);
+    setEditBooking({
+      mainService: booking.mainService || "washDryFold",
+      dryCleaningServices: booking.dryCleaningServices || [],
+      pickupDate: booking.pickupDate || "",
+      pickupTime: booking.pickupTime || "7am-10am",
+      loadCount: booking.loadCount || 1,
+      instructions: booking.instructions || "",
+      status: booking.status || "approved",
+      paymentMethod: booking.paymentMethod || "cash",
+      name: booking.name || "",
+      contact: booking.contact || "",
+      email: booking.email || "",
+      address: booking.address || "",
+      serviceOption: booking.serviceOption || "pickupAndDelivery",
+      deliveryFee: booking.deliveryFee || 0
+    });
+    setEditPhotoFiles([]);
+    setEditPhotoPreviews(booking.photos || []);
+    setEditModalIsOpen(true);
+  };
+
+  const handleEditBookingChange = (e) => {
+    const { name, value } = e.target;
+    setEditBooking(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditPhotoUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length + editPhotoFiles.length > 5) {
+      alert('You can upload a maximum of 5 photos');
+      return;
+    }
+
+    setEditPhotoFiles([...editPhotoFiles, ...files]);
+
+    // Create previews
+    const newPreviews = [];
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        newPreviews.push(e.target.result);
+        if (newPreviews.length === files.length) {
+          setEditPhotoPreviews([...editPhotoPreviews, ...newPreviews]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeEditPhoto = (index) => {
+    const newFiles = [...editPhotoFiles];
+    const newPreviews = [...editPhotoPreviews];
+    newFiles.splice(index, 1);
+    newPreviews.splice(index, 1);
+    setEditPhotoFiles(newFiles);
+    setEditPhotoPreviews(newPreviews);
+  };
+
+  const handleUpdateBooking = async (e) => {
+    e.preventDefault();
+    if (!bookingToEdit) return;
+
+    setUpdatingBooking(true);
+    try {
+      const selectedMainService = mainServices.find(s => s.value === editBooking.mainService);
+      const selectedDryCleaningServices = dryCleaningServices.filter(s => editBooking.dryCleaningServices.includes(s.id));
+
+      // Calculate delivery fee if not pickup only
+      let deliveryFee = 0;
+      if (editBooking.serviceOption !== 'pickupOnly' && editBooking.address) {
+        const addressParts = editBooking.address.split(',').map(part => part.trim());
+        const barangay = addressParts.find(part =>
+          part.toLowerCase().includes('brgy') ||
+          part.toLowerCase().includes('barangay') ||
+          addressParts.indexOf(part) === addressParts.length - 2
+        ) || '';
+        deliveryFee = calculateDeliveryFee(barangay, parseInt(editBooking.loadCount) || 1);
+      }
+
+      const mainServicePrice = selectedMainService.price * editBooking.loadCount;
+      const dryCleaningPrice = selectedDryCleaningServices.reduce((sum, s) => sum + s.price, 0);
+      const totalPrice = mainServicePrice + dryCleaningPrice + deliveryFee;
+
+      const updateData = {
+        ...editBooking,
+        deliveryFee,
+        totalPrice,
+        serviceName: selectedMainService.label,
+        paymentDetails: editBooking.paymentMethod === 'cash' ? null : {
+          method: editBooking.paymentMethod,
+          status: 'pending'
+        }
+      };
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8800/api/admin/bookings/${bookingToEdit.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        alert('Booking updated successfully!');
+        closeEditModal();
+        fetchBookings(); // Refresh the bookings
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update booking');
+      }
+    } catch (error) {
+      console.error('Error updating booking:', error);
+      alert(error.message || 'Error updating booking');
+    } finally {
+      setUpdatingBooking(false);
+    }
+  };
+
+  const closeEditModal = () => {
+    setEditModalIsOpen(false);
+    setBookingToEdit(null);
+    setEditBooking({
+      mainService: "washDryFold",
+      dryCleaningServices: [],
+      pickupDate: "",
+      pickupTime: "7am-10am",
+      loadCount: 1,
+      instructions: "",
+      status: "approved",
+      paymentMethod: "cash",
+      name: "",
+      contact: "",
+      email: "",
+      address: "",
+      serviceOption: "pickupAndDelivery",
+      deliveryFee: 0
+    });
+    setEditPhotoFiles([]);
+    setEditPhotoPreviews([]);
   };
 
   const handleNewBookingChange = (e) => {
@@ -649,6 +848,8 @@ const Booking = () => {
     }
   };
 
+
+
   // Handle order form submit
   const handleOrderFormSubmit = async (e) => {
     e.preventDefault();
@@ -700,11 +901,30 @@ const Booking = () => {
       if (response.ok) {
         const responseData = await response.json();
         console.log('Order created successfully:', responseData);
+        console.log('Booking ID being converted to order:', selectedBookingForOrder.id);
+        console.log('Booking details:', selectedBookingForOrder);
+        console.log('Current approved bookings count:', approvedBookings.length);
+
         alert('Order created successfully.');
+
+        // Close modal and reset form
         setCheckOrderModalIsOpen(false);
         setSelectedBookingForOrder(null);
-        // Remove the booking from approvedBookings
-        setApprovedBookings(prev => prev.filter(b => b.id !== selectedBookingForOrder.id));
+
+        // Immediately remove from local state for instant UI feedback
+        setApprovedBookings(prev => {
+          const filtered = prev.filter(b => b.id !== selectedBookingForOrder.id);
+          return filtered;
+        });
+
+        // Also refresh from server as backup after a short delay
+        console.log('Refreshing bookings list from server in 300ms...');
+        setTimeout(() => {
+          console.log('Refreshing bookings list from server now...');
+          fetchBookings();
+        }, 300);
+
+        // Reset form data
         setOrderFormData({
           estimatedClothes: '',
           kilos: '',
@@ -755,30 +975,31 @@ const Booking = () => {
   );
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
-          Laundry Bookings Management
-        </h1>
-        <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0 w-full sm:w-auto">
+    <div className="container mx-auto p-4 max-w-7xl">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 mb-8 shadow-lg">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+              Laundry Bookings Management
+            </h1>
+            <p className="text-blue-100 text-sm md:text-base">
+              Manage customer bookings, approve requests, and track orders
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0 w-full sm:w-auto">
           <button
             onClick={() => setCalendarView(!calendarView)}
-            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors"
+            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors shadow-md hover:shadow-lg"
           >
             {calendarView ? "List View" : "Calendar View"}
           </button>
-          <button
-            onClick={checkBackendHealth}
-            className="w-full sm:w-auto bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md transition-colors"
-          >
-            Check Backend
-          </button>
-          <button
-            onClick={openModal}
-            className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition-colors"
-          >
-            Create New Booking
-          </button>
+            <button
+              onClick={openModal}
+              className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors shadow-md hover:shadow-lg"
+            >
+              Create New Booking
+            </button>
+          </div>
         </div>
       </div>
 
@@ -798,11 +1019,14 @@ const Booking = () => {
           />
       </div>
     ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Approved Bookings Section */}
-          <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-lg shadow-md">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl sm:text-2xl font-semibold text-green-500">Approved Bookings</h2>
+          <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-green-600 mb-1">Approved Bookings</h2>
+                <p className="text-sm text-gray-500">{approvedBookings.length} bookings ready for processing</p>
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setSortBy('new')}
@@ -820,10 +1044,19 @@ const Booking = () => {
                 >
                   Due Today
                 </button>
+
               </div>
             </div>
         {approvedBookings.length === 0 ? (
-          <p className="text-center text-gray-500 py-4">No approved bookings yet</p>
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <p className="text-gray-500 text-lg">No approved bookings yet</p>
+            <p className="text-gray-400 text-sm">Approved bookings will appear here</p>
+          </div>
         ) : (
           <div className="space-y-4">
             {approvedBookings.map((booking) => {
@@ -831,8 +1064,10 @@ const Booking = () => {
               return (
                 <div
                   key={booking.id}
-                  className={`border p-4 rounded-lg hover:bg-gray-50 transition-colors ${
-                    isToday ? 'bg-green-300 border-green-500' : ''
+                  className={`border-2 p-6 rounded-xl hover:shadow-lg transition-all duration-200 ${
+                    isToday
+                      ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300 shadow-md'
+                      : 'bg-white border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
@@ -864,9 +1099,22 @@ const Booking = () => {
                     <div className="flex flex-col sm:flex-row gap-2">
                       <button
                         onClick={() => setSelectedBooking(booking)}
-                        className="text-blue-500 hover:text-blue-700 text-sm self-end sm:self-center"
+                        className="text-blue-500 hover:text-blue-700 text-sm self-end sm:self-center px-3 py-1 rounded-md hover:bg-blue-50 transition-colors"
                       >
                         View Details
+                      </button>
+                      <button
+                        onClick={() => handleEditBooking(booking)}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center shadow-sm hover:shadow-md"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteBooking(booking.id)}
+                        disabled={deletingBooking}
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center shadow-sm hover:shadow-md disabled:opacity-50"
+                      >
+                        {deletingBooking ? 'Deleting...' : 'Delete'}
                       </button>
                       {pickupSuccess[booking.id] ? (
                         <button
@@ -886,7 +1134,7 @@ const Booking = () => {
                             setLaundryPhotoFile(null);
                             setLaundryPhotoPreview(null);
                           }}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center"
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center shadow-sm hover:shadow-md"
                         >
                           Check Order
                         </button>
@@ -894,13 +1142,13 @@ const Booking = () => {
                         <button
                           onClick={() => handlePickupNow(booking.id)}
                           disabled={pickupLoading}
-                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center"
+                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center shadow-sm hover:shadow-md"
                         >
                           {pickupLoading ? 'Sending...' : 'Pick Up Now'}
                         </button>
                       )}
                       {booking.photos?.length > 0 && (
-                        <span className="text-xs text-gray-500 self-end sm:self-center">
+                        <span className="text-xs text-gray-500 self-end sm:self-center px-2 py-1 bg-gray-100 rounded-full">
                           {booking.photos.length} photo{booking.photos.length !== 1 ? 's' : ''}
                         </span>
                       )}
@@ -914,14 +1162,25 @@ const Booking = () => {
           </div>
 
           {/* Pending Bookings Section */}
-          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md">
-            <h2 className="text-xl sm:text-2xl font-semibold text-center text-yellow-500 mb-4 sm:mb-6">Pending Approval</h2>
+          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+            <div className="text-center mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-yellow-600 mb-1">Pending Approval</h2>
+              <p className="text-sm text-gray-500">{pendingBookings.length} bookings awaiting review</p>
+            </div>
             {pendingBookings.length === 0 ? (
-              <p className="text-center text-gray-500 py-4">No pending bookings</p>
+              <div className="text-center py-12">
+                <div className="text-gray-400 mb-4">
+                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 text-lg">No pending bookings</p>
+                <p className="text-gray-400 text-sm">New booking requests will appear here</p>
+              </div>
             ) : (
-              <div className="space-y-4 ">
+              <div className="space-y-4">
                 {pendingBookings.map((booking) => (
-                  <div key={booking.id} className="border p-4 rounded-lg  hover:bg-gray-50 transition-colors">
+                  <div key={booking.id} className="border-2 border-yellow-200 p-6 rounded-xl bg-gradient-to-r from-yellow-50 to-orange-50 hover:shadow-lg transition-all duration-200">
                     <h3 className="font-bold text-lg">{booking.name}</h3>
                     <p><span className="font-semibold">Service:</span> {
                       mainServices.find((s) => s.value === booking.mainService)?.label || booking.mainService
@@ -942,19 +1201,32 @@ const Booking = () => {
                     <div className="flex flex-wrap justify-end gap-2 mt-2">
                       <button
                         onClick={() => handleApproveBooking(booking.id)}
-                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => handleRejectBooking(booking)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
                       >
                         Reject
                       </button>
                       <button
+                        onClick={() => handleEditBooking(booking)}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteBooking(booking.id)}
+                        disabled={deletingBooking}
+                        className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md disabled:opacity-50"
+                      >
+                        {deletingBooking ? 'Deleting...' : 'Delete'}
+                      </button>
+                      <button
                         onClick={() => setSelectedBooking(booking)}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
                       >
                         Details
                       </button>
@@ -1143,6 +1415,22 @@ const Booking = () => {
           </form>
         </div>
       </Modal>
+
+      {/* Edit Booking Modal */}
+      <EditBookingModal
+        modalIsOpen={editModalIsOpen}
+        closeModal={closeEditModal}
+        editBooking={editBooking}
+        handleEditBookingChange={handleEditBookingChange}
+        handleUpdateBooking={handleUpdateBooking}
+        updatingBooking={updatingBooking}
+        editPhotoFiles={editPhotoFiles}
+        editPhotoPreviews={editPhotoPreviews}
+        handleEditPhotoUpload={handleEditPhotoUpload}
+        removeEditPhoto={removeEditPhoto}
+        mainServices={mainServices}
+        dryCleaningServices={dryCleaningServices}
+      />
     </div>
   );
 };
