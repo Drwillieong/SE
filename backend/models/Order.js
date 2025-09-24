@@ -4,21 +4,36 @@ export class Order {
   }
 
   // Get all orders with pagination (optimized to avoid sort memory issues)
-  async getAll(page = 1, limit = 50) {
+  async getAll(page = 1, limit = 50, userId = null) {
     const offset = (page - 1) * limit;
 
     // Use a more efficient approach: get orders without ORDER BY first
     // We'll get a larger batch and then sort in memory
     const batchSize = limit * 2; // Get more records to ensure we have enough after filtering
 
-    const sql = `
-      SELECT * FROM orders
-      WHERE order_id > 0
-      LIMIT ? OFFSET ?
-    `;
+    let sql;
+    let params;
+
+    if (userId) {
+      // Filter by user_id for customer requests
+      sql = `
+        SELECT * FROM orders
+        WHERE user_id = ? AND order_id > 0
+        LIMIT ? OFFSET ?
+      `;
+      params = [userId, batchSize, offset];
+    } else {
+      // Admin request - get all orders
+      sql = `
+        SELECT * FROM orders
+        WHERE order_id > 0
+        LIMIT ? OFFSET ?
+      `;
+      params = [batchSize, offset];
+    }
 
     return new Promise((resolve, reject) => {
-      this.db.query(sql, [batchSize, offset], (err, results) => {
+      this.db.query(sql, params, (err, results) => {
         if (err) {
           reject(err);
           return;
@@ -54,11 +69,37 @@ export class Order {
     });
   }
 
-  // Get order by ID
-  async getById(orderId) {
-    const sql = 'SELECT * FROM orders WHERE order_id = ?';
+  // Get total count of orders for a specific user
+  async getTotalCountByUser(userId) {
+    const sql = 'SELECT COUNT(*) as total FROM orders WHERE user_id = ?';
     return new Promise((resolve, reject) => {
-      this.db.query(sql, [orderId], (err, results) => {
+      this.db.query(sql, [userId], (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results[0].total);
+        }
+      });
+    });
+  }
+
+  // Get order by ID
+  async getById(orderId, userId = null) {
+    let sql;
+    let params;
+
+    if (userId) {
+      // Filter by user_id for customer requests
+      sql = 'SELECT * FROM orders WHERE order_id = ? AND user_id = ?';
+      params = [orderId, userId];
+    } else {
+      // Admin request - get any order
+      sql = 'SELECT * FROM orders WHERE order_id = ?';
+      params = [orderId];
+    }
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, params, (err, results) => {
         if (err) {
           reject(err);
         } else {
@@ -342,8 +383,8 @@ export class Order {
   }
 
   // Advance order to next status
-  async advanceToNextStatus(orderId) {
-    const order = await this.getById(orderId);
+  async advanceToNextStatus(orderId, userId = null) {
+    const order = await this.getById(orderId, userId);
     if (!order) {
       throw new Error('Order not found');
     }
@@ -404,6 +445,229 @@ export class Order {
         } else {
           resolve(results);
         }
+      });
+    });
+  }
+
+  // History Management Methods
+
+  // Move order to history when completed
+  async moveToHistory(orderId) {
+    const sql = `
+      UPDATE orders
+      SET moved_to_history_at = NOW(), status = 'completed'
+      WHERE order_id = ? AND status = 'completed' AND moved_to_history_at IS NULL
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [orderId], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Order not found or not eligible for history'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Get all history items (completed orders and deleted items)
+  async getHistory() {
+    const sql = `
+      SELECT
+        order_id as id,
+        'order' as type,
+        serviceType,
+        pickupDate,
+        pickupTime,
+        loadCount,
+        status,
+        paymentMethod,
+        name,
+        contact,
+        email,
+        address,
+        totalPrice,
+        moved_to_history_at,
+        is_deleted,
+        deleted_at,
+        createdAt,
+        updatedAt
+      FROM orders
+      WHERE moved_to_history_at IS NOT NULL OR is_deleted = TRUE
+      ORDER BY moved_to_history_at DESC, deleted_at DESC
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results);
+        }
+      });
+    });
+  }
+
+  // Get history items by type
+  async getHistoryByType(type) {
+    let sql;
+    if (type === 'completed') {
+      sql = `
+        SELECT
+          order_id as id,
+          'order' as type,
+          serviceType,
+          pickupDate,
+          pickupTime,
+          loadCount,
+          status,
+          paymentMethod,
+          name,
+          contact,
+          email,
+          address,
+          totalPrice,
+          moved_to_history_at,
+          is_deleted,
+          deleted_at,
+          createdAt,
+          updatedAt
+        FROM orders
+        WHERE moved_to_history_at IS NOT NULL AND is_deleted = FALSE
+        ORDER BY moved_to_history_at DESC
+      `;
+    } else if (type === 'deleted') {
+      sql = `
+        SELECT
+          order_id as id,
+          'order' as type,
+          serviceType,
+          pickupDate,
+          pickupTime,
+          loadCount,
+          status,
+          paymentMethod,
+          name,
+          contact,
+          email,
+          address,
+          totalPrice,
+          moved_to_history_at,
+          is_deleted,
+          deleted_at,
+          createdAt,
+          updatedAt
+        FROM orders
+        WHERE is_deleted = TRUE
+        ORDER BY deleted_at DESC
+      `;
+    }
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results);
+        }
+      });
+    });
+  }
+
+  // Restore order from history
+  async restoreFromHistory(orderId) {
+    const sql = `
+      UPDATE orders
+      SET moved_to_history_at = NULL, is_deleted = FALSE, deleted_at = NULL
+      WHERE order_id = ? AND (moved_to_history_at IS NOT NULL OR is_deleted = TRUE)
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [orderId], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Order not found in history'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Permanently delete from history
+  async deleteFromHistory(orderId) {
+    const sql = 'DELETE FROM orders WHERE order_id = ? AND (moved_to_history_at IS NOT NULL OR is_deleted = TRUE)';
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [orderId], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Order not found in history'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Soft delete order (mark as deleted)
+  async softDelete(orderId) {
+    const sql = `
+      UPDATE orders
+      SET is_deleted = TRUE, deleted_at = NOW()
+      WHERE order_id = ? AND is_deleted = FALSE
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [orderId], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Order not found or already deleted'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Get active orders (not in history and not deleted)
+  async getActiveOrders(page = 1, limit = 50) {
+    const offset = (page - 1) * limit;
+
+    const batchSize = limit * 2;
+
+    const sql = `
+      SELECT * FROM orders
+      WHERE order_id > 0
+      AND moved_to_history_at IS NULL
+      AND is_deleted = FALSE
+      LIMIT ? OFFSET ?
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [batchSize, offset], (err, results) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        if (results.length === 0) {
+          resolve([]);
+          return;
+        }
+
+        // Sort the results in memory by createdAt (JavaScript sort)
+        results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        // Take only the number we need
+        const paginatedResults = results.slice(0, limit);
+
+        resolve(paginatedResults);
       });
     });
   }

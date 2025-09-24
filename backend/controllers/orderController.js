@@ -53,10 +53,13 @@ export const getAllOrders = (db) => async (req, res) => {
       return res.status(400).json({ message: 'Limit must be between 1 and 100' });
     }
 
+    // Get user ID from authenticated user
+    const userId = req.user ? req.user.user_id : null;
+
     // Get paginated orders and total count
     const [orders, totalCount] = await Promise.all([
-      orderModel.getAll(page, limit),
-      orderModel.getTotalCount()
+      orderModel.getAll(page, limit, userId),
+      userId ? orderModel.getTotalCountByUser(userId) : orderModel.getTotalCount()
     ]);
 
     // Calculate pagination metadata
@@ -86,7 +89,10 @@ export const getOrderById = (db) => async (req, res) => {
   const orderId = req.params.id;
   const orderModel = new Order(db);
   try {
-    const order = await orderModel.getById(orderId);
+    // Get user ID from authenticated user
+    const userId = req.user ? req.user.user_id : null;
+
+    const order = await orderModel.getById(orderId, userId);
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
@@ -101,7 +107,25 @@ export const getOrderById = (db) => async (req, res) => {
 export const createOrder = (db) => async (req, res) => {
   const orderModel = new Order(db);
   try {
-    const orderId = await orderModel.create(req.body);
+    // Map frontend mainService to backend serviceType
+    let mappedServiceType = req.body.mainService || req.body.serviceType;
+    if (mappedServiceType === 'washDryFold') {
+      mappedServiceType = 'washFold';
+    } else if (mappedServiceType === 'dryCleaning') {
+      mappedServiceType = 'dryCleaning';
+    } else if (mappedServiceType === 'hangDry') {
+      mappedServiceType = 'hangDry';
+    } else {
+      mappedServiceType = 'washFold'; // default fallback
+    }
+
+    // Create order data with mapped serviceType
+    const orderData = {
+      ...req.body,
+      serviceType: mappedServiceType
+    };
+
+    const orderId = await orderModel.create(orderData);
 
     // Emit WebSocket notification for new order
     if (req.io) {
@@ -227,6 +251,9 @@ export const createOrderFromPickup = (db) => async (req, res) => {
   const orderModel = new Order(db);
   const bookingModel = new Booking(db);
   try {
+    // Get user ID from authenticated user (for proper user association)
+    const userId = req.user ? req.user.user_id : null;
+
     // Ensure all required fields are present and properly formatted
     // Map frontend serviceType to backend ENUM values
     let mappedServiceType = req.body.serviceType;
@@ -254,7 +281,7 @@ export const createOrderFromPickup = (db) => async (req, res) => {
       address: req.body.address,
       photos: req.body.photos || [],
       totalPrice: req.body.totalPrice || 0,
-      userId: req.body.userId || null,
+      user_id: userId, // Use authenticated user ID instead of req.body.userId
       estimatedClothes: req.body.estimatedClothes || 0,
       kilos: req.body.kilos || 0,
       pants: req.body.pants || 0,
@@ -274,15 +301,15 @@ export const createOrderFromPickup = (db) => async (req, res) => {
         orderId,
         message: 'New order created from pickup',
         serviceType: mappedServiceType,
-        userId: req.body.userId,
+        userId: userId,
         timestamp: new Date().toISOString()
       };
 
       req.io.emit('order-created-from-pickup', notificationData);
 
       // Send to specific user if userId is provided
-      if (req.body.userId) {
-        req.io.to(`user_${req.body.userId}`).emit('your-booking-converted-to-order', {
+      if (userId) {
+        req.io.to(`user_${userId}`).emit('your-booking-converted-to-order', {
           orderId,
           bookingId: req.body.bookingId,
           message: 'Your booking has been converted to an order',
@@ -442,15 +469,18 @@ export const advanceOrderToNextStatus = (db) => async (req, res) => {
   const orderModel = new Order(db);
 
   try {
+    // Get user ID from authenticated user
+    const userId = req.user ? req.user.user_id : null;
+
     // Get order details before updating to send email if needed
-    const order = await orderModel.getById(orderId);
+    const order = await orderModel.getById(orderId, userId);
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
 
     const previousStatus = order.status;
-    await orderModel.advanceToNextStatus(orderId);
-    const updatedOrder = await orderModel.getById(orderId);
+    await orderModel.advanceToNextStatus(orderId, userId);
+    const updatedOrder = await orderModel.getById(orderId, userId);
 
     // Emit WebSocket notification for status advancement
     if (req.io) {
@@ -525,5 +555,260 @@ export const getOrdersWithExpiredTimers = (db) => async (req, res) => {
   } catch (error) {
     console.error('Error fetching orders with expired timers:', error);
     res.status(500).json({ message: 'Server error fetching orders with expired timers' });
+  }
+};
+
+// History Management Controllers
+
+// Get all history items (completed orders, rejected bookings, deleted items)
+export const getHistory = (db) => async (req, res) => {
+  const orderModel = new Order(db);
+  const bookingModel = new Booking(db);
+
+  try {
+    const [orderHistory, bookingHistory] = await Promise.all([
+      orderModel.getHistory(),
+      bookingModel.getHistory()
+    ]);
+
+    const allHistory = [...orderHistory, ...bookingHistory]
+      .sort((a, b) => new Date(b.moved_to_history_at || b.deleted_at) - new Date(a.moved_to_history_at || a.deleted_at));
+
+    res.json(allHistory);
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    res.status(500).json({ message: 'Server error fetching history' });
+  }
+};
+
+// Get history items by type
+export const getHistoryByType = (db) => async (req, res) => {
+  const { type } = req.params;
+  const orderModel = new Order(db);
+  const bookingModel = new Booking(db);
+
+  try {
+    const [orderHistory, bookingHistory] = await Promise.all([
+      orderModel.getHistoryByType(type),
+      bookingModel.getHistoryByType(type)
+    ]);
+
+    const allHistory = [...orderHistory, ...bookingHistory]
+      .sort((a, b) => new Date(b.moved_to_history_at || b.deleted_at) - new Date(a.moved_to_history_at || a.deleted_at));
+
+    res.json(allHistory);
+  } catch (error) {
+    console.error('Error fetching history by type:', error);
+    res.status(500).json({ message: 'Server error fetching history' });
+  }
+};
+
+// Move order to history
+export const moveOrderToHistory = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const orderModel = new Order(db);
+
+  try {
+    await orderModel.moveToHistory(orderId);
+
+    // Emit WebSocket notification for order moved to history
+    if (req.io) {
+      req.io.emit('order-moved-to-history', {
+        orderId,
+        message: 'Order moved to history',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({ message: 'Order moved to history successfully' });
+  } catch (error) {
+    console.error('Error moving order to history:', error);
+    if (error.message === 'Order not found or not eligible for history') {
+      return res.status(404).json({ message: 'Order not found or not eligible for history' });
+    }
+    res.status(500).json({ message: 'Server error moving order to history' });
+  }
+};
+
+// Restore item from history
+export const restoreFromHistory = (db) => async (req, res) => {
+  const itemId = req.params.id;
+  const { type } = req.body; // 'order' or 'booking'
+  const orderModel = new Order(db);
+  const bookingModel = new Booking(db);
+
+  try {
+    let result;
+    if (type === 'order') {
+      result = await orderModel.restoreFromHistory(itemId);
+    } else if (type === 'booking') {
+      result = await bookingModel.restoreFromHistory(itemId);
+    } else {
+      return res.status(400).json({ message: 'Invalid type specified' });
+    }
+
+    // Emit WebSocket notification for item restored from history
+    if (req.io) {
+      req.io.emit('item-restored-from-history', {
+        itemId,
+        type,
+        message: 'Item restored from history',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({ message: 'Item restored from history successfully' });
+  } catch (error) {
+    console.error('Error restoring from history:', error);
+    if (error.message === 'Order not found in history' || error.message === 'Booking not found in history') {
+      return res.status(404).json({ message: 'Item not found in history' });
+    }
+    res.status(500).json({ message: 'Server error restoring from history' });
+  }
+};
+
+// Permanently delete from history
+export const deleteFromHistory = (db) => async (req, res) => {
+  const itemId = req.params.id;
+  const { type } = req.body; // 'order' or 'booking'
+  const orderModel = new Order(db);
+  const bookingModel = new Booking(db);
+
+  try {
+    let result;
+    if (type === 'order') {
+      result = await orderModel.deleteFromHistory(itemId);
+    } else if (type === 'booking') {
+      result = await bookingModel.deleteFromHistory(itemId);
+    } else {
+      return res.status(400).json({ message: 'Invalid type specified' });
+    }
+
+    // Emit WebSocket notification for permanent deletion
+    if (req.io) {
+      req.io.emit('item-permanently-deleted', {
+        itemId,
+        type,
+        message: 'Item permanently deleted from history',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({ message: 'Item permanently deleted from history' });
+  } catch (error) {
+    console.error('Error deleting from history:', error);
+    if (error.message === 'Order not found in history' || error.message === 'Booking not found in history') {
+      return res.status(404).json({ message: 'Item not found in history' });
+    }
+    res.status(500).json({ message: 'Server error deleting from history' });
+  }
+};
+
+// Complete order and move to history
+export const completeOrder = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const orderModel = new Order(db);
+
+  try {
+    // Get order before completion
+    const order = await orderModel.getById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Check if order is already completed
+    if (order.status === 'completed') {
+      return res.status(400).json({ message: 'Order is already completed' });
+    }
+
+    // Update order status to completed and move to history
+    await orderModel.update(orderId, { status: 'completed' });
+    await orderModel.moveToHistory(orderId);
+
+    // Get updated order
+    const updatedOrder = await orderModel.getById(orderId);
+
+    // Emit WebSocket notification for order completion
+    if (req.io) {
+      const notificationData = {
+        orderId,
+        previousStatus: order.status,
+        newStatus: 'completed',
+        message: 'Order completed and moved to history',
+        timestamp: new Date().toISOString()
+      };
+
+      req.io.emit('order-completed', notificationData);
+
+      // Send to specific user if userId is provided
+      if (updatedOrder.user_id) {
+        req.io.to(`user_${updatedOrder.user_id}`).emit('your-order-completed', {
+          orderId,
+          message: 'Your order has been completed and moved to history',
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    res.json({
+      message: 'Order completed and moved to history successfully',
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Error completing order:', error);
+    if (error.message === 'Order not found') {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    res.status(500).json({ message: 'Server error completing order' });
+  }
+};
+
+// Soft delete order or booking
+export const softDeleteItem = (db) => async (req, res) => {
+  const itemId = req.params.id;
+  let { type } = req.body; // 'order' or 'booking'
+
+  // If type is not specified, determine it from the route
+  if (!type) {
+    const route = req.originalUrl;
+    if (route.includes('/orders/')) {
+      type = 'order';
+    } else if (route.includes('/bookings/')) {
+      type = 'booking';
+    } else {
+      return res.status(400).json({ message: 'Type must be specified or route must indicate type' });
+    }
+  }
+
+  const orderModel = new Order(db);
+  const bookingModel = new Booking(db);
+
+  try {
+    let result;
+    if (type === 'order') {
+      result = await orderModel.softDelete(itemId);
+    } else if (type === 'booking') {
+      result = await bookingModel.softDelete(itemId);
+    } else {
+      return res.status(400).json({ message: 'Invalid type specified' });
+    }
+
+    // Emit WebSocket notification for soft deletion
+    if (req.io) {
+      req.io.emit('item-soft-deleted', {
+        itemId,
+        type,
+        message: 'Item marked as deleted',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({ message: 'Item marked as deleted successfully' });
+  } catch (error) {
+    console.error('Error soft deleting item:', error);
+    if (error.message === 'Order not found or already deleted' || error.message === 'Booking not found or already deleted') {
+      return res.status(404).json({ message: 'Item not found or already deleted' });
+    }
+    res.status(500).json({ message: 'Server error deleting item' });
   }
 };

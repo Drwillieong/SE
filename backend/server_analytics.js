@@ -546,6 +546,7 @@ const analyticsRouter = express.Router();
 analyticsRouter.use(verifyToken);
 analyticsRouter.use((req, res, next) => {
   req.db = db;
+  req.io = io; // Make io accessible to analytics routes
   next();
 });
 analyticsRouter.use(analyticsRoutes(db));

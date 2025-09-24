@@ -4,7 +4,7 @@ import dry from "/src/assets/Dry.png";
 import selfService from "/src/assets/Selfservice.png";
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowRight, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRight } from '@fortawesome/free-solid-svg-icons';
 import SignUpModal from '../../pages/SignUpModal';
 
 const services = {
@@ -119,9 +119,9 @@ export default function AboutService() {
         </div>
 
         {/* Signup Modal */}
-      <SignUpModal
-        showSignUpModal={showSignUpModal}
-        setShowSignUpModal={setShowSignUpModal}
+      <SignUpModal 
+        showSignUpModal={showSignUpModal} 
+        setShowSignUpModal={setShowSignUpModal} 
       />
 
         <div className="ml-20 md:w-1/2 mt-8 md:mt-0 flex justify-center">

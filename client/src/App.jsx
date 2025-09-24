@@ -15,9 +15,12 @@ import ScheduleBooking from "./CustomerDash/routes/dashboard/ScheduleBooking";
 
 import AdminHistory from "./Dash/routes/dashboard/AdminHistory";
 import AdminSettings from "./Dash/routes/dashboard/AdminSettings";
+import CreateOrder from "./Dash/routes/dashboard/CreateOrderNew";
+import EditOrder from "./Dash/routes/dashboard/EditOrder";
 import ResetPassword from "./pages/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CustomerDashLayout from "./CustomerDash/routes/layout";
+import Analytics from "./Dash/routes/dashboard/AnalyticsDashboard_new";
 
 function App() {
     const router = createBrowserRouter([
@@ -52,9 +55,10 @@ function App() {
                     element: <DashboardPage />,
                 },
                 {
-                    path: "order",
-                    element: <OrderManagement />,
+                    path: "analytics",
+                    element: <Analytics />,
                 },
+              
                 {
                     path: "booking-dash",
                     element: <Booking />,
@@ -63,9 +67,21 @@ function App() {
                     path: "history",
                     element: <AdminHistory />,
                 },
+                  {
+                    path: "order",
+                    element: <OrderManagement />,
+                },
                 {
                     path: "settings",
                     element: <AdminSettings />,
+                },
+                {
+                    path: "create-order",
+                    element: <CreateOrder />,
+                },
+                {
+                    path: "edit-order/:id",
+                    element: <EditOrder />,
                 },
             ],
         },

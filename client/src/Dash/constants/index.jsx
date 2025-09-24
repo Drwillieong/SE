@@ -12,10 +12,16 @@ export const navbarLinks = [
                 icon: Home,     
                 path: "/dashboard",
             },
+           
             {
                 label: "OrderManagement",
                 icon: ChartColumn,
                 path: "/dashboard/order",
+            },
+              {
+                label: "Analytics",
+                icon: Home,     
+                path: "/dashboard/analytics",
             },
             {
                 label: "Booking",

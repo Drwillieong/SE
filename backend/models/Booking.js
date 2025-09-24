@@ -176,4 +176,247 @@ export class Booking {
       });
     });
   }
+
+  // History Management Methods
+
+  // Move booking to history when completed or rejected
+  async moveToHistory(bookingId, reason = 'completed') {
+    const sql = `
+      UPDATE bookings
+      SET moved_to_history_at = NOW(), status = ?
+      WHERE booking_id = ? AND moved_to_history_at IS NULL
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [reason, bookingId], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Booking not found or not eligible for history'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Get all history items (completed bookings, rejected bookings, and deleted items)
+  async getHistory() {
+    const sql = `
+      SELECT
+        booking_id as id,
+        'booking' as type,
+        mainService,
+        pickupDate,
+        pickupTime,
+        loadCount,
+        status,
+        rejectionReason,
+        paymentMethod,
+        name,
+        contact,
+        email,
+        address,
+        totalPrice,
+        moved_to_history_at,
+        is_deleted,
+        deleted_at,
+        createdAt,
+        updatedAt
+      FROM bookings
+      WHERE moved_to_history_at IS NOT NULL OR is_deleted = TRUE
+      ORDER BY moved_to_history_at DESC, deleted_at DESC
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results);
+        }
+      });
+    });
+  }
+
+  // Get history items by type
+  async getHistoryByType(type) {
+    let sql;
+    if (type === 'completed') {
+      sql = `
+        SELECT
+          booking_id as id,
+          'booking' as type,
+          mainService,
+          pickupDate,
+          pickupTime,
+          loadCount,
+          status,
+          rejectionReason,
+          paymentMethod,
+          name,
+          contact,
+          email,
+          address,
+          totalPrice,
+          moved_to_history_at,
+          is_deleted,
+          deleted_at,
+          createdAt,
+          updatedAt
+        FROM bookings
+        WHERE moved_to_history_at IS NOT NULL AND is_deleted = FALSE AND status IN ('completed', 'approved')
+        ORDER BY moved_to_history_at DESC
+      `;
+    } else if (type === 'rejected') {
+      sql = `
+        SELECT
+          booking_id as id,
+          'booking' as type,
+          mainService,
+          pickupDate,
+          pickupTime,
+          loadCount,
+          status,
+          rejectionReason,
+          paymentMethod,
+          name,
+          contact,
+          email,
+          address,
+          totalPrice,
+          moved_to_history_at,
+          is_deleted,
+          deleted_at,
+          createdAt,
+          updatedAt
+        FROM bookings
+        WHERE moved_to_history_at IS NOT NULL AND is_deleted = FALSE AND status = 'rejected'
+        ORDER BY moved_to_history_at DESC
+      `;
+    } else if (type === 'deleted') {
+      sql = `
+        SELECT
+          booking_id as id,
+          'booking' as type,
+          mainService,
+          pickupDate,
+          pickupTime,
+          loadCount,
+          status,
+          rejectionReason,
+          paymentMethod,
+          name,
+          contact,
+          email,
+          address,
+          totalPrice,
+          moved_to_history_at,
+          is_deleted,
+          deleted_at,
+          createdAt,
+          updatedAt
+        FROM bookings
+        WHERE is_deleted = TRUE
+        ORDER BY deleted_at DESC
+      `;
+    }
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results);
+        }
+      });
+    });
+  }
+
+  // Restore booking from history
+  async restoreFromHistory(bookingId) {
+    const sql = `
+      UPDATE bookings
+      SET moved_to_history_at = NULL, is_deleted = FALSE, deleted_at = NULL
+      WHERE booking_id = ? AND (moved_to_history_at IS NOT NULL OR is_deleted = TRUE)
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [bookingId], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Booking not found in history'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Permanently delete from history
+  async deleteFromHistory(bookingId) {
+    const sql = 'DELETE FROM bookings WHERE booking_id = ? AND (moved_to_history_at IS NOT NULL OR is_deleted = TRUE)';
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [bookingId], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Booking not found in history'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Soft delete booking (mark as deleted)
+  async softDelete(bookingId) {
+    const sql = `
+      UPDATE bookings
+      SET is_deleted = TRUE, deleted_at = NOW()
+      WHERE booking_id = ? AND is_deleted = FALSE
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [bookingId], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Booking not found or already deleted'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Get active bookings (not in history and not deleted)
+  async getActiveBookings() {
+    const sql = `
+      SELECT booking_id as id, mainService, dryCleaningServices, pickupDate, pickupTime, loadCount, instructions, status, rejectionReason, paymentMethod, name, contact, email, address, photos, totalPrice, serviceOption, deliveryFee, user_id, createdAt, updatedAt
+      FROM bookings
+      WHERE moved_to_history_at IS NULL AND is_deleted = FALSE
+      ORDER BY createdAt DESC
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          // Parse dryCleaningServices JSON
+          results.forEach(booking => {
+            if (booking.dryCleaningServices) {
+              booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+            } else {
+              booking.dryCleaningServices = [];
+            }
+          });
+          resolve(results);
+        }
+      });
+    });
+  }
 }

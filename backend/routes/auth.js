@@ -259,5 +259,61 @@ export default (db) => {
     // Route to change password
     router.post('/change-password', verifyToken, changePassword(db));
 
+    // Route to refresh token
+    router.post('/refresh', (req, res) => {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(401).json({ message: 'No token provided' });
+        }
+
+        try {
+            // Verify the current token
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret', { ignoreExpiration: true });
+
+            // Check if user still exists in database
+            const selectQuery = 'SELECT * FROM users WHERE user_id = ?';
+            db.query(selectQuery, [decoded.user_id], (err, rows) => {
+                if (err) {
+                    console.error('Error fetching user for refresh:', err);
+                    return res.status(500).json({ message: 'Server error' });
+                }
+
+                if (rows.length === 0) {
+                    return res.status(404).json({ message: 'User not found' });
+                }
+
+                const user = rows[0];
+
+                // Generate new token
+                const newToken = jwt.sign(
+                    {
+                        user_id: user.user_id,
+                        email: user.email,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        role: user.role || 'user'
+                    },
+                    process.env.JWT_SECRET || 'your_jwt_secret',
+                    { expiresIn: '1h' }
+                );
+
+                res.json({
+                    token: newToken,
+                    user: {
+                        user_id: user.user_id,
+                        email: user.email,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        role: user.role || 'user'
+                    }
+                });
+            });
+        } catch (error) {
+            console.error('Token refresh error:', error.message);
+            res.status(401).json({ message: 'Invalid token' });
+        }
+    });
+
     return router;
 };

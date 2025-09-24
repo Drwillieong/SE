@@ -12,7 +12,7 @@ import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import bookingRoutes from './routes/bookings.js';
 import orderRoutes from './routes/orders.js';
-import analyticsRoutes from './routes/analytics.js';
+import { getAnalyticsData } from './controllers/analyticsController_fixed.js';
 import { initializeGoogleStrategy } from './config/googleOAuth.js';
 
 // Load environment variables from .env file
@@ -546,9 +546,10 @@ const analyticsRouter = express.Router();
 analyticsRouter.use(verifyToken);
 analyticsRouter.use((req, res, next) => {
   req.db = db;
+  req.io = io; // Make io accessible to analytics routes
   next();
 });
-analyticsRouter.use(analyticsRoutes(db));
+analyticsRouter.use('/', getAnalyticsData(db));
 app.use('/api/analytics', analyticsRouter);
 
 app.get('/', (req, res) => {

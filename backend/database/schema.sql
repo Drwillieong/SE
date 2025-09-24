@@ -60,11 +60,17 @@ CREATE TABLE IF NOT EXISTS orders (
   timer_end DATETIME NULL,
   auto_advance_enabled BOOLEAN DEFAULT FALSE,
   current_timer_status VARCHAR(20) NULL,
+  -- History tracking fields
+  moved_to_history_at DATETIME NULL,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at DATETIME NULL,
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_status (status),
   INDEX idx_created_at (createdAt),
   INDEX idx_user_id (user_id),
+  INDEX idx_moved_to_history (moved_to_history_at),
+  INDEX idx_is_deleted (is_deleted),
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
@@ -91,9 +97,14 @@ CREATE TABLE IF NOT EXISTS bookings (
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   serviceOption varchar(50),
   deliveryFee decimal(10,2),
+  -- History tracking fields
+  moved_to_history_at DATETIME NULL,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at DATETIME NULL,
   INDEX idx_status (status),
   INDEX idx_created_at (createdAt),
   INDEX idx_user_id (user_id),
+  INDEX idx_moved_to_history (moved_to_history_at),
+  INDEX idx_is_deleted (is_deleted),
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
-
 );

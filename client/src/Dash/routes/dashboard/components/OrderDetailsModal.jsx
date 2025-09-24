@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Modal from "react-modal";
 
 const customStyles = {
@@ -23,7 +23,7 @@ const customStyles = {
   },
 };
 
-const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus, serviceOptions }) => {
+const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus, serviceOptions, onCompleteOrder }) => {
   if (!selectedOrder) return null;
 
   const getStatusColor = (status) => {
@@ -132,12 +132,27 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus,
             Complete Order
           </button>
         )}
+
+        {/* Complete Order Button - available for any status except completed */}
+        {currentStatus !== 'completed' && onCompleteOrder && (
+          <button
+            onClick={() => {
+              if (window.confirm('Are you sure you want to complete this order? This will move it to history.')) {
+                onCompleteOrder(selectedOrder.order_id);
+              }
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors font-medium"
+          >
+            Complete Order
+          </button>
+        )}
       </div>
     );
   };
 
   return (
     <Modal
+      key={selectedOrder?.order_id || 'no-order'}
       isOpen={!!selectedOrder}
       onRequestClose={() => setSelectedOrder(null)}
       style={customStyles}

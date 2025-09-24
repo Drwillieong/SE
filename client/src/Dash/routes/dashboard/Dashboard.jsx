@@ -1,18 +1,12 @@
-
-
-
-
-
-
-
+import React from 'react';
+import AnalyticsDashboard from './AnalyticsDashboard';
 
 const DashboardPage = () => {
-   
-
     return (
-      
-            <h1 className="title">Dashboard</h1>
-           );
+        <div className="p-6">
+            <AnalyticsDashboard />
+        </div>
+    );
 };
 
 export default DashboardPage;

@@ -18,7 +18,7 @@ db.connect((err) => {
     console.log('Connected to MySQL database');
 
     // Create admin user
-    const adminEmail = 'admin@washit.com';
+    const adminEmail = 'admin@123.com';
     const adminPassword = 'admin123';
 
     // Check if admin already exists

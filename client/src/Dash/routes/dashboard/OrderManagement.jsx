@@ -46,6 +46,19 @@ const OrderManagement = () => {
     fetchOrders();
     fetchStats();
 
+    // Check if we need to refresh due to order creation
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('refresh') === 'true') {
+      // Remove the refresh parameter from URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+
+      // Show success message
+      setTimeout(() => {
+        alert('Order created successfully! The new order should now be visible.');
+      }, 1000);
+    }
+
     // Set up periodic refresh every 30 seconds
     const intervalId = setInterval(() => {
       fetchOrders();
@@ -359,6 +372,83 @@ const OrderManagement = () => {
     }
   };
 
+  const handleOrderCompletion = async (orderId) => {
+    try {
+      // Set loading state for this specific order
+      setLoadingStatus(prev => ({ ...prev, [orderId]: true }));
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/complete`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Immediately remove the completed order from local state
+        setOrders(prev => prev.filter(order => order.order_id !== orderId));
+
+        // Refresh the orders list to ensure consistency
+        await fetchOrders();
+
+        // Refresh stats as well
+        await fetchStats();
+
+        alert('Order completed and moved to history!');
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to complete order: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error completing order:', error);
+      alert('Failed to complete order. Please check your connection and try again.');
+    } finally {
+      // Remove loading state
+      setLoadingStatus(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const handleCreateOrder = () => {
+    navigate('/dashboard/create-order');
+  };
+
+  const handleEditOrder = (orderId) => {
+    navigate(`/dashboard/edit-order/${orderId}`);
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    if (window.confirm('Are you sure you want to delete this order? It will be moved to history and can be restored later.')) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/soft-delete`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            deletedAt: new Date().toISOString(),
+            deletedBy: 'admin'
+          })
+        });
+
+        if (response.ok) {
+          // Remove the deleted order from local state (it will appear in history)
+          setOrders(prev => prev.filter(order => order.order_id !== orderId));
+          alert('Order moved to history successfully! It can be restored from the Admin History page.');
+        } else {
+          alert('Failed to delete order');
+        }
+      } catch (error) {
+        console.error('Error deleting order:', error);
+        alert('Failed to delete order');
+      }
+    }
+  };
+
   const handleOrderNumberClick = (order) => {
     setSelectedOrder(order);
   };
@@ -423,7 +513,15 @@ const OrderManagement = () => {
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Order Management</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold text-gray-800">Order Management</h1>
+          <button
+            onClick={handleCreateOrder}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors font-medium"
+          >
+            Create Order
+          </button>
+        </div>
 
         {/* Stats Cards */}
         {stats && (
@@ -611,20 +709,17 @@ const OrderManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex flex-col gap-2">
                         <button
-                          onClick={() => startOrderTimer(order.order_id, order.status)}
-                          className="text-purple-600 hover:text-purple-900 text-xs"
-                          disabled={timerStatuses[order.order_id]?.isActive}
+                          onClick={() => handleEditOrder(order.order_id)}
+                          className="text-blue-600 hover:text-blue-900 text-xs"
                         >
-                          {timerStatuses[order.order_id]?.isActive ? 'Timer Active' : 'Start Timer'}
+                          Edit
                         </button>
-                        {timerStatuses[order.order_id]?.isActive && (
-                          <button
-                            onClick={() => toggleAutoAdvance(order.order_id, !timerStatuses[order.order_id]?.autoAdvanceEnabled)}
-                            className="text-orange-600 hover:text-orange-900 text-xs"
-                          >
-                            {timerStatuses[order.order_id]?.autoAdvanceEnabled ? 'Disable Auto' : 'Enable Auto'}
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDeleteOrder(order.order_id)}
+                          className="text-red-600 hover:text-red-900 text-xs"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -641,6 +736,7 @@ const OrderManagement = () => {
         setSelectedOrder={setSelectedOrder}
         updateOrderStatus={updateOrderStatus}
         serviceOptions={serviceOptions}
+        onCompleteOrder={handleOrderCompletion}
       />
     </div>
   );

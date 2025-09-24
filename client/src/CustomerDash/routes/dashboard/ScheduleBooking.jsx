@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import SocketClient from '../../components/SocketClient';
 import RealTimeUpdates from '../../components/RealTimeUpdates';
 import StatusIcon from '../../components/StatusIcon';
-import BookingDetailsModal from './BookingDetailsModal';
+import BookingDetailsModal from '../../../Dash/routes/dashboard/components/BookingDetailsModal';
 
 // Define free pickup barangays and their fees
 const freePickupBarangays = [
@@ -166,15 +166,15 @@ const ScheduleBooking = () => {
         if (userRes.data.barangay) {
           setDeliveryFee(calculateDeliveryFee(userRes.data.barangay, formData.loadCount));
         }
-        // Fetch orders
-        const ordersRes = await axios.get('http://localhost:8800/api/orders', {
+        // Fetch bookings
+        const bookingsRes = await axios.get('http://localhost:8800/api/bookings', {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 10000,
           withCredentials: true
         });
-        // Filter out cancelled orders from the list
-        const filteredOrders = ordersRes.data.orders.filter(order => order.status !== 'cancelled');
-        setOrders(filteredOrders);
+        // Handle both direct array and paginated response formats
+        const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
+        setOrders(bookingsData);
       } catch (error) {
         console.error('Error fetching user data or orders:', error);
         navigate('/login');
@@ -236,7 +236,7 @@ const ScheduleBooking = () => {
 
       const userAddress = `${userData.street || ''}${userData.blockLot ? `, Block ${userData.blockLot}` : ''}, ${userData.barangay || ''}, Calamba City`;
 
-      const orderPayload = {
+      const bookingPayload = {
         mainService: formData.mainService,
         dryCleaningServices: formData.dryCleaningServices,
         pickupDate: formData.pickupDate,
@@ -251,36 +251,40 @@ const ScheduleBooking = () => {
         address: userAddress,
         photos: [],
         totalPrice: (selectedMainService.price * formData.loadCount) + selectedDryCleaningServices.reduce((sum, s) => sum + s.price, 0) + (formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee),
+        serviceOption: formData.serviceOption,
+        deliveryFee: formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee,
         user_id: user.id,
       };
 
       const token = localStorage.getItem('token');
       if (editingOrder) {
-        // Update existing order
-        await axios.put(`http://localhost:8800/api/orders/${editingOrder.booking_id || editingOrder.id}`, orderPayload, {
+        // Update existing booking
+        await axios.put(`http://localhost:8800/api/bookings/${editingOrder.booking_id || editingOrder.id}`, bookingPayload, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
-        alert('Order updated successfully!');
+        alert('Booking updated successfully!');
       } else {
-        // Create new order
-        await axios.post('http://localhost:8800/api/orders', orderPayload, {
+        // Create new booking
+        await axios.post('http://localhost:8800/api/bookings', bookingPayload, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
-        alert('Order submitted successfully! Our team will review your request.');
+        alert('Booking submitted successfully! Our team will review your request.');
       }
 
       setShowConfirmation(false);
       setEditingOrder(null);
       resetForm();
       setActiveTab('orders');
-      // Refresh orders
-        const ordersRes = await axios.get('http://localhost:8800/api/orders', {
+      // Refresh bookings
+        const bookingsRes = await axios.get('http://localhost:8800/api/bookings', {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
-      setOrders(ordersRes.data.orders);
+      // Handle both direct array and paginated response formats
+      const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
+      setOrders(bookingsData);
     } catch (error) {
       console.error('Error saving order:', error);
       alert(error.message || 'Failed to save order. Please try again.');
