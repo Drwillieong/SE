@@ -19,14 +19,18 @@ export class Order {
       sql = `
         SELECT * FROM orders
         WHERE user_id = ? AND order_id > 0
+        AND moved_to_history_at IS NULL
+        AND is_deleted = FALSE
         LIMIT ? OFFSET ?
       `;
       params = [userId, batchSize, offset];
     } else {
-      // Admin request - get all orders
+      // Admin request - get all active orders (not deleted, not in history)
       sql = `
         SELECT * FROM orders
         WHERE order_id > 0
+        AND moved_to_history_at IS NULL
+        AND is_deleted = FALSE
         LIMIT ? OFFSET ?
       `;
       params = [batchSize, offset];
@@ -111,7 +115,13 @@ export class Order {
 
   // Get orders by status
   async getByStatus(status) {
-    const sql = 'SELECT * FROM orders WHERE status = ? ORDER BY createdAt DESC';
+    const sql = `
+      SELECT * FROM orders
+      WHERE status = ?
+      AND moved_to_history_at IS NULL
+      AND is_deleted = FALSE
+      ORDER BY createdAt DESC
+    `;
     return new Promise((resolve, reject) => {
       this.db.query(sql, [status], (err, results) => {
         if (err) {
@@ -243,6 +253,8 @@ export class Order {
     const sql = `
       SELECT * FROM orders
       WHERE DATE(createdAt) = ?
+      AND moved_to_history_at IS NULL
+      AND is_deleted = FALSE
       ORDER BY createdAt DESC
     `;
     return new Promise((resolve, reject) => {
@@ -261,6 +273,8 @@ export class Order {
     const sql = `
       SELECT * FROM orders
       WHERE DATE(createdAt) BETWEEN ? AND ?
+      AND moved_to_history_at IS NULL
+      AND is_deleted = FALSE
       ORDER BY createdAt DESC
     `;
     return new Promise((resolve, reject) => {
