@@ -4,7 +4,7 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import Modal from 'react-modal';
-import BookingDetailsModal from './components/BookingDetailsModal';
+import BookingDetailsModal from '../../../CustomerDash/routes/dashboard/BookingDetailsModal';
 import CreateBookingModal from './components/CreateBookingModal';
 import EditBookingModal from './components/EditBookingModal';
 import DayBookingsModal from './components/DayBookingsModal';
