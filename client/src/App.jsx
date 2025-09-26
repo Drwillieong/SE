@@ -20,7 +20,7 @@ import EditOrder from "./Dash/routes/dashboard/EditOrder";
 import ResetPassword from "./pages/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CustomerDashLayout from "./CustomerDash/routes/layout";
-import Analytics from "./Dash/routes/dashboard/AnalyticsDashboard_new";
+import Analytics from "./Dash/routes/dashboard/AnalyticsDashboard";
 
 function App() {
     const router = createBrowserRouter([

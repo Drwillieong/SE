@@ -82,30 +82,30 @@ const ScheduleBooking = () => {
     {
       id: 'dryCleanBarong',
       name: 'Dry Cleaning - Barong',
-      description: 'Professional dry cleaning for barong.',
-      price: 350,
-      priceText: '₱350 per item'
+      description: 'Professional dry cleaning for barong. Pricing varies by item - inspection required.',
+      price: 0, // Pricing varies, no fixed price
+      priceText: 'Starting from ₱350 - Visit shop for inspection'
     },
     {
       id: 'dryCleanCoat',
       name: 'Dry Cleaning - Coat',
-      description: 'Professional dry cleaning for coat.',
-      price: 400,
-      priceText: '₱400 per item'
+      description: 'Professional dry cleaning for coat. Pricing varies by item - inspection required.',
+      price: 0, // Pricing varies, no fixed price
+      priceText: 'Starting from ₱400 - Visit shop for inspection'
     },
     {
       id: 'dryCleanGown',
       name: 'Dry Cleaning - Gown',
-      description: 'Professional dry cleaning for gown.',
-      price: 650,
-      priceText: '₱650 per item'
+      description: 'Professional dry cleaning for gown. Pricing varies by item - inspection required.',
+      price: 0, // Pricing varies, no fixed price
+      priceText: 'Starting from ₱650 - Visit shop for inspection'
     },
     {
       id: 'dryCleanWeddingGown',
       name: 'Dry Cleaning - Wedding Gown',
-      description: 'Professional dry cleaning for wedding gown.',
-      price: 1500,
-      priceText: '₱1,500 per item'
+      description: 'Professional dry cleaning for wedding gown. Pricing varies by item - inspection required.',
+      price: 0, // Pricing varies, no fixed price
+      priceText: 'Starting from ₱1,500 - Visit shop for inspection'
     },
   ];
 
@@ -174,7 +174,25 @@ const ScheduleBooking = () => {
         });
         // Handle both direct array and paginated response formats
         const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
-        setOrders(bookingsData);
+
+        // Fetch orders to get status for completed bookings
+        const ordersRes = await axios.get('http://localhost:8800/api/orders', {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000,
+          withCredentials: true
+        });
+        const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
+
+        // Merge bookings with order statuses
+        const mergedData = bookingsData.map(booking => {
+          const matchingOrder = ordersData.find(order => order.bookingId === booking.booking_id || order.bookingId === booking.id);
+          if (matchingOrder) {
+            return { ...booking, status: matchingOrder.status, orderId: matchingOrder.order_id };
+          }
+          return booking;
+        });
+
+        setOrders(mergedData);
       } catch (error) {
         console.error('Error fetching user data or orders:', error);
         navigate('/login');
@@ -277,14 +295,31 @@ const ScheduleBooking = () => {
       setEditingOrder(null);
       resetForm();
       setActiveTab('orders');
-      // Refresh bookings
-        const bookingsRes = await axios.get('http://localhost:8800/api/bookings', {
+      // Refresh bookings and orders
+      const [bookingsRes, ordersRes] = await Promise.all([
+        axios.get('http://localhost:8800/api/bookings', {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
-        });
-      // Handle both direct array and paginated response formats
+        }),
+        axios.get('http://localhost:8800/api/orders', {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
+        })
+      ]);
+
       const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
-      setOrders(bookingsData);
+      const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
+
+      // Merge bookings with order statuses
+      const mergedData = bookingsData.map(booking => {
+        const matchingOrder = ordersData.find(order => order.bookingId === booking.booking_id || order.bookingId === booking.id);
+        if (matchingOrder) {
+          return { ...booking, status: matchingOrder.status, orderId: matchingOrder.order_id };
+        }
+        return booking;
+      });
+
+      setOrders(mergedData);
     } catch (error) {
       console.error('Error saving order:', error);
       alert(error.message || 'Failed to save order. Please try again.');
@@ -407,11 +442,11 @@ const ScheduleBooking = () => {
 
   const handleBookingToOrder = (bookingData) => {
     console.log('Booking converted to order:', bookingData);
-    // Handle when admin converts booking to order
+    // Handle when admin converts booking to order - set status to 'pending' as order starts with pending status
     setOrders(prevOrders =>
       prevOrders.map(order =>
         order.id === bookingData.id || order.booking_id === bookingData.bookingId ?
-          { ...order, ...bookingData, status: 'approved' } :
+          { ...order, ...bookingData, status: 'pending' } :
           order
       )
     );
@@ -675,6 +710,7 @@ const ScheduleBooking = () => {
                   <li>Free pickup and delivery for selected barangays</li>
                   <li>Other areas may have additional fees (see below)</li>
                   <li>Payment upon pickup for cash payments</li>
+                  <li>For dry cleaning services, please visit our shop for inspection and final pricing</li>
                   <li>Contact us at 0968-856-3288 for questions</li>
                 </ul>
 
@@ -798,8 +834,8 @@ const ScheduleBooking = () => {
                   )}
                   {selectedDryCleaningServices.length > 0 && (
                     <div className="flex justify-between">
-                      <span>Dry Cleaning:</span>
-                      <span>₱{dryCleaningPrice}</span>
+                      <span>Dry Cleaning ({selectedDryCleaningServices.length} item{selectedDryCleaningServices.length > 1 ? 's' : ''}):</span>
+                      <span>Pricing varies - inspection required</span>
                     </div>
                   )}
                   {formData.serviceOption !== 'pickupOnly' && (

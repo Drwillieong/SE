@@ -146,6 +146,18 @@ export const updateOrder = (db) => async (req, res) => {
     // Get updated order
     const orderAfter = await orderModel.getById(orderId);
 
+    // If order has a booking_id and status was updated, sync booking status
+    if (orderAfter.booking_id && orderBefore.status !== orderAfter.status) {
+      try {
+        const bookingModel = new Booking(db);
+        await bookingModel.update(orderAfter.booking_id, { status: orderAfter.status });
+        console.log('Booking status synced with order status:', orderAfter.booking_id, orderAfter.status);
+      } catch (bookingError) {
+        console.error('Error syncing booking status:', bookingError);
+        // Don't fail the operation if booking sync fails
+      }
+    }
+
     // Emit WebSocket notification for order update
     if (req.io) {
       const notificationData = {
@@ -255,6 +267,7 @@ export const createOrderFromPickup = (db) => async (req, res) => {
       photos: req.body.photos || [],
       totalPrice: req.body.totalPrice || 0,
       userId: req.body.userId || null,
+      booking_id: req.body.bookingId || null,
       estimatedClothes: req.body.estimatedClothes || 0,
       kilos: req.body.kilos || 0,
       pants: req.body.pants || 0,
@@ -291,17 +304,18 @@ export const createOrderFromPickup = (db) => async (req, res) => {
       }
     }
 
-    // Mark the booking as completed if bookingId is provided
+    // Mark the booking as pending if bookingId is provided (to match order status)
     if (req.body.bookingId) {
       try {
-        console.log('Updating booking status to completed for booking ID:', req.body.bookingId);
-        await bookingModel.update(req.body.bookingId, { status: 'completed' });
+        console.log('Updating booking status to pending for booking ID:', req.body.bookingId);
+        await bookingModel.update(req.body.bookingId, { status: 'pending' });
 
-        // Emit WebSocket notification for booking completion
+        // Emit WebSocket notification for booking status update
         if (req.io) {
-          req.io.emit('booking-completed', {
+          req.io.emit('booking-status-updated', {
             bookingId: req.body.bookingId,
             orderId,
+            newStatus: 'pending',
             message: 'Booking converted to order',
             timestamp: new Date().toISOString()
           });
