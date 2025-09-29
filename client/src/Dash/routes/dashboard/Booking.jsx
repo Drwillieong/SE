@@ -199,15 +199,6 @@ const Booking = () => {
 
   useEffect(() => {
     fetchBookings();
-    // Load pickup success state from localStorage
-    const savedPickupSuccess = localStorage.getItem('pickupSuccess');
-    if (savedPickupSuccess) {
-      try {
-        setPickupSuccess(JSON.parse(savedPickupSuccess));
-      } catch (error) {
-        console.error('Error parsing pickup success from localStorage:', error);
-      }
-    }
 
     // Set up periodic refresh every 30 seconds
     const intervalId = setInterval(() => {
