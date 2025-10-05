@@ -140,7 +140,7 @@ export class Order {
         serviceType, pickupDate, pickupTime, loadCount, instructions, status,
         paymentMethod, name, contact, email, address, photos, totalPrice,
         user_id, estimatedClothes, kilos, pants, shorts, tshirts, bedsheets,
-        laundryPhoto, booking_id
+        laundryPhoto, bookingId
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
@@ -166,7 +166,7 @@ export class Order {
       orderData.tshirts || 0,
       orderData.bedsheets || 0,
       JSON.stringify(orderData.laundryPhoto || []),
-      orderData.booking_id || null
+      orderData.bookingId || null
     ];
 
     return new Promise((resolve, reject) => {

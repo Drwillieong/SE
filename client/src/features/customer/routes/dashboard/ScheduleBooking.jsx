@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import SocketClient from '../../components/SocketClient';
 import RealTimeUpdates from '../../components/RealTimeUpdates';
 import StatusIcon from '../../components/StatusIcon';
-import BookingDetailsModal from '../../../Dash/routes/dashboard/components/BookingDetailsModal';
+import BookingDetailsModal from "../../../../shared/components/BookingDetailsModal";
 
 // Define free pickup barangays and their fees
 const freePickupBarangays = [

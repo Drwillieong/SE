@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from 'react-modal';
-import BookingDetailsModal from './components/BookingDetailsModal';
+import BookingDetailsModal from '../../../../shared/components/BookingDetailsModal';
 
 // Initialize modal
 Modal.setAppElement('#root');

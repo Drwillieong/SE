@@ -4,23 +4,23 @@ import React from "react";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/Login";
 import NewAccountSetup from "./pages/NewAccountSetup";
-import Layout from "./Dash/routes/layout";
-import DashboardPage from "./Dash/routes/dashboard/Dashboard";
-import OrderManagement from "./Dash/routes/dashboard/OrderManagement";
-import Booking from "./Dash/routes/dashboard/Booking";
+import Layout from "./features/admin/routes/layout";
+import DashboardPage from "./features/admin/routes/dashboard/Dashboard";
+import OrderManagement from "./features/admin/routes/dashboard/OrderManagement";
+import Booking from "./features/admin/routes/dashboard/Booking";
 
-import BookHistory from "./CustomerDash/routes/dashboard/BookHistory";
-import CustomerProfile from "./CustomerDash/routes/dashboard/Profile";
-import ScheduleBooking from "./CustomerDash/routes/dashboard/ScheduleBooking";
+import BookHistory from "./features/customer/routes/dashboard/BookHistory";
+import CustomerProfile from "./features/customer/routes/dashboard/Profile";
+import ScheduleBooking from "./features/customer/routes/dashboard/ScheduleBooking";
 
-import AdminHistory from "./Dash/routes/dashboard/AdminHistory";
-import AdminSettings from "./Dash/routes/dashboard/AdminSettings";
-import CreateOrder from "./Dash/routes/dashboard/CreateOrderNew";
-import EditOrder from "./Dash/routes/dashboard/EditOrder";
+import AdminHistory from "./features/admin/routes/dashboard/AdminHistory";
+import AdminSettings from "./features/admin/routes/dashboard/AdminSettings";
+import CreateOrder from "./features/admin/routes/dashboard/components/CreateOrder";
+import EditOrder from "./features/admin/routes/dashboard/components/EditOrder";
 import ResetPassword from "./pages/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
-import CustomerDashLayout from "./CustomerDash/routes/layout";
-import Analytics from "./Dash/routes/dashboard/AnalyticsDashboard";
+import CustomerDashLayout from "./features/customer/routes/layout";
+import Analytics from "./features/admin/routes/dashboard/AnalyticsDashboard";
 
 function App() {
     const router = createBrowserRouter([
@@ -52,7 +52,7 @@ function App() {
             children: [
                 {
                     index: true,
-                    element: <DashboardPage />,
+                    element: <Analytics />,
                 },
                 {
                     path: "analytics",

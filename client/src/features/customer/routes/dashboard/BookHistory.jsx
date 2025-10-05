@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import BookingDetailsModal from "./BookingDetailsModal";
+import BookingDetailsModal from '../../../../shared/components/BookingDetailsModal';
 import OrderDetailsModal from "./OrderDetailsModal";
 
 const OrderHistory = () => {

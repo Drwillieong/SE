@@ -8,12 +8,12 @@ import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import authRoutes from './routes/auth.js';
-import adminRoutes from './routes/admin.js';
-import bookingRoutes from './routes/bookings.js';
-import orderRoutes from './routes/orders.js';
-import analyticsRoutes from './routes/analytics.js';
-import { initializeGoogleStrategy } from './config/googleOAuth.js';
+import authRoutes from '../routes/auth.js';
+import adminRoutes from '../routes/admin.js';
+import bookingRoutes from '../routes/bookings.js';
+import orderRoutes from '../routes/orders.js';
+import analyticsRoutes from '../routes/analytics.js';
+import { initializeGoogleStrategy } from '../config/googleOAuth.js';
 
 // Load environment variables from .env file
 dotenv.config();

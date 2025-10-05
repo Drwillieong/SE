@@ -1,7 +1,7 @@
 import { ChartColumn, Home, NotepadText, Settings, Users } from "lucide-react";
 
-import ProfileImage from "../../assets/pusa.jpeg";
-import ProductImage from "../../assets/pusa.jpeg";
+
+
 
 export const navbarLinks = [
     {
@@ -18,11 +18,7 @@ export const navbarLinks = [
                 icon: ChartColumn,
                 path: "/dashboard/order",
             },
-              {
-                label: "Analytics",
-                icon: Home,     
-                path: "/dashboard/analytics",
-            },
+          
             {
                 label: "Booking",
                 icon:  Users,

@@ -6,7 +6,7 @@ export const getAllBookings = (db) => async (req, res) => {
   try {
     let bookings;
     if (req.user.role === 'admin') {
-      bookings = await bookingModel.getAll();
+      bookings = await bookingModel.getActiveBookings();
     } else {
       bookings = await bookingModel.getByUserId(req.user.user_id);
     }

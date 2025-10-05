@@ -288,7 +288,8 @@ export const createOrderFromPickup = (db) => async (req, res) => {
       shorts: req.body.shorts || 0,
       tshirts: req.body.tshirts || 0,
       bedsheets: req.body.bedsheets || 0,
-      laundryPhoto: req.body.laundryPhoto || []
+      laundryPhoto: req.body.laundryPhoto || [],
+      bookingId: req.body.bookingId || req.body.booking_id || null
     };
 
     console.log('Creating order with data:', orderData);
@@ -318,21 +319,22 @@ export const createOrderFromPickup = (db) => async (req, res) => {
       }
     }
 
-    // Mark the booking as completed if bookingId is provided (handle both bookingId and booking_id)
-    const bookingId = req.body.bookingId || req.body.booking_id;
+    // Mark the booking as converted to order if bookingId is provided (handle both bookingId and booking_id)
+  const bookingId = parseInt(req.body.bookingId || req.body.booking_id);
     if (bookingId) {
       try {
-        console.log('Updating booking status to completed for booking ID:', bookingId);
-        const updateResult = await bookingModel.update(bookingId, { status: 'completed' });
-        console.log('Booking update result:', updateResult);
+        console.log('Moving booking to history as converted to order for booking ID:', bookingId);
+        const updateResult = await bookingModel.moveToHistory(bookingId, 'converted_to_order');
+        console.log('Booking move to history result:', updateResult);
 
         // Verify the update worked
         const updatedBooking = await bookingModel.getById(bookingId);
         console.log('Updated booking status:', updatedBooking ? updatedBooking.status : 'NOT FOUND');
+        console.log('Updated booking moved_to_history_at:', updatedBooking ? updatedBooking.moved_to_history_at : 'NOT FOUND');
 
-        // Emit WebSocket notification for booking completion
+        // Emit WebSocket notification for booking conversion
         if (req.io) {
-          req.io.emit('booking-completed', {
+          req.io.emit('booking-converted-to-order', {
             bookingId: req.body.bookingId,
             orderId,
             message: 'Booking converted to order',
@@ -340,9 +342,9 @@ export const createOrderFromPickup = (db) => async (req, res) => {
           });
         }
 
-        console.log('Booking status updated successfully');
+        console.log('Booking moved to history successfully');
       } catch (bookingError) {
-        console.error('Error updating booking status:', bookingError);
+        console.error('Error moving booking to history:', bookingError);
         // Don't fail the entire operation if booking update fails
       }
     }

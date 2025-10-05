@@ -1,12 +1,11 @@
 import { forwardRef } from "react";
 import { NavLink } from "react-router-dom";
 
-import { navbarLinks } from "../constants";
+import { navbarLinks } from "../constants/index";
 
-import logoLight from "../../assets/logo-light.svg";
-import logoDark from "../../assets/logo-dark.svg";
 
-import { cn } from "../../Dash/utils/cn";
+
+import { cn } from "../../../utils/cn";
 
 
 export const Sidebar = forwardRef(({ collapsed }, ref) => {

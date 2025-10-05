@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ChevronsLeft, ChevronDown, User, LogOut } from "lucide-react";
-import profileImg from "../../assets/pusa.jpeg";
+import profileImg from "../../../assets/pusa.jpeg";
 import PropTypes from "prop-types";
 import { useState, useRef, useEffect } from "react";
 

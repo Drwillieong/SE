@@ -183,12 +183,12 @@ export class Booking {
   async moveToHistory(bookingId, reason = 'completed') {
     const sql = `
       UPDATE bookings
-      SET moved_to_history_at = NOW(), status = ?
+      SET moved_to_history_at = NOW()
       WHERE booking_id = ? AND moved_to_history_at IS NULL
     `;
 
     return new Promise((resolve, reject) => {
-      this.db.query(sql, [reason, bookingId], (err, result) => {
+      this.db.query(sql, [bookingId], (err, result) => {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {

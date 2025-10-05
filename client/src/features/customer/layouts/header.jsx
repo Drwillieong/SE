@@ -1,15 +1,14 @@
-
 import { useNavigate } from "react-router-dom";
 import { ChevronsLeft, ChevronDown, User, LogOut } from "lucide-react";
-import profileImg from "../../assets/pusa.jpeg";
+import profileImg from "../../../assets/pusa.jpeg";
 import PropTypes from "prop-types";
 import { useState, useRef, useEffect } from "react";
 
 
-export const Header = ({ collapsed, setCollapsed }) => {
+const Header = ({ collapsed, setCollapsed }) => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
-     const navigate = useNavigate();
+    const navigate = useNavigate();
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -31,7 +30,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
                     className="btn-ghost size-10"
                     onClick={() => setCollapsed(!collapsed)}
                 >
-                    <ChevronsLeft   className={collapsed && "rotate-180"} />
+                    <ChevronsLeft className={collapsed ? "rotate-180" : ""} />
                 </button>
             </div>
             <div className="flex items-center gap-x-3">
@@ -49,7 +48,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
                         </div>
                         <ChevronDown size={16} className={`transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
                     </button>
-                    
+
                     {dropdownOpen && (
                         <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                             <button
@@ -78,7 +77,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
                                     setDropdownOpen(false);
                                     navigate('/login');
                                 }}
-
                             >
                                 <LogOut size={16} />
                                 <span>Log out</span>
@@ -95,3 +93,5 @@ Header.propTypes = {
     collapsed: PropTypes.bool,
     setCollapsed: PropTypes.func,
 };
+
+export default Header;

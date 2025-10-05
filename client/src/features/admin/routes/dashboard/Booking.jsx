@@ -4,12 +4,13 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import Modal from 'react-modal';
-import BookingDetailsModal from '../../../CustomerDash/routes/dashboard/BookingDetailsModal';
+import BookingDetailsModal from '../../../../shared/components/BookingDetailsModal';
 import CreateBookingModal from './components/CreateBookingModal';
 import EditBookingModal from './components/EditBookingModal';
 import DayBookingsModal from './components/DayBookingsModal';
+
 import RejectBookingModal from './components/RejectBookingModal';
-import { calculateDeliveryFee } from '../../utils/deliveryFeeCalculator';
+import { calculateDeliveryFee } from '../../../../utils/deliveryFeeCalculator';
 
 // Initialize calendar localizer
 const localizer = momentLocalizer(moment);
@@ -171,17 +172,8 @@ const Booking = () => {
         setCheckOrderModalIsOpen(false);
         setSelectedBookingForOrder(null);
 
-        // Immediately remove from local state for instant UI feedback
-        setApprovedBookings(prev => {
-          const filtered = prev.filter(b => b.id !== selectedBookingForOrder.id);
-          return filtered;
-        });
-
-        // Also refresh from server as backup
-        setTimeout(() => {
-          console.log('Test order: Refreshing bookings list from server...');
-          fetchBookings();
-        }, 300);
+        // Refresh from server to update UI
+        fetchBookings();
 
         navigate('/dashboard/order');
       } else {
@@ -898,22 +890,15 @@ const Booking = () => {
 
         alert('Order created successfully.');
 
+        // Immediately remove the booking from approvedBookings state
+        setApprovedBookings(prev => prev.filter(booking => booking.id !== selectedBookingForOrder.id));
+
         // Close modal and reset form
         setCheckOrderModalIsOpen(false);
         setSelectedBookingForOrder(null);
 
-        // Immediately remove from local state for instant UI feedback
-        setApprovedBookings(prev => {
-          const filtered = prev.filter(b => b.id !== selectedBookingForOrder.id);
-          return filtered;
-        });
-
-        // Also refresh from server as backup after a short delay
-        console.log('Refreshing bookings list from server in 300ms...');
-        setTimeout(() => {
-          console.log('Refreshing bookings list from server now...');
-          fetchBookings();
-        }, 300);
+        // Refresh from server to update UI
+        fetchBookings();
 
         // Reset form data
         setOrderFormData({
