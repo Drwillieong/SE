@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS orders (
   address TEXT NOT NULL,
   photos JSON, -- Store photo URLs as JSON array
   totalPrice DECIMAL(10, 2) NOT NULL,
+  paymentStatus ENUM('unpaid', 'paid') DEFAULT 'unpaid',
   user_id INT, -- Reference to users table if order is from registered user
   -- New fields for order details from pickup
   estimatedClothes INT,

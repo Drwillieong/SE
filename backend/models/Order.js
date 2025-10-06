@@ -139,9 +139,9 @@ export class Order {
       INSERT INTO orders (
         serviceType, pickupDate, pickupTime, loadCount, instructions, status,
         paymentMethod, name, contact, email, address, photos, totalPrice,
-        user_id, estimatedClothes, kilos, pants, shorts, tshirts, bedsheets,
+        paymentStatus, user_id, estimatedClothes, kilos, pants, shorts, tshirts, bedsheets,
         laundryPhoto, bookingId
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
@@ -158,6 +158,7 @@ export class Order {
       orderData.address,
       JSON.stringify(orderData.photos || []),
       orderData.totalPrice || 0,
+      orderData.paymentStatus || 'unpaid',
       orderData.user_id || null,
       orderData.estimatedClothes || 0,
       orderData.kilos || 0,
@@ -642,6 +643,23 @@ export class Order {
           reject(err);
         } else if (result.affectedRows === 0) {
           reject(new Error('Order not found or already deleted'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Update payment status
+  async updatePaymentStatus(orderId, paymentStatus) {
+    const sql = 'UPDATE orders SET paymentStatus = ? WHERE order_id = ?';
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [paymentStatus, orderId], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Order not found'));
         } else {
           resolve(result.affectedRows);
         }
