@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   pickupTime ENUM('7am-10am', '5pm-7pm') NOT NULL,
   loadCount INT NOT NULL DEFAULT 1,
   instructions TEXT,
-  status ENUM('pending', 'approved', 'rejected', 'completed', 'cancelled') DEFAULT 'pending',
+  status ENUM('pending', 'approved', 'rejected','cancelled') DEFAULT 'pending',
   rejectionReason TEXT,
   paymentMethod ENUM('cash', 'gcash', 'card') NOT NULL,
   name VARCHAR(255) NOT NULL,

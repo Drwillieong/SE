@@ -192,19 +192,7 @@ const ScheduleBooking = () => {
           return {
             ...baseData,
             // Map mainService to serviceType for modal compatibility
-            serviceType: baseData.serviceType || baseData.mainService,
-            // Add dummy laundry details for testing if not present
-            pants: baseData.pants || 2,
-            shorts: baseData.shorts || 1,
-            tshirts: baseData.tshirts || 3,
-            bedsheets: baseData.bedsheets || 1,
-            estimatedClothes: baseData.estimatedClothes || 10,
-            kilos: baseData.kilos || 5,
-            // Add dummy photos if not present
-            photos: baseData.photos || [
-              'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=300&h=200&fit=crop',
-              'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
-            ]
+            serviceType: baseData.serviceType || baseData.mainService
           };
         });
 
@@ -334,19 +322,7 @@ const ScheduleBooking = () => {
         return {
           ...baseData,
           // Map mainService to serviceType for modal compatibility
-          serviceType: baseData.serviceType || baseData.mainService,
-          // Add dummy laundry details for testing if not present
-          pants: baseData.pants || 2,
-          shorts: baseData.shorts || 1,
-          tshirts: baseData.tshirts || 3,
-          bedsheets: baseData.bedsheets || 1,
-          estimatedClothes: baseData.estimatedClothes || 10,
-          kilos: baseData.kilos || 5,
-          // Add dummy photos if not present
-          photos: baseData.photos || [
-            'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=300&h=200&fit=crop',
-            'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
-          ]
+          serviceType: baseData.serviceType || baseData.mainService
         };
       });
 
