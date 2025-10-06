@@ -19,6 +19,9 @@ const CheckOrderModal = ({
   fetchBookings,
   navigate
 }) => {
+  const bookingTotalPrice = selectedBookingForOrder?.totalPrice || 0;
+  const additionalPrice = parseFloat(orderFormData.additionalPrice) || 0;
+  const totalPrice = bookingTotalPrice + additionalPrice;
   return (
     <Modal
       isOpen={checkOrderModalIsOpen}
@@ -106,6 +109,37 @@ const CheckOrderModal = ({
                 onChange={handleOrderFormChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Additional Price (₱)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="additionalPrice"
+                value={orderFormData.additionalPrice}
+                onChange={handleOrderFormChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0.00"
+                min="0"
+              />
+            </div>
+          </div>
+          <div className="mb-4">
+            <div className="bg-gray-50 p-4 rounded-md">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700">Booking Price:</span>
+                <span className="text-sm font-semibold">₱{bookingTotalPrice.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <span className="text-sm font-medium text-gray-700">Additional Price:</span>
+                <span className="text-sm font-semibold">₱{additionalPrice.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-300">
+                <span className="text-lg font-bold text-gray-900">Total Price:</span>
+                <span className="text-lg font-bold text-green-600">₱{totalPrice.toFixed(2)}</span>
+              </div>
             </div>
           </div>
           <div className="mb-4">
