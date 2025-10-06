@@ -147,7 +147,7 @@ app.set('io', io);
 app.use(express.json({ limit: '10mb' })); // Increase JSON payload limit
 app.use(express.urlencoded({ limit: '10mb', extended: true })); // Increase URL-encoded payload limit
 app.use(cors({
-    origin: 'http://localhost:5173', // Your React app's URL
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173', // Your React app's URL
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -180,10 +180,10 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'admin123',
-    database: 'wash'
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || 'admin123',
+    database: process.env.DB_NAME || 'wash'
 });
 
 // Test database connection
