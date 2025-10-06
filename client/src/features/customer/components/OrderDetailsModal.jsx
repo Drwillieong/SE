@@ -29,9 +29,13 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'washing': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'drying': return 'bg-purple-100 text-purple-800 border-purple-300';
+      case 'folding': return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+      case 'ready': return 'bg-green-100 text-green-800 border-green-300';
+      case 'completed': return 'bg-gray-100 text-gray-800 border-gray-300';
       case 'approved': return 'bg-green-100 text-green-800 border-green-300';
       case 'rejected': return 'bg-red-100 text-red-800 border-red-300';
-      case 'completed': return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'cancelled': return 'bg-gray-100 text-gray-800 border-gray-300';
       default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
@@ -40,9 +44,13 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'pending': return '⏳';
+      case 'washing': return '💧';
+      case 'drying': return '🌬️';
+      case 'folding': return '👔';
+      case 'ready': return '✅';
+      case 'completed': return '🏁';
       case 'approved': return '✅';
       case 'rejected': return '❌';
-      case 'completed': return '🏁';
       case 'cancelled': return '🚫';
       default: return '📦';
     }
@@ -215,6 +223,10 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
                    selectedOrder.paymentMethod === 'card' ? 'Credit/Debit Card' : 'Not specified'}
                 </p>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Payment Status</label>
+                <p className="text-gray-900">Not Paid</p>
+              </div>
             </div>
           </div>
 
@@ -252,38 +264,113 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
           </div>
         </div>
 
-        {/* Item Counts */}
-        {(selectedOrder.pants || selectedOrder.shorts || selectedOrder.tshirts || selectedOrder.bedsheets) && (
+        {/* Laundry Details */}
+        {selectedOrder.estimatedClothes || selectedOrder.kilos || selectedOrder.pants || selectedOrder.shorts || selectedOrder.tshirts || selectedOrder.bedsheets ? (
           <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4">Item Breakdown</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {selectedOrder.pants > 0 && (
-                <div className="text-center">
-                  <p className="font-medium text-gray-900">{selectedOrder.pants}</p>
-                  <p className="text-sm text-gray-600">Pants</p>
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">Laundry Details</h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {selectedOrder.estimatedClothes && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Estimated Clothes</label>
+                  <p className="text-gray-900">{selectedOrder.estimatedClothes} items</p>
                 </div>
               )}
-              {selectedOrder.shorts > 0 && (
-                <div className="text-center">
-                  <p className="font-medium text-gray-900">{selectedOrder.shorts}</p>
-                  <p className="text-sm text-gray-600">Shorts</p>
+              {selectedOrder.kilos && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Weight</label>
+                  <p className="text-gray-900">{selectedOrder.kilos} kg</p>
                 </div>
               )}
-              {selectedOrder.tshirts > 0 && (
-                <div className="text-center">
-                  <p className="font-medium text-gray-900">{selectedOrder.tshirts}</p>
-                  <p className="text-sm text-gray-600">T-Shirts</p>
+              {selectedOrder.pants && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Pants</label>
+                  <p className="text-gray-900">{selectedOrder.pants}</p>
                 </div>
               )}
-              {selectedOrder.bedsheets > 0 && (
-                <div className="text-center">
-                  <p className="font-medium text-gray-900">{selectedOrder.bedsheets}</p>
-                  <p className="text-sm text-gray-600">Bedsheets</p>
+              {selectedOrder.shorts && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Shorts</label>
+                  <p className="text-gray-900">{selectedOrder.shorts}</p>
+                </div>
+              )}
+              {selectedOrder.tshirts && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">T-Shirts</label>
+                  <p className="text-gray-900">{selectedOrder.tshirts}</p>
+                </div>
+              )}
+              {selectedOrder.bedsheets && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Bedsheets</label>
+                  <p className="text-gray-900">{selectedOrder.bedsheets}</p>
                 </div>
               )}
             </div>
           </div>
+        ) : null}
+
+        {/* Photos */}
+        {selectedOrder.photos && Array.isArray(selectedOrder.photos) && selectedOrder.photos.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">Photos</h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {selectedOrder.photos.map((photo, index) => (
+                <img key={index} src={photo} alt={`Order photo ${index + 1}`} className="w-full h-32 object-cover rounded" />
+              ))}
+            </div>
+          </div>
         )}
+
+        {/* Laundry Photos */}
+        {selectedOrder.laundryPhoto && Array.isArray(selectedOrder.laundryPhoto) && selectedOrder.laundryPhoto.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">Laundry Photos</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {selectedOrder.laundryPhoto.map((photo, index) => (
+                <div key={index} className="relative">
+                  <img
+                    src={photo}
+                    alt={`Laundry ${index + 1}`}
+                    className="w-full h-24 object-cover rounded border"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Status Progress Indicator */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">Order Progress</h4>
+          <div className="flex items-center space-x-2">
+            {['pending', 'washing', 'drying', 'folding', 'ready', 'completed'].map((status, index) => (
+              <React.Fragment key={status}>
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium ${
+                  ['pending', 'washing', 'drying', 'folding', 'ready', 'completed'].indexOf(selectedOrder.status) >= index
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-600'
+                }`}>
+                  {getStatusIcon(status)}
+                </div>
+                {index < 5 && (
+                  <div className={`h-0.5 w-8 ${
+                    ['pending', 'washing', 'drying', 'folding', 'ready', 'completed'].indexOf(selectedOrder.status) > index
+                      ? 'bg-blue-500'
+                      : 'bg-gray-200'
+                  }`} />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+          <div className="flex justify-between mt-2 text-xs text-gray-600">
+            <span>Pending</span>
+            <span>Washing</span>
+            <span>Drying</span>
+            <span>Folding</span>
+            <span>Ready</span>
+            <span>Completed</span>
+          </div>
+        </div>
 
         {/* Service Breakdown */}
         <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">

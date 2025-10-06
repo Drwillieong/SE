@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { authUtils } from '../../../../../utils/auth';
+import api, { authUtils } from '../../../utils/auth';
 
 const CreateOrder = () => {
     const navigate = useNavigate();

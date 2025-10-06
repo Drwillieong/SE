@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import BookingDetailsModal from '../../../../shared/components/BookingDetailsModal';
-import OrderDetailsModal from "./OrderDetailsModal";
+import OrderDetailsModal from "../../components/OrderDetailsModal";
 
 const OrderHistory = () => {
     const navigate = useNavigate();
@@ -238,11 +237,7 @@ const OrderHistory = () => {
                 </div>
             )}
 
-            {/* Booking Details Modal */}
-            <BookingDetailsModal
-                selectedBooking={selectedBooking}
-                setSelectedBooking={setSelectedBooking}
-            />
+          
 
             {/* Order Details Modal */}
             <OrderDetailsModal

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from 'react-modal';
-import OrderDetailsModal from './components/OrderDetailsModal';
-import TimerDisplay from './components/TimerDisplay';
-import TimerProgressBar from './components/TimerProgressBar';
-import StatusIcon from './components/StatusIcon';
+import OrderDetailsModal from '../../components/OrderDetailsModal';
+import TimerDisplay from '../../components/TimerDisplay';
+import TimerProgressBar from '../../components/TimerProgressBar';
+import StatusIcon from '../../components/StatusIcon';
 
 // Initialize modal
 Modal.setAppElement('#root');

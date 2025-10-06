@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import SocketClient from '../../components/SocketClient';
 import RealTimeUpdates from '../../components/RealTimeUpdates';
 import StatusIcon from '../../components/StatusIcon';
-import BookingDetailsModal from "../../../../shared/components/BookingDetailsModal";
+
+import OrderDetailsModal from "../../components/OrderDetailsModal";
 
 // Define free pickup barangays and their fees
 const freePickupBarangays = [
@@ -186,10 +187,25 @@ const ScheduleBooking = () => {
         // Merge bookings with order statuses
         const mergedData = bookingsData.map(booking => {
           const matchingOrder = ordersData.find(order => order.bookingId === booking.booking_id || order.bookingId === booking.id);
-          if (matchingOrder) {
-            return { ...booking, status: matchingOrder.status, orderId: matchingOrder.order_id };
-          }
-          return booking;
+          const baseData = matchingOrder ? { ...booking, ...matchingOrder, status: matchingOrder.status || 'pending', orderId: matchingOrder.order_id } : booking;
+
+          return {
+            ...baseData,
+            // Map mainService to serviceType for modal compatibility
+            serviceType: baseData.serviceType || baseData.mainService,
+            // Add dummy laundry details for testing if not present
+            pants: baseData.pants || 2,
+            shorts: baseData.shorts || 1,
+            tshirts: baseData.tshirts || 3,
+            bedsheets: baseData.bedsheets || 1,
+            estimatedClothes: baseData.estimatedClothes || 10,
+            kilos: baseData.kilos || 5,
+            // Add dummy photos if not present
+            photos: baseData.photos || [
+              'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=300&h=200&fit=crop',
+              'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+            ]
+          };
         });
 
         setOrders(mergedData);
@@ -313,10 +329,25 @@ const ScheduleBooking = () => {
       // Merge bookings with order statuses
       const mergedData = bookingsData.map(booking => {
         const matchingOrder = ordersData.find(order => order.bookingId === booking.booking_id || order.bookingId === booking.id);
-        if (matchingOrder) {
-          return { ...booking, status: matchingOrder.status, orderId: matchingOrder.order_id };
-        }
-        return booking;
+        const baseData = matchingOrder ? { ...booking, ...matchingOrder, status: matchingOrder.status || 'pending', orderId: matchingOrder.order_id } : booking;
+
+        return {
+          ...baseData,
+          // Map mainService to serviceType for modal compatibility
+          serviceType: baseData.serviceType || baseData.mainService,
+          // Add dummy laundry details for testing if not present
+          pants: baseData.pants || 2,
+          shorts: baseData.shorts || 1,
+          tshirts: baseData.tshirts || 3,
+          bedsheets: baseData.bedsheets || 1,
+          estimatedClothes: baseData.estimatedClothes || 10,
+          kilos: baseData.kilos || 5,
+          // Add dummy photos if not present
+          photos: baseData.photos || [
+            'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=300&h=200&fit=crop',
+            'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+          ]
+        };
       });
 
       setOrders(mergedData);
@@ -878,7 +909,7 @@ const ScheduleBooking = () => {
                 </div>
               ) : (
                 orders.map((order, index) => (
-                  <div key={order.id || index} className="p-6">
+                  <div key={order.id || index} className="p-6 cursor-pointer" onClick={() => setEditingOrder(order)}>
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium">
@@ -905,13 +936,13 @@ const ScheduleBooking = () => {
                         {order.status === 'pending' && (
                           <>
                             <button
-                              onClick={() => handleEdit(order)}
+                              onClick={(e) => { e.stopPropagation(); handleEdit(order); }}
                               className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
                             >
                               Edit
                             </button>
                             <button
-                              onClick={() => handleCancel(order.id)}
+                              onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
                               className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                             >
                               Cancel
@@ -927,6 +958,14 @@ const ScheduleBooking = () => {
           )}
         </div>
       </div>
+
+      {/* Order Details Modal */}
+      {editingOrder && (
+        <OrderDetailsModal
+          selectedOrder={editingOrder}
+          setSelectedOrder={setEditingOrder}
+        />
+      )}
 
       {/* Booking Submitted Modal */}
       {showPaymentDetailsModal && (

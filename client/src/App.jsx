@@ -15,8 +15,8 @@ import ScheduleBooking from "./features/customer/routes/dashboard/ScheduleBookin
 
 import AdminHistory from "./features/admin/routes/dashboard/AdminHistory";
 import AdminSettings from "./features/admin/routes/dashboard/AdminSettings";
-import CreateOrder from "./features/admin/routes/dashboard/components/CreateOrder";
-import EditOrder from "./features/admin/routes/dashboard/components/EditOrder";
+import CreateOrder from "./features/admin/components/CreateOrder";
+import EditOrder from "./features/admin/components/EditOrder";
 import ResetPassword from "./pages/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CustomerDashLayout from "./features/customer/routes/layout";
