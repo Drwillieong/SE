@@ -723,12 +723,6 @@ export const completeOrder = (db) => async (req, res) => {
       return res.status(400).json({ message: 'Order is already completed' });
     }
 
-    // Update order status to completed and move to history
-    await orderModel.update(orderId, { status: 'completed' });
-    await orderModel.moveToHistory(orderId);
-
-    // Get updated order
-    const updatedOrder = await orderModel.getById(orderId);
 
     // Emit WebSocket notification for order completion
     if (req.io) {
@@ -743,14 +737,33 @@ export const completeOrder = (db) => async (req, res) => {
       req.io.emit('order-completed', notificationData);
 
       // Send to specific user if userId is provided
-      if (updatedOrder.user_id) {
-        req.io.to(`user_${updatedOrder.user_id}`).emit('your-order-completed', {
+      if (order.user_id) {
+        req.io.to(`user_${order.user_id}`).emit('your-order-completed', {
           orderId,
-          message: 'Your order has been completed and moved to history',
+          message: 'Your order has been completed!',
           timestamp: new Date().toISOString()
         });
       }
     }
+
+    // Send completion email
+    if (order.email) {
+      try {
+        const { sendCompletionEmail } = await import('../utils/email.js');
+        await sendCompletionEmail(order.email, order.name, order);
+        console.log('✅ Order completion email sent successfully to:', order.email);
+      } catch (emailError) {
+        console.error('❌ Error sending completion email:', emailError.message);
+        // Don't fail the operation if email fails, just log it.
+        console.error('💡 Order was completed but email notification failed. This is not critical but should be investigated.');
+      }
+    }
+    
+    // Update order status to completed and move to history
+    await orderModel.update(orderId, { status: 'completed' });
+    await orderModel.moveToHistory(orderId);
+
+    const updatedOrder = await orderModel.getById(orderId);
 
     res.json({
       message: 'Order completed and moved to history successfully',
