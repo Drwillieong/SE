@@ -225,7 +225,13 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Payment Status</label>
-                <p className="text-gray-900">Not Paid</p>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    selectedOrder.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {selectedOrder.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

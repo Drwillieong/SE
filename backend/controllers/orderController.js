@@ -765,6 +765,66 @@ export const completeOrder = (db) => async (req, res) => {
   }
 };
 
+// Update payment status for an order
+export const updatePaymentStatus = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const { paymentStatus } = req.body;
+  const orderModel = new Order(db);
+
+  try {
+    // Validate payment status
+    if (!['paid', 'unpaid'].includes(paymentStatus)) {
+      return res.status(400).json({ message: 'Invalid payment status. Must be "paid" or "unpaid"' });
+    }
+
+    // Get order before update
+    const order = await orderModel.getById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    await orderModel.updatePaymentStatus(orderId, paymentStatus);
+
+    // Get updated order
+    const updatedOrder = await orderModel.getById(orderId);
+
+    // Emit WebSocket notification for payment status update
+    if (req.io) {
+      const notificationData = {
+        orderId,
+        previousPaymentStatus: order.paymentStatus,
+        newPaymentStatus: paymentStatus,
+        message: `Payment status updated to ${paymentStatus}`,
+        timestamp: new Date().toISOString()
+      };
+
+      req.io.emit('order-payment-status-updated', notificationData);
+
+      // Send to specific user if userId is provided
+      if (updatedOrder.user_id) {
+        req.io.to(`user_${updatedOrder.user_id}`).emit('your-order-payment-updated', {
+          orderId,
+          previousPaymentStatus: order.paymentStatus,
+          newPaymentStatus: paymentStatus,
+          message: `Your order payment status has been updated to ${paymentStatus}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    res.json({
+      message: 'Payment status updated successfully',
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Error updating payment status:', error);
+    if (error.message === 'Order not found') {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    res.status(500).json({ message: 'Server error updating payment status' });
+  }
+};
+
 // Soft delete order or booking
 export const softDeleteItem = (db) => async (req, res) => {
   const itemId = req.params.id;

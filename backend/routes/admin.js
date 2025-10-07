@@ -26,7 +26,8 @@ import {
   moveOrderToHistory,
   restoreFromHistory,
   deleteFromHistory,
-  softDeleteItem
+  softDeleteItem,
+  updatePaymentStatus
 } from '../controllers/orderController.js';
 import { verifyToken, requireAdmin } from '../middleware/authMiddleware.js';
 
@@ -66,6 +67,7 @@ router.post('/orders', [
 ], verifyToken, requireAdmin, (req, res) => createOrder(req.db)(req, res));
 router.post('/orders/admin/create-from-pickup', verifyToken, requireAdmin, (req, res) => createOrderFromPickup(req.db)(req, res));
 router.put('/orders/:id', verifyToken, requireAdmin, (req, res) => updateOrder(req.db)(req, res));
+router.put('/orders/:id/payment-status', verifyToken, requireAdmin, (req, res) => updatePaymentStatus(req.db)(req, res));
 router.put('/orders/:id/auto-advance', verifyToken, requireAdmin, (req, res) => autoAdvanceOrder(req.db)(req, res));
 router.delete('/orders/:id', verifyToken, requireAdmin, (req, res) => deleteOrder(req.db)(req, res));
 
