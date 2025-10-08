@@ -62,13 +62,20 @@ export const getAllOrders = (db) => async (req, res) => {
       userId ? orderModel.getTotalCountByUser(userId) : orderModel.getTotalCount()
     ]);
 
+    // Ensure photos and laundryPhoto are parsed correctly
+    const transformedOrders = orders.map(order => ({
+      ...order,
+      photos: typeof order.photos === 'string' ? JSON.parse(order.photos) : order.photos || [],
+      laundryPhoto: typeof order.laundryPhoto === 'string' ? JSON.parse(order.laundryPhoto) : order.laundryPhoto || [],
+    }));
+
     // Calculate pagination metadata
     const totalPages = Math.ceil(totalCount / limit);
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
 
     res.json({
-      orders,
+      orders: transformedOrders, // Send the transformed orders directly
       pagination: {
         currentPage: page,
         totalPages,

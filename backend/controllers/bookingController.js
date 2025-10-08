@@ -288,3 +288,101 @@ export const sendPickupNotification = (db) => async (req, res) => {
     res.status(500).json({ message: error.message || 'Server error sending pickup notifications' });
   }
 };
+
+// Controller to approve booking and convert to order
+export const approveBooking = (db) => async (req, res) => {
+  const bookingId = req.params.id;
+  const bookingModel = new Booking(db);
+  const { Order } = await import('../models/Order.js');
+
+  try {
+    // Get booking details
+    const booking = await bookingModel.getById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Check if booking is pending
+    if (booking.status !== 'pending') {
+      return res.status(400).json({ message: 'Only pending bookings can be approved' });
+    }
+
+    // Update booking status to approved
+    await bookingModel.update(bookingId, { status: 'approved' });
+
+    // Create order from booking
+    const orderModel = new Order(db);
+    const orderData = {
+      serviceType: booking.mainService === 'fullService' ? 'washFold' : 'washFold', // Map to order service types
+      pickupDate: booking.pickupDate,
+      pickupTime: booking.pickupTime,
+      loadCount: booking.loadCount,
+      instructions: booking.instructions,
+      status: 'pending', // Order starts as pending, waiting for payment
+      paymentMethod: booking.paymentMethod,
+      name: booking.name,
+      contact: booking.contact,
+      email: booking.email,
+      address: booking.address,
+      photos: booking.photos,
+      totalPrice: booking.totalPrice,
+      user_id: booking.user_id, // This is the crucial field
+      bookingId: bookingId, // Reference to original booking
+      // Laundry details from booking
+      estimatedClothes: booking.loadCount * 10, // Rough estimate
+      kilos: booking.loadCount * 5, // Rough estimate
+      serviceOption: booking.serviceOption,
+      deliveryFee: booking.deliveryFee
+    };
+
+    const orderId = await orderModel.create(orderData);
+
+    // Send approval email with payment reminder
+    if (booking.email) {
+      
+      try {
+        const { sendBookingApprovalEmail } = await import('../utils/email.js');
+
+        // Prepare laundry details string
+        let laundryDetails = `${booking.loadCount} load(s)`;
+        if (booking.dryCleaningServices && booking.dryCleaningServices.length > 0) {
+          laundryDetails += ` + ${booking.dryCleaningServices.length} dry cleaning item(s)`;
+        }
+
+        await sendBookingApprovalEmail(
+          booking.email,
+          booking.name,
+          orderId,
+          booking.totalPrice,
+          orderData.serviceType,
+          laundryDetails
+        );
+        console.log('✅ Booking approval email sent successfully to:', booking.email);
+      } catch (emailError) {
+        console.error('❌ Error sending approval email:', emailError.message);
+        // Don't fail the approval if email fails, just log the error
+      }
+    }
+
+    // Emit real-time notification
+    if (req.io && booking.user_id) {
+      req.io.to(`user_${booking.user_id}`).emit('booking-approved', {
+        bookingId,
+        orderId,
+        message: 'Your booking has been approved and converted to an order. Please complete payment.',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({
+      message: 'Booking approved and converted to order successfully',
+      bookingId,
+      orderId,
+      totalPrice: booking.totalPrice
+    });
+
+  } catch (error) {
+    console.error('Error approving booking:', error);
+    res.status(500).json({ message: 'Server error approving booking' });
+  }
+};

@@ -184,17 +184,22 @@ const ScheduleBooking = () => {
         });
         const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
 
+        // --- DEBUGGING LOGS ---
+        console.log("--- Raw Bookings Data From API ---", bookingsData);
+        console.log("--- Raw Orders Data From API ---", ordersData);
+
         // Merge bookings with order statuses
         const mergedData = bookingsData.map(booking => {
-          const matchingOrder = ordersData.find(order => order.bookingId === booking.booking_id || order.bookingId === booking.id);
-          const baseData = matchingOrder ? { ...booking, ...matchingOrder, status: matchingOrder.status || 'pending', orderId: matchingOrder.order_id } : booking;
-
-          return {
-            ...baseData,
-            // Map mainService to serviceType for modal compatibility
-            serviceType: baseData.serviceType || baseData.mainService
-          };
+          const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
+          if (matchingOrder) {
+            // Prioritize order data, but keep the original booking's unique ID and creation date.
+            return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, orderId: matchingOrder.order_id };
+          }
+          return booking;
         });
+
+        // --- DEBUGGING LOG ---
+        console.log("--- Final Merged Data (Bookings + Orders) ---", mergedData);
 
         setOrders(mergedData);
       } catch (error) {
@@ -314,17 +319,22 @@ const ScheduleBooking = () => {
       const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
       const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
 
+      // --- DEBUGGING LOGS ---
+      console.log("--- Refresh: Raw Bookings Data ---", bookingsData);
+      console.log("--- Refresh: Raw Orders Data ---", ordersData);
+
       // Merge bookings with order statuses
       const mergedData = bookingsData.map(booking => {
-        const matchingOrder = ordersData.find(order => order.bookingId === booking.booking_id || order.bookingId === booking.id);
-        const baseData = matchingOrder ? { ...booking, ...matchingOrder, status: matchingOrder.status || 'pending', orderId: matchingOrder.order_id } : booking;
-
-        return {
-          ...baseData,
-          // Map mainService to serviceType for modal compatibility
-          serviceType: baseData.serviceType || baseData.mainService
-        };
+        const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
+        if (matchingOrder) {
+          // Prioritize order data, but keep the original booking's unique ID and creation date.
+          return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, orderId: matchingOrder.order_id };
+        }
+        return booking;
       });
+
+      // --- DEBUGGING LOG ---
+      console.log("--- Refresh: Final Merged Data ---", mergedData);
 
       setOrders(mergedData);
     } catch (error) {
@@ -507,7 +517,7 @@ const ScheduleBooking = () => {
             className={`py-2 px-4 font-medium ${activeTab === 'orders' ? 'text-pink-600 border-b-2 border-pink-600' : 'text-gray-500'}`}
             onClick={() => setActiveTab('orders')}
           >
-            My Orders
+            My Bookings
           </button>
         </div>
 
