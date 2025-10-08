@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS orders (
   address TEXT NOT NULL,
   photos JSON, -- Store photo URLs as JSON array
   totalPrice DECIMAL(10, 2) NOT NULL,
+  paymentStatus ENUM('unpaid', 'paid') DEFAULT 'unpaid',
   user_id INT, -- Reference to users table if order is from registered user
   -- New fields for order details from pickup
   estimatedClothes INT,
@@ -73,6 +74,9 @@ CREATE TABLE IF NOT EXISTS orders (
   INDEX idx_is_deleted (is_deleted),
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
+
+-- Add paymentStatus column if it doesn't exist (for existing tables)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS paymentStatus ENUM('unpaid', 'paid') DEFAULT 'unpaid';
 
 
 CREATE TABLE IF NOT EXISTS bookings (

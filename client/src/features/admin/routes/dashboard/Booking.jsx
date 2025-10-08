@@ -76,6 +76,7 @@ const Booking = () => {
     shorts: '',
     tshirts: '',
     bedsheets: '',
+    additionalPrice: '',
     laundryPhoto: null
   });
   const [laundryPhotoFile, setLaundryPhotoFile] = useState(null);
@@ -838,6 +839,10 @@ const Booking = () => {
     setCreatingOrder(true);
     try {
       const token = localStorage.getItem('token');
+      const bookingTotalPrice = selectedBookingForOrder.totalPrice || 0;
+      const additionalPrice = parseFloat(orderFormData.additionalPrice) || 0;
+      const totalPrice = bookingTotalPrice + additionalPrice;
+
       const orderPayload = {
         serviceType: selectedBookingForOrder.mainService || 'washFold',
         pickupDate: formatDateForDB(selectedBookingForOrder.pickupDate),
@@ -851,7 +856,7 @@ const Booking = () => {
         email: selectedBookingForOrder.email || '',
         address: selectedBookingForOrder.address,
         photos: selectedBookingForOrder.photos || [],
-        totalPrice: selectedBookingForOrder.totalPrice || 0,
+        totalPrice: totalPrice,
         user_id: selectedBookingForOrder.userId || null,
         booking_id: selectedBookingForOrder.id,
         estimatedClothes: parseInt(orderFormData.estimatedClothes) || 1,
@@ -860,6 +865,7 @@ const Booking = () => {
         shorts: parseInt(orderFormData.shorts) || 0,
         tshirts: parseInt(orderFormData.tshirts) || 0,
         bedsheets: parseInt(orderFormData.bedsheets) || 0,
+        additionalPrice: additionalPrice,
         laundryPhoto: orderFormData.laundryPhoto ? [orderFormData.laundryPhoto] : []
       };
 

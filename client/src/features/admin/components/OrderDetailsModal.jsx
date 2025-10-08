@@ -23,7 +23,7 @@ const customStyles = {
   },
 };
 
-const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus, serviceOptions, onCompleteOrder }) => {
+const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus, serviceOptions, onCompleteOrder, onMarkAsPaid }) => {
   if (!selectedOrder) return null;
 
   const getStatusColor = (status) => {
@@ -59,6 +59,12 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus,
   const handleStatusUpdate = async (newStatus) => {
     if (window.confirm(`Are you sure you want to change the status to "${newStatus}"?`)) {
       await updateOrderStatus(selectedOrder.order_id, newStatus);
+    }
+  };
+
+  const handleMarkAsPaid = async (orderId) => {
+    if (onMarkAsPaid) {
+      await onMarkAsPaid(orderId);
     }
   };
 
@@ -224,6 +230,24 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus,
                    selectedOrder.paymentMethod === 'gcash' ? 'GCash' :
                    selectedOrder.paymentMethod === 'card' ? 'Credit/Debit Card' : 'Not specified'}
                 </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Payment Status</label>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    selectedOrder.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {selectedOrder.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                  </span>
+                  {selectedOrder.paymentStatus !== 'paid' && (selectedOrder.status === 'ready' || selectedOrder.status === 'completed') && (
+                    <button
+                      onClick={() => handleMarkAsPaid(selectedOrder.order_id)}
+                      className="text-green-600 hover:text-green-900 text-xs underline"
+                    >
+                      Mark as Paid
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
