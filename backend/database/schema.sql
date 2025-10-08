@@ -75,6 +75,9 @@ CREATE TABLE IF NOT EXISTS orders (
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
+-- Add paymentStatus column if it doesn't exist (for existing tables)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS paymentStatus ENUM('unpaid', 'paid') DEFAULT 'unpaid';
+
 
 CREATE TABLE IF NOT EXISTS bookings (
   booking_id INT AUTO_INCREMENT PRIMARY KEY,

@@ -519,35 +519,54 @@ const ScheduleBooking = () => {
               <div className="mb-6">
                 <h2 className="text-xl font-bold mb-4">Choose Your Service</h2>
 
-                {/* Main Services */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-3">Laundry Services</h3>
-                  <div className="space-y-3">
-                    {mainServices.map(service => (
-                      <div
-                        key={service.id}
-                        className={`p-4 border rounded-lg cursor-pointer ${formData.mainService === service.id ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}`}
-                        onClick={() => setFormData(prev => ({ ...prev, mainService: service.id }))}
-                      >
-                        <div className="flex items-start">
-                          <input
-                            type="radio"
-                            id={service.id}
-                            name="mainService"
-                            checked={formData.mainService === service.id}
-                            onChange={() => {}}
-                            className="mt-1"
-                          />
-                          <div className="ml-3">
-                            <label htmlFor={service.id} className="font-medium">{service.name}</label>
-                            <p className="text-sm text-gray-600">{service.description}</p>
-                            <p className="text-sm text-pink-600 mt-1">{service.priceText}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+          {/* Main Services */}
+<div className="mb-6">
+  <h3 className="text-lg font-semibold mb-3">Laundry Services</h3>
+  <div className="space-y-3">
+    {mainServices.map(service => (
+      <div
+        key={service.id}
+        className={`p-4 border rounded-lg cursor-pointer ${
+          formData.mainService === service.id
+            ? 'border-pink-500 bg-pink-50'
+            : 'border-gray-200'
+        }`}
+        onClick={() =>
+          setFormData(prev => ({
+            ...prev,
+            mainService:
+              prev.mainService === service.id ? '' : service.id // toggle selection
+          }))
+        }
+      >
+        <div className="flex items-start">
+          <input
+            type="checkbox" // changed to checkbox to allow unchecking
+            id={service.id}
+            name="mainService"
+            checked={formData.mainService === service.id}
+            onChange={() =>
+              setFormData(prev => ({
+                ...prev,
+                mainService:
+                  prev.mainService === service.id ? '' : service.id // same toggle logic
+              }))
+            }
+            className="mt-1"
+          />
+          <div className="ml-3">
+            <label htmlFor={service.id} className="font-medium">
+              {service.name}
+            </label>
+            <p className="text-sm text-gray-600">{service.description}</p>
+            <p className="text-sm text-pink-600 mt-1">{service.priceText}</p>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
 
                 {/* Dry Cleaning Services */}
                 <div className="mb-6">
@@ -836,7 +855,7 @@ const ScheduleBooking = () => {
                   {selectedMainService && (
                     <div className="flex justify-between">
                       <span>Main Service ({selectedMainService.name}):</span>
-                      <span>₱{mainServicePrice}</span>
+                      <span>Estimated Total ₱{mainServicePrice}</span>
                     </div>
                   )}
                   {selectedDryCleaningServices.length > 0 && (
@@ -852,7 +871,7 @@ const ScheduleBooking = () => {
                     </div>
                   )}
                   <div className="border-t pt-2 font-bold flex justify-between">
-                    <span>Total:</span>
+                    <span>SubTotal:</span>
                     <span>₱{totalPrice}</span>
                   </div>
                 </div>

@@ -11,7 +11,7 @@ export const navbarLinks = [
                 path: "/customer-dashboard/schedule-booking",
             },
             {
-                label: "Order History",
+                label: "Booking History",
                 icon: Clock,
                 path: "/customer-dashboard/history",
             },
