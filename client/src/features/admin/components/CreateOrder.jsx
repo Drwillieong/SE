@@ -22,7 +22,8 @@ const CreateOrder = () => {
         pants: 0,
         shorts: 0,
         tshirts: 0,
-        bedsheets: 0
+        bedsheets: 0,
+        dryCleaningPrices: {} // New state for custom dry cleaning prices
     });
 
     const mainServices = [
@@ -44,26 +45,26 @@ const CreateOrder = () => {
         {
             id: 'dryCleanBarong',
             name: 'Dry Cleaning - Barong',
-            price: 350,
-            priceText: '₱350 per item'
+            price: 0, // Price will be set by admin
+            priceText: 'Price set upon inspection'
         },
         {
             id: 'dryCleanCoat',
             name: 'Dry Cleaning - Coat',
-            price: 400,
-            priceText: '₱400 per item'
+            price: 0,
+            priceText: 'Price set upon inspection'
         },
         {
             id: 'dryCleanGown',
             name: 'Dry Cleaning - Gown',
-            price: 650,
-            priceText: '₱650 per item'
+            price: 0,
+            priceText: 'Price set upon inspection'
         },
         {
             id: 'dryCleanWeddingGown',
             name: 'Dry Cleaning - Wedding Gown',
-            price: 1500,
-            priceText: '₱1,500 per item'
+            price: 0,
+            priceText: 'Price set upon inspection'
         }
     ];
 
@@ -78,7 +79,8 @@ const CreateOrder = () => {
     const handleServiceChange = (serviceId) => {
         setFormData(prev => ({
             ...prev,
-            mainService: serviceId
+            // Toggle selection: if it's already selected, unselect it
+            mainService: prev.mainService === serviceId ? '' : serviceId
         }));
     };
 
@@ -91,6 +93,17 @@ const CreateOrder = () => {
         }));
     };
 
+    const handleDryCleaningPriceChange = (serviceId, price) => {
+        const newPrice = parseFloat(price) || 0;
+        setFormData(prev => ({
+            ...prev,
+            dryCleaningPrices: {
+                ...prev.dryCleaningPrices,
+                [serviceId]: newPrice
+            }
+        }));
+    };
+
     const handleServiceOptionChange = (option) => {
         setFormData(prev => ({
             ...prev,
@@ -100,10 +113,11 @@ const CreateOrder = () => {
 
     const calculateTotal = () => {
         const selectedMainService = mainServices.find(s => s.id === formData.mainService);
-        const selectedDryCleaning = dryCleaningServices.filter(s => formData.dryCleaningServices.includes(s.id));
 
         const mainServicePrice = selectedMainService ? selectedMainService.price * formData.loadCount : 0;
-        const dryCleaningPrice = selectedDryCleaning.reduce((sum, s) => sum + s.price, 0);
+        const dryCleaningPrice = formData.dryCleaningServices.reduce((sum, serviceId) => {
+            return sum + (formData.dryCleaningPrices[serviceId] || 0);
+        }, 0);
         const deliveryFee = formData.serviceOption === 'pickupOnly' ? 0 : 30; // Default delivery fee
 
         return mainServicePrice + dryCleaningPrice + deliveryFee;
@@ -123,7 +137,7 @@ const CreateOrder = () => {
         setLoading(true);
 
         try {
-            const response = await api.post('/api/admin/orders', {
+            const response = await api.post('/api/admin/orders/admin/create-from-pickup', {
                 serviceType: formData.mainService,
                 pickupDate: new Date().toISOString().split('T')[0], // Today's date
                 pickupTime: '7am-10am', // Default pickup time
@@ -135,6 +149,8 @@ const CreateOrder = () => {
                 email: formData.email,
                 address: formData.address,
                 photos: formData.photos,
+                dryCleaningServices: formData.dryCleaningServices, // Add this
+                dryCleaningPrices: formData.dryCleaningPrices, // Add this
                 totalPrice: calculateTotal(),
                 estimatedClothes: formData.estimatedClothes,
                 kilos: formData.kilos,
@@ -165,7 +181,8 @@ const CreateOrder = () => {
                     pants: 0,
                     shorts: 0,
                     tshirts: 0,
-                    bedsheets: 0
+                    bedsheets: 0,
+                    dryCleaningPrices: {}
                 });
 
                 // Navigate to order management with a refresh parameter
@@ -270,14 +287,14 @@ const CreateOrder = () => {
                                 >
                                     <div className="flex items-start">
                                         <input
-                                            type="radio"
+                                            type="checkbox"
                                             name="mainService"
                                             checked={formData.mainService === service.id}
                                             onChange={() => {}}
-                                            className="mt-1"
+                                            className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                         />
                                         <div className="ml-3">
-                                            <label className="font-medium">{service.name}</label>
+                                            <label className="font-medium block">{service.name}</label>
                                             <p className="text-sm text-gray-600">{service.priceText}</p>
                                         </div>
                                     </div>
@@ -311,6 +328,25 @@ const CreateOrder = () => {
                                             <p className="text-sm text-gray-600">{service.priceText}</p>
                                         </div>
                                     </div>
+                                    {/* This is the correct location for the price input */}
+                                    {formData.dryCleaningServices.includes(service.id) && (
+                                        <div className="mt-2 pl-7">
+                                            <label className="block text-sm font-medium text-gray-700">Set Price:</label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <span className="text-gray-500 sm:text-sm">₱</span>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    value={formData.dryCleaningPrices[service.id] || ''}
+                                                    onChange={(e) => handleDryCleaningPriceChange(service.id, e.target.value)}
+                                                    className="w-full pl-7 pr-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    placeholder="0.00"
+                                                    onClick={(e) => e.stopPropagation()} // Prevent card click when interacting with input
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

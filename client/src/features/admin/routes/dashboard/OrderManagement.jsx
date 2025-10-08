@@ -745,7 +745,7 @@ const OrderManagement = () => {
                         }`}>
                           {order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
                         </span>
-                        {order.paymentStatus !== 'paid' && (order.status === 'ready' || order.status === 'completed') && (
+                        {order.paymentStatus !== 'paid' && (
                           <button
                             onClick={() => handleMarkAsPaid(order.order_id)}
                             className="text-green-600 hover:text-green-900 text-xs"
