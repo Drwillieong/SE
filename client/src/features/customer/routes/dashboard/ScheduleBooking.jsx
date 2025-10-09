@@ -716,13 +716,7 @@ const ScheduleBooking = () => {
                       >
                         GCash
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handlePaymentMethodChange('card')}
-                        className={`p-2 text-center text-sm rounded ${paymentDetails.method === 'card' ? 'bg-pink-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
-                      >
-                        Card
-                      </button>
+                     
                     </div>
                   </div>
                 </div>
@@ -940,12 +934,7 @@ const ScheduleBooking = () => {
                       <div className="flex space-x-2">
                         {order.status === 'pending' && (
                           <>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleEdit(order); }}
-                              className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-                            >
-                              Edit
-                            </button>
+                           
                             <button
                               onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
                               className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
@@ -974,17 +963,14 @@ const ScheduleBooking = () => {
 
       {/* Booking Submitted Modal */}
       {showPaymentDetailsModal && (
-        <div className="fixed inset-0 bg-pink-400 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold mb-4">Booking Submitted</h3>
-            <p className="mb-4">
-              Thank you for submitting your laundry booking. It is now pending approval.
-            </p>
+         
             <div className="bg-gray-100 p-4 rounded mb-4 text-sm text-gray-700">
-              Our team will check your laundry, weigh it, and confirm the total cost. Once your booking is approved, you'll receive a notification with the final price and a secure link to complete your payment using your selected method:
+           
               <ul className="list-disc list-inside mt-2">
                 <li>GCash</li>
-                <li>Credit/Debit Card</li>
+               
               </ul>
             </div>
             <div className="bg-yellow-100 p-3 rounded text-yellow-800 text-sm mb-4">

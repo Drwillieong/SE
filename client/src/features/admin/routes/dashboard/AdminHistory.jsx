@@ -478,13 +478,7 @@ const AdminHistory = () => {
                         >
                           {actionLoading[item.id] === 'restoring' ? 'Restoring...' : 'Restore'}
                         </button>
-                        <button
-                          onClick={() => deleteFromHistory(item.id, item.type)}
-                          disabled={actionLoading[item.id] === 'deleting'}
-                          className="text-red-600 hover:text-red-900 text-xs disabled:opacity-50"
-                        >
-                          {actionLoading[item.id] === 'deleting' ? 'Deleting...' : 'Delete'}
-                        </button>
+                       
                       </div>
                     </td>
                   </tr>

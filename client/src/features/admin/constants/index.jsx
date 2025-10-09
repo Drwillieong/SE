@@ -30,11 +30,7 @@ export const navbarLinks = [
                 path: "/dashboard/history",
             },
            
-            {
-                label: "Settings",
-                icon: Settings,
-                path: "/dashboard/settings",
-            },
+          
         ],
     },
     
