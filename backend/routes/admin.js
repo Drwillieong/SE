@@ -37,10 +37,10 @@ const router = express.Router();
 router.get('/bookings', verifyToken, requireAdmin, (req, res) => getAllBookings(req.db)(req, res));
 router.get('/bookings/:id', verifyToken, requireAdmin, (req, res) => getBookingById(req.db)(req, res));
 router.post('/bookings', [
-  body('serviceType').isIn(['washFold', 'dryCleaning', 'hangDry']).withMessage('Invalid service type'),
+  body('mainService').isIn(['fullService', 'washDryFold']).withMessage('Invalid main service'),
   body('pickupDate').isISO8601().withMessage('Invalid pickup date'),
   body('pickupTime').isIn(['7am-10am', '5pm-7pm']).withMessage('Invalid pickup time'),
-  body('loadCount').isInt({ min: 1, max: 2 }).withMessage('Load count must be 1 or 2'),
+  body('loadCount').isInt({ min: 1 }).withMessage('Load count must be at least 1'),
   body('name').notEmpty().withMessage('Name is required'),
   body('contact').notEmpty().withMessage('Contact is required'),
   body('address').notEmpty().withMessage('Address is required'),

@@ -50,6 +50,7 @@ const ScheduleBooking = () => {
 
   // Booking counts state
   const [bookingCounts, setBookingCounts] = useState({});
+  const [bookingCountsLoading, setBookingCountsLoading] = useState(true);
 
   // Booking form state
   const [formData, setFormData] = useState({
@@ -115,9 +116,19 @@ const ScheduleBooking = () => {
 
   // Fetch booking counts for dates
   const fetchBookingCounts = async () => {
+    setBookingCountsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const dates = getPickupDates().map(d => d.fullDate);
+      // Generate dates directly without depending on the bookingCounts state
+      const dates = [];
+      const today = new Date();
+      for (let i = 0; i < 7; i++) {
+        const date = new Date();
+        date.setDate(today.getDate() + i);
+        const fullDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+        dates.push(fullDate);
+      }
+
       const response = await axios.post('http://localhost:8800/api/bookings/counts', { dates }, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true
@@ -125,6 +136,9 @@ const ScheduleBooking = () => {
       setBookingCounts(response.data);
     } catch (error) {
       console.error('Error fetching booking counts:', error);
+    }
+    finally {
+      setBookingCountsLoading(false);
     }
   };
 
@@ -163,14 +177,14 @@ const ScheduleBooking = () => {
     return 30;
   };
 
-  // Available pickup dates (next 7 days)
+  // Available pickup dates (next 14 days)
   const getPickupDates = () => {
     const dates = [];
     const today = new Date();
     for (let i = 0; i < 7; i++) {
       const date = new Date();
       date.setDate(today.getDate() + i);
-      const fullDate = date.toISOString().split('T')[0];
+      const fullDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
       dates.push({
         date: date.getDate(),
         day: date.toLocaleDateString('en-US', { weekday: 'short' }),
@@ -180,6 +194,11 @@ const ScheduleBooking = () => {
     }
     return dates;
   };
+
+  // State for the pickup dates to be displayed
+  const [pickupDates, setPickupDates] = useState([]);
+
+
 
   // Fetch user data and orders
   useEffect(() => {
@@ -255,12 +274,19 @@ const ScheduleBooking = () => {
     }
   }, [formData.loadCount, userData]);
 
-
+  // Update pickup dates when booking counts change
+  useEffect(() => {
+    // Only update pickupDates if bookingCounts has data.
+    if (Object.keys(bookingCounts).length > 0) {
+      setPickupDates(getPickupDates());
+    }
+  }, [bookingCounts]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
 
   const handlePaymentMethodChange = (method) => {
     setPaymentDetails(prev => ({ ...prev, method }));
@@ -315,8 +341,9 @@ const ScheduleBooking = () => {
       const currentCount = countResponse.data[formData.pickupDate] || 0;
       if (currentCount >= 3) {
         alert('This day is now fully booked. Please select another date.');
+        // Immediately update the local state to reflect the day is full
+        setBookingCounts(prev => ({ ...prev, [formData.pickupDate]: 3 }));
         setShowConfirmation(false);
-        await fetchBookingCounts(); // Update calendar
         return;
       }
 
@@ -353,16 +380,14 @@ const ScheduleBooking = () => {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
+
         alert('Booking submitted successfully! Our team will review your request.');
       }
-
-      // Refetch booking counts to update calendar
-      await fetchBookingCounts();
 
       setShowConfirmation(false);
       setEditingOrder(null);
       resetForm();
-      setActiveTab('orders');
+      setActiveTab('pickup');
       // Refresh bookings and orders
       const [bookingsRes, ordersRes] = await Promise.all([
         axios.get('http://localhost:8800/api/bookings', {
@@ -398,7 +423,14 @@ const ScheduleBooking = () => {
       setOrders(mergedData);
     } catch (error) {
       console.error('Error saving order:', error);
-      alert(error.message || 'Failed to save order. Please try again.');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save order. Please try again.';
+      alert(errorMessage);
+
+      // If the error is that the day is fully booked, update the UI immediately
+      if (errorMessage.includes('This day is fully booked')) {
+        setBookingCounts(prev => ({ ...prev, [formData.pickupDate]: 3 }));
+        setShowConfirmation(false); // Go back to the booking form
+      }
     } finally {
       setLoading(false);
     }
@@ -706,7 +738,7 @@ const ScheduleBooking = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date *</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {getPickupDates().map((date) => {
+                      {!bookingCountsLoading && pickupDates.map((date) => {
                         const isFullyBooked = date.count >= 3;
                         return (
                           <button
@@ -720,17 +752,24 @@ const ScheduleBooking = () => {
                               setFormData(prev => ({ ...prev, pickupDate: date.fullDate }));
                             }}
                             disabled={isFullyBooked}
-                            className={`py-2 text-center rounded ${
+                            className={`py-2 text-center rounded relative ${
                               isFullyBooked
-                                ? 'bg-red-100 text-red-600 cursor-not-allowed opacity-50'
+                                ? 'bg-red-100 text-red-600 cursor-not-allowed opacity-50 border-2 border-red-300'
                                 : formData.pickupDate === date.fullDate
                                 ? 'bg-pink-600 text-white'
                                 : 'bg-gray-100 hover:bg-gray-200'
                             }`}
                           >
                             <div className="text-xs">{date.day}</div>
-                            <div className="font-medium">{isFullyBooked ? 'Fully Booked' : date.date}</div>
-                            <div className="text-xs">{date.count}/3</div>
+                            <div className="font-medium">{date.date}</div>
+                            <div className="text-xs font-bold">
+                              {isFullyBooked ? 'FULL' : `${date.count}/3`}
+                            </div>
+                            {isFullyBooked && (
+                              <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 py-0.5 rounded-full font-bold">
+                                !
+                              </div>
+                            )}
                           </button>
                         );
                       })}
