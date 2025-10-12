@@ -453,6 +453,35 @@ const OrderManagement = () => {
     setSelectedOrder(order);
   };
 
+  const handleMarkAsPaid = async (orderId) => {
+    if (window.confirm('Are you sure you want to mark this order as paid?')) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/payment-status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ paymentStatus: 'paid' })
+        });
+
+        if (response.ok) {
+          // Update local state
+          setOrders(prev => prev.map(order =>
+            order.order_id === orderId ? { ...order, paymentStatus: 'paid' } : order
+          ));
+          alert('Order marked as paid successfully!');
+        } else {
+          alert('Failed to update payment status');
+        }
+      } catch (error) {
+        console.error('Error updating payment status:', error);
+        alert('Failed to update payment status');
+      }
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -619,6 +648,9 @@ const OrderManagement = () => {
                     Price
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Payment Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -706,6 +738,23 @@ const OrderManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       ₱{order.totalPrice?.toLocaleString()}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-2">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                        </span>
+                        {order.paymentStatus !== 'paid' && (
+                          <button
+                            onClick={() => handleMarkAsPaid(order.order_id)}
+                            className="text-green-600 hover:text-green-900 text-xs"
+                          >
+                            Mark as Paid
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex flex-col gap-2">
                         <button
@@ -718,7 +767,7 @@ const OrderManagement = () => {
                           onClick={() => handleDeleteOrder(order.order_id)}
                           className="text-red-600 hover:text-red-900 text-xs"
                         >
-                          Delete
+                          Archive
                         </button>
                       </div>
                     </td>
@@ -737,6 +786,7 @@ const OrderManagement = () => {
         updateOrderStatus={updateOrderStatus}
         serviceOptions={serviceOptions}
         onCompleteOrder={handleOrderCompletion}
+        onMarkAsPaid={handleMarkAsPaid}
       />
     </div>
   );

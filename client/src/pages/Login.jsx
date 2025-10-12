@@ -100,21 +100,25 @@ const LoginPage = () => {
         password
       });
       
+      const { token, user } = response.data;
+
       // Check if user data exists in response
-      if (!response.data.user) {
+      if (!user || !token) {
         setError("Login failed: Invalid response from server. Please try again.");
+        setIsLoading(false);
         return;
       }
 
       // Store token and user data
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       // Reset failed attempts on successful login
       setFailedAttempts(0);
 
       // Redirect based on user role
-      if (response.data.user.role === "admin") {
+      if (user.role === "admin") {
         alert("Admin login successful! Redirecting to dashboard...");
         navigate("/dashboard");
       } else {
@@ -328,7 +332,7 @@ const LoginPage = () => {
               <div className="text-center mt-4">
                 <p className="text-gray-600">
                   Don't have an account?{' '}
-                  <Link to="/signup" className="text-pink-500 hover:underline">
+                  <Link to="/" className="text-pink-500 hover:underline">
                     Sign up
                   </Link>
                 </p>

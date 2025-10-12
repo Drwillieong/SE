@@ -639,6 +639,36 @@ const Booking = () => {
 
   const handleCreateBooking = async (e) => {
     e.preventDefault();
+
+    // Check booking count before creating
+    try {
+      const token = localStorage.getItem('token');
+      const countResponse = await fetch('http://localhost:8800/api/bookings/counts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ dates: [newBooking.pickupDate] })
+      });
+
+      if (countResponse.ok) {
+        const countData = await countResponse.json();
+        const currentCount = countData[newBooking.pickupDate] || 0;
+        if (currentCount >= 3) {
+          alert('This day is fully booked. Maximum 3 bookings per day allowed.');
+          return;
+        }
+      } else {
+        alert('Failed to check booking availability. Please try again.');
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking booking count:', error);
+      alert('Failed to check booking availability. Please try again.');
+      return;
+    }
+
     try {
       setLoading(true);
       const selectedMainService = mainServices.find(s => s.value === newBooking.mainService);
@@ -1123,7 +1153,7 @@ const Booking = () => {
                           disabled={pickupLoading}
                           className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center shadow-sm hover:shadow-md"
                         >
-                          {pickupLoading ? 'Sending...' : 'Pick Up Now'}
+                          {pickupLoading ? 'Sending...' : 'Ready for Pickup'}
                         </button>
                       )}
                       {booking.photos?.length > 0 && (
@@ -1143,7 +1173,7 @@ const Booking = () => {
           {/* Pending Bookings Section */}
           <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
             <div className="text-center mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-yellow-600 mb-1">Pending Approval</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-black mb-1">Pending Approval</h2>
               <p className="text-sm text-gray-500">{pendingBookings.length} bookings awaiting review</p>
             </div>
             {pendingBookings.length === 0 ? (
@@ -1159,7 +1189,7 @@ const Booking = () => {
             ) : (
               <div className="space-y-4">
                 {pendingBookings.map((booking) => (
-                  <div key={booking.id} className="border-2 border-yellow-200 p-6 rounded-xl bg-gradient-to-r from-yellow-50 to-orange-50 hover:shadow-lg transition-all duration-200">
+                  <div key={booking.id} className=" bg-white p-6 rounded-xl shadow-lg border border-gray-200">
                     <h3 className="font-bold text-lg">{booking.name}</h3>
                     <p><span className="font-semibold">Service:</span> {
                       mainServices.find((s) => s.value === booking.mainService)?.label || booking.mainService

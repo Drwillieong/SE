@@ -62,13 +62,20 @@ export const getAllOrders = (db) => async (req, res) => {
       userId ? orderModel.getTotalCountByUser(userId) : orderModel.getTotalCount()
     ]);
 
+    // Ensure photos and laundryPhoto are parsed correctly
+    const transformedOrders = orders.map(order => ({
+      ...order,
+      photos: typeof order.photos === 'string' ? JSON.parse(order.photos) : order.photos || [],
+      laundryPhoto: typeof order.laundryPhoto === 'string' ? JSON.parse(order.laundryPhoto) : order.laundryPhoto || [],
+    }));
+
     // Calculate pagination metadata
     const totalPages = Math.ceil(totalCount / limit);
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
 
     res.json({
-      orders,
+      orders: transformedOrders, // Send the transformed orders directly
       pagination: {
         currentPage: page,
         totalPages,
@@ -723,12 +730,6 @@ export const completeOrder = (db) => async (req, res) => {
       return res.status(400).json({ message: 'Order is already completed' });
     }
 
-    // Update order status to completed and move to history
-    await orderModel.update(orderId, { status: 'completed' });
-    await orderModel.moveToHistory(orderId);
-
-    // Get updated order
-    const updatedOrder = await orderModel.getById(orderId);
 
     // Emit WebSocket notification for order completion
     if (req.io) {
@@ -743,14 +744,33 @@ export const completeOrder = (db) => async (req, res) => {
       req.io.emit('order-completed', notificationData);
 
       // Send to specific user if userId is provided
-      if (updatedOrder.user_id) {
-        req.io.to(`user_${updatedOrder.user_id}`).emit('your-order-completed', {
+      if (order.user_id) {
+        req.io.to(`user_${order.user_id}`).emit('your-order-completed', {
           orderId,
-          message: 'Your order has been completed and moved to history',
+          message: 'Your order has been completed!',
           timestamp: new Date().toISOString()
         });
       }
     }
+
+    // Send completion email
+    if (order.email) {
+      try {
+        const { sendCompletionEmail } = await import('../utils/email.js');
+        await sendCompletionEmail(order.email, order.name, order);
+        console.log('✅ Order completion email sent successfully to:', order.email);
+      } catch (emailError) {
+        console.error('❌ Error sending completion email:', emailError.message);
+        // Don't fail the operation if email fails, just log it.
+        console.error('💡 Order was completed but email notification failed. This is not critical but should be investigated.');
+      }
+    }
+    
+    // Update order status to completed and move to history
+    await orderModel.update(orderId, { status: 'completed' });
+    await orderModel.moveToHistory(orderId);
+
+    const updatedOrder = await orderModel.getById(orderId);
 
     res.json({
       message: 'Order completed and moved to history successfully',
@@ -762,6 +782,66 @@ export const completeOrder = (db) => async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
     res.status(500).json({ message: 'Server error completing order' });
+  }
+};
+
+// Update payment status for an order
+export const updatePaymentStatus = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const { paymentStatus } = req.body;
+  const orderModel = new Order(db);
+
+  try {
+    // Validate payment status
+    if (!['paid', 'unpaid'].includes(paymentStatus)) {
+      return res.status(400).json({ message: 'Invalid payment status. Must be "paid" or "unpaid"' });
+    }
+
+    // Get order before update
+    const order = await orderModel.getById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    await orderModel.updatePaymentStatus(orderId, paymentStatus);
+
+    // Get updated order
+    const updatedOrder = await orderModel.getById(orderId);
+
+    // Emit WebSocket notification for payment status update
+    if (req.io) {
+      const notificationData = {
+        orderId,
+        previousPaymentStatus: order.paymentStatus,
+        newPaymentStatus: paymentStatus,
+        message: `Payment status updated to ${paymentStatus}`,
+        timestamp: new Date().toISOString()
+      };
+
+      req.io.emit('order-payment-status-updated', notificationData);
+
+      // Send to specific user if userId is provided
+      if (updatedOrder.user_id) {
+        req.io.to(`user_${updatedOrder.user_id}`).emit('your-order-payment-updated', {
+          orderId,
+          previousPaymentStatus: order.paymentStatus,
+          newPaymentStatus: paymentStatus,
+          message: `Your order payment status has been updated to ${paymentStatus}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    res.json({
+      message: 'Payment status updated successfully',
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Error updating payment status:', error);
+    if (error.message === 'Order not found') {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    res.status(500).json({ message: 'Server error updating payment status' });
   }
 };
 

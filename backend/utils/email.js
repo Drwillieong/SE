@@ -312,3 +312,54 @@ export const sendReadyForPickupEmail = async (email, name, orderId, serviceType)
         throw error;
     }
 };
+
+// Function to send order completion/receipt email
+export const sendCompletionEmail = async (email, name, order) => {
+    console.log('📤 Attempting to send completion email to:', email);
+
+    const transporter = createTransporter();
+    if (!transporter) {
+        throw new Error('Email transporter not configured');
+    }
+
+    const serviceName = order.serviceType === 'washFold' ? 'Wash & Fold' :
+                       order.serviceType === 'dryCleaning' ? 'Dry Cleaning' :
+                       order.serviceType === 'hangDry' ? 'Hang Dry' : 'Laundry Service';
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: `Your Wash It Izzy Order #${order.order_id} is Complete!`,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #007bff;">🎉 Your Order is Complete!</h2>
+                <p>Dear ${name},</p>
+                <p>Thank you for using Wash It Izzy! Your order has been completed. Here is your receipt:</p>
+
+                <div style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                    <h3 style="color: #495057; margin-top: 0;">Order Summary:</h3>
+                    <p style="margin-bottom: 5px;"><strong>Order ID:</strong> #${order.order_id}</p>
+                    <p style="margin-bottom: 5px;"><strong>Service:</strong> ${serviceName}</p>
+                    <p style="margin-bottom: 5px;"><strong>Total Price:</strong> ₱${order.totalPrice?.toLocaleString()}</p>
+                    <p style="margin-bottom: 0;"><strong>Payment Status:</strong> ${order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}</p>
+                </div>
+
+                <p>We hope you enjoyed our service. We look forward to serving you again soon!</p>
+
+                <hr style="border: none; border-top: 1px solid #e9ecef; margin: 20px 0;">
+                <p style="color: #6c757d; font-size: 12px;">
+                    This is an automated message from Wash It Izzy. Please do not reply to this email.
+                </p>
+            </div>
+        `
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Completion email sent successfully:', info.response);
+        return info;
+    } catch (error) {
+        console.error('❌ Error sending completion email:', error.message);
+        throw error;
+    }
+};

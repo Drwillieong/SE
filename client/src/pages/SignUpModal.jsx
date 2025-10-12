@@ -200,13 +200,10 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
     }
   };
 
-  const handleFacebookSignUp = () => {
-    // Facebook sign-up placeholder
-    setErrors(prev => ({...prev, form: 'Facebook sign-up is not yet implemented'}));
-  };
+  
 
   const TermsOfServiceModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100] p-4">
+    <div className="fixed inset-0  bg-opacity-50 flex justify-center items-center z-[100] p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
@@ -344,27 +341,12 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
             )}
             
             <div className="space-y-4">
-              <button
-                onClick={handleGoogleSignUp}
-                className="w-full border border-gray-300 py-3 rounded-xl flex items-center justify-center transition-all duration-200 hover:bg-gray-50 hover:border-gray-400 active:scale-95"
-                aria-label="Sign up with Google"
-              >
-                <img src={googlepng} alt="Google" className="w-6 h-6 mr-3" />
-                <span className="font-medium text-gray-700">Continue with Google</span>
-              </button>
-              
-              <button
-                onClick={handleFacebookSignUp}
-                className="w-full bg-[#1877F2] text-white py-3 rounded-xl flex items-center justify-center transition-all duration-200 hover:bg-[#166FE5] active:scale-95"
-                aria-label="Sign up with Facebook"
-              >
-                <img src={facebookpng} alt="Facebook" className="w-6 h-6 mr-3 filter brightness-0 invert" />
-                <span className="font-medium">Continue with Facebook</span>
-              </button>
+             
+             
               
               <div className="flex items-center my-4">
                 <div className="flex-1 h-px bg-gray-300"></div>
-                <span className="px-4 text-gray-500 font-medium">OR</span>
+               
                 <div className="flex-1 h-px bg-gray-300"></div>
               </div>
               
@@ -400,170 +382,204 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
       )}
 
       {/* Email Sign-Up Modal - lower z-index */}
-      {showEmailForm && !isLoading && (
-        <div className="fixed inset-0  bg-opacity-30 backdrop-blur-sm flex justify-center items-center z-50 animate-fadeIn">
-          <div className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Create Account</h2>
-              <button 
-                onClick={() => setShowEmailForm(false)} 
-                className="text-gray-500 hover:text-gray-700 transition-colors duration-200"
-                aria-label="Back to sign up options"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-              </button>
-            </div>
-            
-            {errors.form && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-                {errors.form}
-              </div>
-            )}
-            
-            <form onSubmit={handleEmailSignUp} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <input 
-                    type="text" 
-                    name="firstName" 
-                    placeholder="First Name" 
-                    className={`w-full border ${errors.firstName ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
-                    onChange={handleChange} 
-                    value={formData.firstName}
-                    required
-                    aria-label="First name"
-                  />
-                  {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
-                </div>
-                <div>
-                  <input 
-                    type="text" 
-                    name="lastName" 
-                    placeholder="Last Name" 
-                    className={`w-full border ${errors.lastName ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
-                    onChange={handleChange} 
-                    value={formData.lastName}
-                    required
-                    aria-label="Last name"
-                  />
-                  {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
-                </div>
-              </div>
-              
-              <div>
-                <input 
-                  type="tel" 
-                  name="contact" 
-                  placeholder="Phone Number" 
-                  className={`w-full border ${errors.contact ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
-                  onChange={handleChange} 
-                  value={formData.contact}
-                  required
-                  aria-label="Phone number"
-                />
-                {errors.contact && <p className="text-red-500 text-xs mt-1">{errors.contact}</p>}
-              </div>
-              
-              <div>
-                <input 
-                  type="email" 
-                  name="email" 
-                  placeholder="Email Address" 
-                  className={`w-full border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
-                  onChange={handleChange} 
-                  value={formData.email}
-                  required
-                  aria-label="Email"
-                />
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-              </div>
-              
-              <div>
-                <input 
-                  type="password" 
-                  name="password" 
-                  placeholder="Password (min 8 characters)" 
-                  className={`w-full border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
-                  onChange={handleChange} 
-                  value={formData.password}
-                  required
-                  minLength="8"
-                  aria-label="Password"
-                />
-                {formData.password && <PasswordStrengthIndicator />}
-                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
-              </div>
-              
-              <div>
-                <input 
-                  type="password" 
-                  name="confirmPassword" 
-                  placeholder="Confirm Password" 
-                  className={`w-full border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
-                  onChange={handleChange} 
-                  value={formData.confirmPassword}
-                  required
-                  aria-label="Confirm password"
-                />
-                {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
-              </div>
-              
-              <div className="flex items-start">
-                <div className="flex items-center h-5">
-                  <input 
-                    type="checkbox" 
-                    name="agreeToTerms" 
-                    className={`w-4 h-4 text-pink-600 bg-pink-500 ${errors.agreeToTerms ? 'border-red-500' : 'border-gray-300'} rounded focus:ring-pink-500`}
-                    onChange={handleChange} 
-                    checked={formData.agreeToTerms}
-                    required
-                    aria-label="Agree to terms"
-                  />
-                </div>
-                <div className="ml-3 text-sm">
-                  <label className="text-gray-600">
-                    I agree to the{" "}
-                    <button 
-                      type="button" 
-                      onClick={() => setShowTermsModal(true)}
-                      className="text-pink-600 hover:text-pink-700 font-medium hover:underline"
-                    >
-                      Terms of Service
-                    </button>{" "}
-                    and{" "}
-                    <button 
-                      type="button" 
-                      onClick={() => setShowPrivacyModal(true)}
-                      className="text-pink-600 hover:text-pink-700 font-medium hover:underline"
-                    >
-                      Privacy Policy
-                    </button>
-                  </label>
-                  {errors.agreeToTerms && <p className="text-red-500 text-xs mt-1">{errors.agreeToTerms}</p>}
-                </div>
-              </div>
-              
-              <button 
-                type="submit" 
-                className="w-full bg-pink-500 text-white py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 active:scale-95"
-              >
-                Create Account
-              </button>
-            </form>
-            
-            <div className="mt-6 text-center">
-              <button 
-                onClick={() => setShowEmailForm(false)} 
-                className="text-gray-600 hover:text-gray-800 font-medium transition-colors duration-200"
-              >
-                ← Back to sign up options
-              </button>
-            </div>
-          </div>
+{showEmailForm && !isLoading && (
+  <div className="fixed inset-0 bg-opacity-30 backdrop-blur-sm flex justify-center items-center z-50 animate-fadeIn">
+    <div className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Create Account</h2>
+        <button
+          onClick={() => setShowEmailForm(false)}
+          className="text-gray-500 hover:text-gray-700 transition-colors duration-200"
+          aria-label="Back to sign up options"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+        </button>
+      </div>
+
+      {errors.form && (
+        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          {errors.form}
         </div>
       )}
+
+      <form onSubmit={handleEmailSignUp} className="space-y-5">
+        {/* Name Fields */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+              First Name
+            </label>
+            <input
+              type="text"
+              id="firstName"
+              name="firstName"
+              placeholder="first name"
+              className={`w-full border ${errors.firstName ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
+              onChange={handleChange}
+              value={formData.firstName}
+              required
+            />
+            {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+              Last Name
+            </label>
+            <input
+              type="text"
+              id="lastName"
+              name="lastName"
+              placeholder="last name"
+              className={`w-full border ${errors.lastName ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
+              onChange={handleChange}
+              value={formData.lastName}
+              required
+            />
+            {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
+          </div>
+        </div>
+
+       {/* Phone Number */}
+<div>
+  <label htmlFor="contact" className="block text-sm font-medium text-gray-700 mb-1">
+    Phone Number
+  </label>
+  <input
+    type="tel"
+    id="contact"
+    name="contact"
+    placeholder="09123456789"
+    pattern="^09[0-9]{9}$"  // must start with 09 and have 11 digits total
+    inputMode="numeric"
+    maxLength="11"
+    className={`w-full border ${errors.contact ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
+    onChange={(e) => {
+      // Optional: restrict non-numeric characters live
+      const value = e.target.value.replace(/[^0-9]/g, '');
+      handleChange({ target: { name: 'contact', value } });
+    }}
+    value={formData.contact}
+    required
+  />
+  {errors.contact && <p className="text-red-500 text-xs mt-1">{errors.contact}</p>}
+</div>
+
+
+        {/* Email */}
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            Email Address
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="Enter your email"
+            className={`w-full border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
+            onChange={handleChange}
+            value={formData.email}
+            required
+          />
+          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+        </div>
+
+        {/* Password */}
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            Password
+          </label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="At least 8 characters"
+            className={`w-full border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
+            onChange={handleChange}
+            value={formData.password}
+            required
+            minLength="8"
+          />
+          {formData.password && <PasswordStrengthIndicator />}
+          {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+        </div>
+
+        {/* Confirm Password */}
+        <div>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+            Confirm Password
+          </label>
+          <input
+            type="password"
+            id="confirmPassword"
+            name="confirmPassword"
+            placeholder="Re-enter your password"
+            className={`w-full border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
+            onChange={handleChange}
+            value={formData.confirmPassword}
+            required
+          />
+          {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
+        </div>
+
+        {/* Terms */}
+        <div className="flex items-start">
+          <div className="flex items-center h-5">
+            <input
+              type="checkbox"
+              name="agreeToTerms"
+              className={`w-4 h-4 text-pink-600 ${errors.agreeToTerms ? 'border-red-500' : 'border-gray-300'} rounded focus:ring-pink-500`}
+              onChange={handleChange}
+              checked={formData.agreeToTerms}
+              required
+            />
+          </div>
+          <div className="ml-3 text-sm">
+            <label className="text-gray-600">
+              I agree to the{" "}
+              <button
+                type="button"
+                onClick={() => setShowTermsModal(true)}
+                className="text-pink-600 hover:text-pink-700 font-medium hover:underline"
+              >
+                Terms of Service
+              </button>{" "}
+              and{" "}
+              <button
+                type="button"
+                onClick={() => setShowPrivacyModal(true)}
+                className="text-pink-600 hover:text-pink-700 font-medium hover:underline"
+              >
+                Privacy Policy
+              </button>
+            </label>
+            {errors.agreeToTerms && <p className="text-red-500 text-xs mt-1">{errors.agreeToTerms}</p>}
+          </div>
+        </div>
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          className="w-full bg-pink-500 text-white py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 active:scale-95"
+        >
+          Create Account
+        </button>
+      </form>
+
+      <div className="mt-6 text-center">
+        <button
+          onClick={() => setShowEmailForm(false)}
+          className="text-gray-600 hover:text-gray-800 font-medium transition-colors duration-200"
+        >
+          ← Back to sign up options
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </> 
   );
 };

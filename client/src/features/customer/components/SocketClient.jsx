@@ -8,7 +8,8 @@ const SocketClient = ({
   onBookingUpdate,
   onNotification,
   onNewOrder,
-  onBookingToOrder
+  onBookingToOrder,
+  onBookingCountsUpdate
 }) => {
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -207,6 +208,22 @@ const SocketClient = ({
       console.log('Booking status changed:', data);
       if (onBookingUpdate) {
         onBookingUpdate('global_status_changed', data);
+      }
+    });
+
+    // Booking counts update event
+    socket.on('booking-counts-updated', (data) => {
+      console.log('Booking counts updated:', data);
+      if (onBookingCountsUpdate) {
+        onBookingCountsUpdate(data);
+      }
+    });
+
+    // Booking count changed event (for real-time updates)
+    socket.on('booking-count-changed', (data) => {
+      console.log('Booking count changed:', data);
+      if (onBookingCountsUpdate) {
+        onBookingCountsUpdate(data);
       }
     });
 

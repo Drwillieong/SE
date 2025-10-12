@@ -48,6 +48,9 @@ const ScheduleBooking = () => {
   const [socketClient, setSocketClient] = useState(null);
   const [realTimeOrders, setRealTimeOrders] = useState([]);
 
+  // Booking counts state
+  const [bookingCounts, setBookingCounts] = useState({});
+
   // Booking form state
   const [formData, setFormData] = useState({
     mainService: 'washDryFold',
@@ -110,6 +113,34 @@ const ScheduleBooking = () => {
     },
   ];
 
+  // Fetch booking counts for dates
+  const fetchBookingCounts = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const dates = getPickupDates().map(d => d.fullDate);
+      const response = await axios.post('http://localhost:8800/api/bookings/counts', { dates }, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true
+      });
+      setBookingCounts(response.data);
+    } catch (error) {
+      console.error('Error fetching booking counts:', error);
+    }
+  };
+
+  // Update booking counts locally
+  const updateBookingCounts = (data) => {
+    if (data && data.date && typeof data.change === 'number') {
+      setBookingCounts(prev => ({
+        ...prev,
+        [data.date]: Math.max(0, (prev[data.date] || 0) + data.change)
+      }));
+    } else {
+      // Fallback to fetch if no data
+      fetchBookingCounts();
+    }
+  };
+
   // Calculate delivery fee based on barangay and load count
   const calculateDeliveryFee = (barangay, loadCount) => {
     if (!barangay) return 0;
@@ -139,10 +170,12 @@ const ScheduleBooking = () => {
     for (let i = 0; i < 7; i++) {
       const date = new Date();
       date.setDate(today.getDate() + i);
+      const fullDate = date.toISOString().split('T')[0];
       dates.push({
         date: date.getDate(),
         day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        fullDate: date.toISOString().split('T')[0]
+        fullDate,
+        count: bookingCounts[fullDate] || 0
       });
     }
     return dates;
@@ -184,19 +217,27 @@ const ScheduleBooking = () => {
         });
         const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
 
+        // --- DEBUGGING LOGS ---
+        console.log("--- Raw Bookings Data From API ---", bookingsData);
+        console.log("--- Raw Orders Data From API ---", ordersData);
+
         // Merge bookings with order statuses
         const mergedData = bookingsData.map(booking => {
-          const matchingOrder = ordersData.find(order => order.bookingId === booking.booking_id || order.bookingId === booking.id);
-          const baseData = matchingOrder ? { ...booking, ...matchingOrder, status: matchingOrder.status || 'pending', orderId: matchingOrder.order_id } : booking;
-
-          return {
-            ...baseData,
-            // Map mainService to serviceType for modal compatibility
-            serviceType: baseData.serviceType || baseData.mainService
-          };
+          const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
+          if (matchingOrder) {
+            // Prioritize order data, but keep the original booking's unique ID and creation date.
+            return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, orderId: matchingOrder.order_id };
+          }
+          return booking;
         });
 
+        // --- DEBUGGING LOG ---
+        console.log("--- Final Merged Data (Bookings + Orders) ---", mergedData);
+
         setOrders(mergedData);
+
+        // Fetch booking counts for dates
+        await fetchBookingCounts();
       } catch (error) {
         console.error('Error fetching user data or orders:', error);
         navigate('/login');
@@ -213,6 +254,8 @@ const ScheduleBooking = () => {
       setDeliveryFee(calculateDeliveryFee(userData.barangay, formData.loadCount));
     }
   }, [formData.loadCount, userData]);
+
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -240,6 +283,11 @@ const ScheduleBooking = () => {
       return;
     }
 
+    if (!formData.mainService) {
+      alert('Please select a main service');
+      return;
+    }
+
     if (!userData || !userData.barangay || !userData.street) {
       alert('Please complete your profile information first');
       navigate('/profile');
@@ -257,6 +305,20 @@ const ScheduleBooking = () => {
       const selectedDryCleaningServices = dryCleaningServices.filter(s => formData.dryCleaningServices.includes(s.id));
 
       const userAddress = `${userData.street || ''}${userData.blockLot ? `, Block ${userData.blockLot}` : ''}, ${userData.barangay || ''}, Calamba City`;
+
+      // Check latest booking count before submitting
+      const token = localStorage.getItem('token');
+      const countResponse = await axios.post('http://localhost:8800/api/bookings/counts', { dates: [formData.pickupDate] }, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true
+      });
+      const currentCount = countResponse.data[formData.pickupDate] || 0;
+      if (currentCount >= 3) {
+        alert('This day is now fully booked. Please select another date.');
+        setShowConfirmation(false);
+        await fetchBookingCounts(); // Update calendar
+        return;
+      }
 
       const bookingPayload = {
         mainService: formData.mainService,
@@ -278,7 +340,6 @@ const ScheduleBooking = () => {
         user_id: user.id,
       };
 
-      const token = localStorage.getItem('token');
       if (editingOrder) {
         // Update existing booking
         await axios.put(`http://localhost:8800/api/bookings/${editingOrder.booking_id || editingOrder.id}`, bookingPayload, {
@@ -294,6 +355,9 @@ const ScheduleBooking = () => {
         });
         alert('Booking submitted successfully! Our team will review your request.');
       }
+
+      // Refetch booking counts to update calendar
+      await fetchBookingCounts();
 
       setShowConfirmation(false);
       setEditingOrder(null);
@@ -314,17 +378,22 @@ const ScheduleBooking = () => {
       const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
       const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
 
+      // --- DEBUGGING LOGS ---
+      console.log("--- Refresh: Raw Bookings Data ---", bookingsData);
+      console.log("--- Refresh: Raw Orders Data ---", ordersData);
+
       // Merge bookings with order statuses
       const mergedData = bookingsData.map(booking => {
-        const matchingOrder = ordersData.find(order => order.bookingId === booking.booking_id || order.bookingId === booking.id);
-        const baseData = matchingOrder ? { ...booking, ...matchingOrder, status: matchingOrder.status || 'pending', orderId: matchingOrder.order_id } : booking;
-
-        return {
-          ...baseData,
-          // Map mainService to serviceType for modal compatibility
-          serviceType: baseData.serviceType || baseData.mainService
-        };
+        const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
+        if (matchingOrder) {
+          // Prioritize order data, but keep the original booking's unique ID and creation date.
+          return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, orderId: matchingOrder.order_id };
+        }
+        return booking;
       });
+
+      // --- DEBUGGING LOG ---
+      console.log("--- Refresh: Final Merged Data ---", mergedData);
 
       setOrders(mergedData);
     } catch (error) {
@@ -507,7 +576,7 @@ const ScheduleBooking = () => {
             className={`py-2 px-4 font-medium ${activeTab === 'orders' ? 'text-pink-600 border-b-2 border-pink-600' : 'text-gray-500'}`}
             onClick={() => setActiveTab('orders')}
           >
-            My Orders
+            My Bookings
           </button>
         </div>
 
@@ -519,35 +588,54 @@ const ScheduleBooking = () => {
               <div className="mb-6">
                 <h2 className="text-xl font-bold mb-4">Choose Your Service</h2>
 
-                {/* Main Services */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-3">Laundry Services</h3>
-                  <div className="space-y-3">
-                    {mainServices.map(service => (
-                      <div
-                        key={service.id}
-                        className={`p-4 border rounded-lg cursor-pointer ${formData.mainService === service.id ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}`}
-                        onClick={() => setFormData(prev => ({ ...prev, mainService: service.id }))}
-                      >
-                        <div className="flex items-start">
-                          <input
-                            type="radio"
-                            id={service.id}
-                            name="mainService"
-                            checked={formData.mainService === service.id}
-                            onChange={() => {}}
-                            className="mt-1"
-                          />
-                          <div className="ml-3">
-                            <label htmlFor={service.id} className="font-medium">{service.name}</label>
-                            <p className="text-sm text-gray-600">{service.description}</p>
-                            <p className="text-sm text-pink-600 mt-1">{service.priceText}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+          {/* Main Services */}
+<div className="mb-6">
+  <h3 className="text-lg font-semibold mb-3">Laundry Services</h3>
+  <div className="space-y-3">
+    {mainServices.map(service => (
+      <div
+        key={service.id}
+        className={`p-4 border rounded-lg cursor-pointer ${
+          formData.mainService === service.id
+            ? 'border-pink-500 bg-pink-50'
+            : 'border-gray-200'
+        }`}
+        onClick={() =>
+          setFormData(prev => ({
+            ...prev,
+            mainService:
+              prev.mainService === service.id ? '' : service.id // toggle selection
+          }))
+        }
+      >
+        <div className="flex items-start">
+          <input
+            type="checkbox" // changed to checkbox to allow unchecking
+            id={service.id}
+            name="mainService"
+            checked={formData.mainService === service.id}
+            onChange={() =>
+              setFormData(prev => ({
+                ...prev,
+                mainService:
+                  prev.mainService === service.id ? '' : service.id // same toggle logic
+              }))
+            }
+            className="mt-1"
+          />
+          <div className="ml-3">
+            <label htmlFor={service.id} className="font-medium">
+              {service.name}
+            </label>
+            <p className="text-sm text-gray-600">{service.description}</p>
+            <p className="text-sm text-pink-600 mt-1">{service.priceText}</p>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
 
                 {/* Dry Cleaning Services */}
                 <div className="mb-6">
@@ -618,17 +706,34 @@ const ScheduleBooking = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date *</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {getPickupDates().map((date) => (
-                        <button
-                          key={date.fullDate}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, pickupDate: date.fullDate }))}
-                          className={`py-2 text-center rounded ${formData.pickupDate === date.fullDate ? 'bg-pink-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
-                        >
-                          <div className="text-xs">{date.day}</div>
-                          <div className="font-medium">{date.date}</div>
-                        </button>
-                      ))}
+                      {getPickupDates().map((date) => {
+                        const isFullyBooked = date.count >= 3;
+                        return (
+                          <button
+                            key={date.fullDate}
+                            type="button"
+                            onClick={() => {
+                              if (isFullyBooked) {
+                                alert('This day is fully booked. Maximum 3 bookings per day allowed.');
+                                return;
+                              }
+                              setFormData(prev => ({ ...prev, pickupDate: date.fullDate }));
+                            }}
+                            disabled={isFullyBooked}
+                            className={`py-2 text-center rounded ${
+                              isFullyBooked
+                                ? 'bg-red-100 text-red-600 cursor-not-allowed opacity-50'
+                                : formData.pickupDate === date.fullDate
+                                ? 'bg-pink-600 text-white'
+                                : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
+                          >
+                            <div className="text-xs">{date.day}</div>
+                            <div className="font-medium">{isFullyBooked ? 'Fully Booked' : date.date}</div>
+                            <div className="text-xs">{date.count}/3</div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div>
@@ -687,13 +792,7 @@ const ScheduleBooking = () => {
                       >
                         GCash
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handlePaymentMethodChange('card')}
-                        className={`p-2 text-center text-sm rounded ${paymentDetails.method === 'card' ? 'bg-pink-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
-                      >
-                        Card
-                      </button>
+                     
                     </div>
                   </div>
                 </div>
@@ -836,7 +935,7 @@ const ScheduleBooking = () => {
                   {selectedMainService && (
                     <div className="flex justify-between">
                       <span>Main Service ({selectedMainService.name}):</span>
-                      <span>₱{mainServicePrice}</span>
+                      <span>Estimated Total ₱{mainServicePrice}</span>
                     </div>
                   )}
                   {selectedDryCleaningServices.length > 0 && (
@@ -852,7 +951,7 @@ const ScheduleBooking = () => {
                     </div>
                   )}
                   <div className="border-t pt-2 font-bold flex justify-between">
-                    <span>Total:</span>
+                    <span>SubTotal:</span>
                     <span>₱{totalPrice}</span>
                   </div>
                 </div>
@@ -911,12 +1010,7 @@ const ScheduleBooking = () => {
                       <div className="flex space-x-2">
                         {order.status === 'pending' && (
                           <>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleEdit(order); }}
-                              className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-                            >
-                              Edit
-                            </button>
+                           
                             <button
                               onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
                               className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
@@ -945,17 +1039,14 @@ const ScheduleBooking = () => {
 
       {/* Booking Submitted Modal */}
       {showPaymentDetailsModal && (
-        <div className="fixed inset-0 bg-pink-400 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold mb-4">Booking Submitted</h3>
-            <p className="mb-4">
-              Thank you for submitting your laundry booking. It is now pending approval.
-            </p>
+         
             <div className="bg-gray-100 p-4 rounded mb-4 text-sm text-gray-700">
-              Our team will check your laundry, weigh it, and confirm the total cost. Once your booking is approved, you'll receive a notification with the final price and a secure link to complete your payment using your selected method:
+           
               <ul className="list-disc list-inside mt-2">
                 <li>GCash</li>
-                <li>Credit/Debit Card</li>
+               
               </ul>
             </div>
             <div className="bg-yellow-100 p-3 rounded text-yellow-800 text-sm mb-4">
@@ -988,6 +1079,7 @@ const ScheduleBooking = () => {
         onNotification={(notification) => console.log('Notification:', notification)}
         onNewOrder={handleNewOrder}
         onBookingToOrder={handleBookingToOrder}
+        onBookingCountsUpdate={updateBookingCounts}
       />
       <RealTimeUpdates
         orders={orders}

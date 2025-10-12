@@ -124,26 +124,8 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
     },
   ];
 
-  // Calculate service breakdown
-  const getServiceBreakdown = () => {
-    const breakdown = [];
-
-    // Main service
-    if (selectedOrder.serviceType) {
-      const serviceLabel = serviceOptions.find(s => s.value === selectedOrder.serviceType)?.label || selectedOrder.serviceType;
-      breakdown.push({
-        name: serviceLabel,
-        quantity: selectedOrder.loadCount || 1,
-        price: 179, // Default price, could be made dynamic
-        total: (selectedOrder.totalPrice || 0) - (selectedOrder.serviceOption === 'pickupOnly' ? 0 : 30)
-      });
-    }
-
-    return breakdown;
-  };
-
-  const serviceBreakdown = getServiceBreakdown();
-  const deliveryFee = selectedOrder.serviceOption === 'pickupOnly' ? 0 : 30; // Default delivery fee
+  // Use deliveryFee directly from the order object if it exists
+  const deliveryFee = selectedOrder.deliveryFee || 0;
 
   return (
     <Modal
@@ -168,7 +150,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
           <div className="flex justify-between items-start mb-3">
             <div>
               <h3 className="text-lg font-bold text-gray-800">
-                Order #{selectedOrder.order_id || selectedOrder.id}
+                Order #{selectedOrder.orderId || selectedOrder.order_id || selectedOrder.id}
               </h3>
               <p className="text-sm text-gray-600">
                 Created: {formatDate(selectedOrder.createdAt || selectedOrder.created_at)}
@@ -225,7 +207,13 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Payment Status</label>
-                <p className="text-gray-900">Not Paid</p>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    selectedOrder.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {selectedOrder.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -237,7 +225,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Service Type</label>
                 <p className="text-gray-900">
-                  {serviceOptions.find(s => s.value === selectedOrder.serviceType)?.label || selectedOrder.serviceType}
+                  {mainServices.find(s => s.id === (selectedOrder.serviceType || selectedOrder.mainService))?.name || serviceOptions.find(s => s.value === selectedOrder.serviceType)?.label || selectedOrder.serviceType}
                 </p>
               </div>
               <div>
@@ -248,58 +236,46 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
                 <label className="block text-sm font-medium text-gray-700">Instructions</label>
                 <p className="text-gray-900">{selectedOrder.instructions || 'No special instructions'}</p>
               </div>
-              {selectedOrder.estimatedClothes && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Estimated Clothes</label>
-                  <p className="text-gray-900">{selectedOrder.estimatedClothes}</p>
-                </div>
-              )}
-              {selectedOrder.kilos && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Weight (kg)</label>
-                  <p className="text-gray-900">{selectedOrder.kilos}</p>
-                </div>
-              )}
             </div>
           </div>
         </div>
 
         {/* Laundry Details */}
         {selectedOrder.estimatedClothes || selectedOrder.kilos || selectedOrder.pants || selectedOrder.shorts || selectedOrder.tshirts || selectedOrder.bedsheets ? (
-          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6" data-testid="laundry-details">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Laundry Details</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {selectedOrder.estimatedClothes && (
+              {selectedOrder.estimatedClothes > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Estimated Clothes</label>
                   <p className="text-gray-900">{selectedOrder.estimatedClothes} items</p>
                 </div>
               )}
-              {selectedOrder.kilos && (
+              {selectedOrder.kilos > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Weight</label>
                   <p className="text-gray-900">{selectedOrder.kilos} kg</p>
                 </div>
               )}
-              {selectedOrder.pants && (
+              {selectedOrder.pants > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Pants</label>
                   <p className="text-gray-900">{selectedOrder.pants}</p>
                 </div>
               )}
-              {selectedOrder.shorts && (
+              {selectedOrder.shorts > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Shorts</label>
                   <p className="text-gray-900">{selectedOrder.shorts}</p>
                 </div>
               )}
-              {selectedOrder.tshirts && (
+              {selectedOrder.tshirts > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">T-Shirts</label>
                   <p className="text-gray-900">{selectedOrder.tshirts}</p>
                 </div>
               )}
-              {selectedOrder.bedsheets && (
+              {selectedOrder.bedsheets > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Bedsheets</label>
                   <p className="text-gray-900">{selectedOrder.bedsheets}</p>
@@ -311,11 +287,11 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
 
         {/* Photos */}
         {selectedOrder.photos && Array.isArray(selectedOrder.photos) && selectedOrder.photos.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6" data-testid="item-photos">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Photos</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {selectedOrder.photos.map((photo, index) => (
-                <img key={index} src={photo} alt={`Order photo ${index + 1}`} className="w-full h-32 object-cover rounded" />
+                <img key={index} src={photo.url || photo} alt={`Order photo ${index + 1}`} className="w-full h-32 object-cover rounded" />
               ))}
             </div>
           </div>
@@ -323,7 +299,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
 
         {/* Laundry Photos */}
         {selectedOrder.laundryPhoto && Array.isArray(selectedOrder.laundryPhoto) && selectedOrder.laundryPhoto.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6" data-testid="laundry-photos">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Laundry Photos</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {selectedOrder.laundryPhoto.map((photo, index) => (
@@ -331,7 +307,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
                   <img
                     src={photo}
                     alt={`Laundry ${index + 1}`}
-                    className="w-full h-24 object-cover rounded border"
+                    className="w-full h-32 object-cover rounded border"
                   />
                 </div>
               ))}
@@ -340,7 +316,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
         )}
 
         {/* Status Progress Indicator */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6" data-testid="order-progress">
           <h4 className="text-lg font-semibold text-gray-800 mb-4">Order Progress</h4>
           <div className="flex items-center space-x-2">
             {['pending', 'washing', 'drying', 'folding', 'ready', 'completed'].map((status, index) => (
@@ -372,43 +348,6 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
           </div>
         </div>
 
-        {/* Service Breakdown */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
-          <h4 className="text-lg font-semibold text-gray-800 mb-4">Service Breakdown</h4>
-          <div className="space-y-3">
-            {serviceBreakdown.map((item, index) => (
-              <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100">
-                <div>
-                  <p className="font-medium text-gray-900">{item.name}</p>
-                  <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium text-gray-900">₱{item.total.toLocaleString()}</p>
-                </div>
-              </div>
-            ))}
-
-            {/* Delivery Fee */}
-            {deliveryFee > 0 && (
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <div>
-                  <p className="font-medium text-gray-900">Delivery Fee</p>
-                  <p className="text-sm text-gray-600">Pickup & Delivery service</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium text-gray-900">₱{deliveryFee}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Total */}
-            <div className="flex justify-between items-center py-3 border-t-2 border-gray-300">
-              <p className="text-lg font-bold text-gray-900">Total Amount</p>
-              <p className="text-lg font-bold text-blue-600">₱{selectedOrder.totalPrice?.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-
         {/* Rejection Reason */}
         {selectedOrder.status === 'rejected' && selectedOrder.rejectionReason && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-6">
@@ -416,18 +355,6 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
             <p className="text-red-700">{selectedOrder.rejectionReason}</p>
           </div>
         )}
-
-        {/* Status Information */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
-          <h4 className="text-lg font-semibold text-blue-800 mb-2">Status Information</h4>
-          <div className="text-sm text-blue-700 space-y-1">
-            <p><strong>Pending:</strong> Your order is being reviewed by our team.</p>
-            <p><strong>Approved:</strong> Your order has been confirmed and is scheduled.</p>
-            <p><strong>Rejected:</strong> Your order was not approved. Check the rejection reason above.</p>
-            <p><strong>Completed:</strong> Your laundry service has been completed.</p>
-            <p><strong>Cancelled:</strong> Your order has been cancelled.</p>
-          </div>
-        </div>
 
         {/* Action Buttons */}
         <div className="flex justify-end gap-3 mt-6">

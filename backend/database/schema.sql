@@ -23,6 +23,8 @@ USE wash;
   isVerified BOOLEAN DEFAULT FALSE,
   verificationToken VARCHAR(255),
   resetToken VARCHAR(255),
+  loginAttempts INT DEFAULT 0,
+  lockoutUntil DATETIME NULL,
    resetTokenExpiry DATETIME,
    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -70,10 +72,16 @@ CREATE TABLE IF NOT EXISTS orders (
   INDEX idx_status (status),
   INDEX idx_created_at (createdAt),
   INDEX idx_user_id (user_id),
+  INDEX idx_pickup_date (pickupDate),
   INDEX idx_moved_to_history (moved_to_history_at),
   INDEX idx_is_deleted (is_deleted),
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
+
+
+
+-- Add index on pickupDate for bookings table
+ALTER TABLE bookings ADD INDEX idx_pickup_date (pickupDate);
 
 
 CREATE TABLE IF NOT EXISTS bookings (
@@ -105,6 +113,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   INDEX idx_status (status),
   INDEX idx_created_at (createdAt),
   INDEX idx_user_id (user_id),
+  INDEX idx_pickup_date (pickupDate),
   INDEX idx_moved_to_history (moved_to_history_at),
   INDEX idx_is_deleted (is_deleted),
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
