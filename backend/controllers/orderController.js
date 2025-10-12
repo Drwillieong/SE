@@ -291,10 +291,6 @@ export const createOrderFromPickup = (db) => async (req, res) => {
       user_id: userId, // Use authenticated user ID instead of req.body.userId
       estimatedClothes: req.body.estimatedClothes || 0,
       kilos: req.body.kilos || 0,
-      pants: req.body.pants || 0,
-      shorts: req.body.shorts || 0,
-      tshirts: req.body.tshirts || 0,
-      bedsheets: req.body.bedsheets || 0,
       laundryPhoto: req.body.laundryPhoto || [],
       bookingId: req.body.bookingId || req.body.booking_id || null
     };

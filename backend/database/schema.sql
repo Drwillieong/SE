@@ -52,10 +52,6 @@ CREATE TABLE IF NOT EXISTS orders (
   -- New fields for order details from pickup
   estimatedClothes INT,
   kilos DECIMAL(5, 2),
-  pants INT DEFAULT 0,
-  shorts INT DEFAULT 0,
-  tshirts INT DEFAULT 0,
-  bedsheets INT DEFAULT 0,
   laundryPhoto JSON, -- Store laundry photo URL as JSON
   bookingId INT, -- Reference to bookings table for orders created from bookings
   -- Timer fields for order management

@@ -72,10 +72,6 @@ const Booking = () => {
   const [orderFormData, setOrderFormData] = useState({
     estimatedClothes: '',
     kilos: '',
-    pants: '',
-    shorts: '',
-    tshirts: '',
-    bedsheets: '',
     additionalPrice: '',
     laundryPhoto: null
   });
@@ -148,10 +144,6 @@ const Booking = () => {
         booking_id: selectedBookingForOrder.id,
         estimatedClothes: 10,
         kilos: 5.0,
-        pants: 2,
-        shorts: 1,
-        tshirts: 3,
-        bedsheets: 1,
         laundryPhoto: []
       };
 
@@ -230,6 +222,14 @@ const Booking = () => {
       localStorage.setItem('pickupSuccess', JSON.stringify(pickupSuccess));
     }
   }, [pickupSuccess]);
+
+  // Load pickup success state from localStorage on initial mount
+  useEffect(() => {
+    const savedPickupSuccess = localStorage.getItem('pickupSuccess');
+    if (savedPickupSuccess) {
+      setPickupSuccess(JSON.parse(savedPickupSuccess));
+    }
+  }, []);
 
 
 
@@ -895,10 +895,6 @@ const Booking = () => {
         booking_id: selectedBookingForOrder.id,
         estimatedClothes: parseInt(orderFormData.estimatedClothes) || 1,
         kilos: parseFloat(orderFormData.kilos) || 1.0,
-        pants: parseInt(orderFormData.pants) || 0,
-        shorts: parseInt(orderFormData.shorts) || 0,
-        tshirts: parseInt(orderFormData.tshirts) || 0,
-        bedsheets: parseInt(orderFormData.bedsheets) || 0,
         additionalPrice: additionalPrice,
         laundryPhoto: orderFormData.laundryPhoto ? [orderFormData.laundryPhoto] : []
       };
@@ -941,10 +937,6 @@ const Booking = () => {
         setOrderFormData({
           estimatedClothes: '',
           kilos: '',
-          pants: '',
-          shorts: '',
-          tshirts: '',
-          bedsheets: '',
           laundryPhoto: null
         });
         setLaundryPhotoFile(null);

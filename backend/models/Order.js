@@ -137,11 +137,8 @@ export class Order {
   async create(orderData) {
     const sql = `
       INSERT INTO orders (
-        serviceType, pickupDate, pickupTime, loadCount, instructions, status,
-        paymentMethod, name, contact, email, address, photos, totalPrice,
-        paymentStatus, user_id, estimatedClothes, kilos, pants, shorts, tshirts, bedsheets,
-        laundryPhoto, bookingId
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        serviceType, pickupDate, pickupTime, loadCount, instructions, status, paymentMethod, name, contact, email, address, photos, totalPrice, paymentStatus, user_id, kilos, laundryPhoto, bookingId
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
@@ -160,12 +157,7 @@ export class Order {
       orderData.totalPrice || 0,
       orderData.paymentStatus || 'unpaid',
       orderData.user_id || null,
-      orderData.estimatedClothes || 0,
       orderData.kilos || 0,
-      orderData.pants || 0,
-      orderData.shorts || 0,
-      orderData.tshirts || 0,
-      orderData.bedsheets || 0,
       JSON.stringify(orderData.laundryPhoto || []),
       orderData.bookingId || null
     ];
