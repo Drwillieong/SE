@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Modal from "react-modal";
+import axios from "axios";
 import { calculateDeliveryFee, getDeliveryFeeInfo } from "../../../utils/deliveryFeeCalculator";
 
 const customStyles = {
@@ -41,6 +42,7 @@ const CreateBookingModal = ({
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [serviceOption, setServiceOption] = useState('pickupAndDelivery');
   const [showServiceOption, setShowServiceOption] = useState(true);
+  const [bookingCount, setBookingCount] = useState(0);
 
   // Calculate delivery fee when address or load count changes
   useEffect(() => {
@@ -58,12 +60,40 @@ const CreateBookingModal = ({
     }
   }, [newBooking.address, newBooking.loadCount]);
 
+  // Fetch booking count when pickup date changes
+  useEffect(() => {
+    const fetchBookingCount = async () => {
+      if (newBooking.pickupDate) {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await axios.post('http://localhost:8800/api/bookings/counts', {
+            dates: [newBooking.pickupDate]
+          }, {
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true
+          });
+          setBookingCount(response.data[newBooking.pickupDate] || 0);
+        } catch (error) {
+          console.error('Error fetching booking count:', error);
+          setBookingCount(0);
+        }
+      }
+    };
+    fetchBookingCount();
+  }, [newBooking.pickupDate]);
+
   const handleServiceOptionChange = (option) => {
     setServiceOption(option);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Warn if date is full (3 bookings)
+    if (bookingCount >= 3) {
+      const proceed = window.confirm(`Warning: This date already has ${bookingCount} bookings (limit is 3). Are you sure you want to proceed?`);
+      if (!proceed) return;
+    }
 
     // Add service option and delivery fee to the booking data
     const bookingWithServiceOption = {

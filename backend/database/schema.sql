@@ -72,13 +72,16 @@ CREATE TABLE IF NOT EXISTS orders (
   INDEX idx_status (status),
   INDEX idx_created_at (createdAt),
   INDEX idx_user_id (user_id),
+  INDEX idx_pickup_date (pickupDate),
   INDEX idx_moved_to_history (moved_to_history_at),
   INDEX idx_is_deleted (is_deleted),
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
--- Add paymentStatus column if it doesn't exist (for existing tables)
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS paymentStatus ENUM('unpaid', 'paid') DEFAULT 'unpaid';
+
+
+-- Add index on pickupDate for bookings table
+ALTER TABLE bookings ADD INDEX idx_pickup_date (pickupDate);
 
 
 CREATE TABLE IF NOT EXISTS bookings (
@@ -110,6 +113,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   INDEX idx_status (status),
   INDEX idx_created_at (createdAt),
   INDEX idx_user_id (user_id),
+  INDEX idx_pickup_date (pickupDate),
   INDEX idx_moved_to_history (moved_to_history_at),
   INDEX idx_is_deleted (is_deleted),
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL

@@ -419,4 +419,44 @@ export class Booking {
       });
     });
   }
+
+  // Get booking counts for specific dates (active bookings only: not rejected or cancelled)
+  getBookingCountsForDates(dates) {
+    return new Promise((resolve, reject) => {
+      if (!dates || dates.length === 0) {
+        resolve({});
+        return;
+      }
+
+      // Create placeholders for IN clause
+      const placeholders = dates.map(() => '?').join(',');
+      const sql = `
+        SELECT pickupDate, COUNT(*) as count
+        FROM bookings
+        WHERE pickupDate IN (${placeholders})
+        AND status NOT IN ('rejected', 'cancelled')
+        AND moved_to_history_at IS NULL
+        AND is_deleted = FALSE
+        GROUP BY pickupDate
+      `;
+
+      this.db.query(sql, dates, (err, results) => {
+        if (err) reject(err);
+        else {
+          // Convert to object {date: count}
+          const counts = {};
+          results.forEach(row => {
+            counts[row.pickupDate] = row.count;
+          });
+          // Ensure all dates have a count (0 if none)
+          dates.forEach(date => {
+            if (!(date in counts)) {
+              counts[date] = 0;
+            }
+          });
+          resolve(counts);
+        }
+      });
+    });
+  }
 }

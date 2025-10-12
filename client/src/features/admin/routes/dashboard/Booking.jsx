@@ -639,6 +639,36 @@ const Booking = () => {
 
   const handleCreateBooking = async (e) => {
     e.preventDefault();
+
+    // Check booking count before creating
+    try {
+      const token = localStorage.getItem('token');
+      const countResponse = await fetch('http://localhost:8800/api/bookings/counts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ dates: [newBooking.pickupDate] })
+      });
+
+      if (countResponse.ok) {
+        const countData = await countResponse.json();
+        const currentCount = countData[newBooking.pickupDate] || 0;
+        if (currentCount >= 3) {
+          alert('This day is fully booked. Maximum 3 bookings per day allowed.');
+          return;
+        }
+      } else {
+        alert('Failed to check booking availability. Please try again.');
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking booking count:', error);
+      alert('Failed to check booking availability. Please try again.');
+      return;
+    }
+
     try {
       setLoading(true);
       const selectedMainService = mainServices.find(s => s.value === newBooking.mainService);
