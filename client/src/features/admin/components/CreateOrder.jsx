@@ -17,13 +17,8 @@ const CreateOrder = () => {
         serviceOption: 'pickupAndDelivery',
         photos: [],
         instructions: '',
-        estimatedClothes: 0,
         kilos: 0,
-        pants: 0,
-        shorts: 0,
-        tshirts: 0,
-        bedsheets: 0,
-        dryCleaningPrices: {} // New state for custom dry cleaning prices
+        dryCleaningPrices: {}
     });
 
     const mainServices = [
@@ -152,12 +147,7 @@ const CreateOrder = () => {
                 dryCleaningServices: formData.dryCleaningServices, // Add this
                 dryCleaningPrices: formData.dryCleaningPrices, // Add this
                 totalPrice: calculateTotal(),
-                estimatedClothes: formData.estimatedClothes,
                 kilos: formData.kilos,
-                pants: formData.pants,
-                shorts: formData.shorts,
-                tshirts: formData.tshirts,
-                bedsheets: formData.bedsheets
             });
 
             if (response.status === 201) {
@@ -176,13 +166,8 @@ const CreateOrder = () => {
                     serviceOption: 'pickupAndDelivery',
                     photos: [],
                     instructions: '',
-                    estimatedClothes: 0,
                     kilos: 0,
-                    pants: 0,
-                    shorts: 0,
-                    tshirts: 0,
-                    bedsheets: 0,
-                    dryCleaningPrices: {}
+                    dryCleaningPrices: {},
                 });
 
                 // Navigate to order management with a refresh parameter
@@ -418,88 +403,18 @@ const CreateOrder = () => {
                     </div>
 
                     {/* Optional Fields */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Estimated Total Clothes (Optional)
-                            </label>
-                            <input
-                                type="number"
-                                name="estimatedClothes"
-                                value={formData.estimatedClothes}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Kilos of Laundry (Optional)
-                            </label>
-                            <input
-                                type="number"
-                                name="kilos"
-                                value={formData.kilos}
-                                onChange={handleChange}
-                                step="0.1"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Item Counts */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Number of Pants (Optional)
-                            </label>
-                            <input
-                                type="number"
-                                name="pants"
-                                value={formData.pants}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Number of Shorts (Optional)
-                            </label>
-                            <input
-                                type="number"
-                                name="shorts"
-                                value={formData.shorts}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Number of T-Shirts (Optional)
-                            </label>
-                            <input
-                                type="number"
-                                name="tshirts"
-                                value={formData.tshirts}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Number of Bedsheets (Optional)
-                            </label>
-                            <input
-                                type="number"
-                                name="bedsheets"
-                                value={formData.bedsheets}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Kilos of Laundry (Optional)
+                        </label>
+                        <input
+                            type="number"
+                            name="kilos"
+                            value={formData.kilos}
+                            onChange={handleChange}
+                            step="0.1"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
                     </div>
 
                     {/* Photos */}

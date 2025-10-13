@@ -6,8 +6,6 @@ import session from 'express-session';
 import passport from 'passport';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
 import authRoutes from '../routes/auth.js';
 import adminRoutes from '../routes/admin.js';
 import bookingRoutes from '../routes/bookings.js';
@@ -25,124 +23,6 @@ console.log('Loaded env vars:', {
 });
 
 const app = express();
-const server = createServer(app);
-
-// Initialize Socket.IO with improved CORS settings
-const io = new Server(server, {
-  cors: {
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-  },
-  transports: ['websocket', 'polling'],
-  allowEIO3: true,
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  upgradeTimeout: 10000,
-  maxHttpBufferSize: 1e8 // 100 MB
-});
-
-// Store connected users and their socket IDs
-const connectedUsers = new Map();
-const userSockets = new Map();
-
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
-
-  // Handle user authentication
-  socket.on('authenticate', (token) => {
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
-      socket.userId = decoded.user_id;
-      socket.userRole = decoded.role;
-
-      // Store user connection
-      connectedUsers.set(decoded.user_id, {
-        socketId: socket.id,
-        role: decoded.role,
-        email: decoded.email
-      });
-
-      userSockets.set(socket.id, decoded.user_id);
-
-      // Join user to appropriate rooms
-      socket.join(`user_${decoded.user_id}`);
-      socket.join(decoded.role); // Join to 'admin' or 'user' room
-
-      console.log(`User ${decoded.user_id} (${decoded.role}) authenticated and joined rooms`);
-
-      socket.emit('authenticated', { success: true });
-    } catch (error) {
-      console.log('Socket authentication failed:', error.message);
-      socket.emit('authenticated', { success: false, message: 'Invalid token' });
-    }
-  });
-
-  // Handle disconnect
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-
-    if (socket.userId) {
-      connectedUsers.delete(socket.userId);
-      userSockets.delete(socket.id);
-    }
-  });
-
-  // Handle order status updates
-  socket.on('order-status-update', (data) => {
-    if (socket.userRole === 'admin') {
-      // Broadcast to all users and admins
-      io.emit('order-status-changed', data);
-
-      // Also send to specific user if userId is provided
-      if (data.userId) {
-        io.to(`user_${data.userId}`).emit('your-order-updated', data);
-      }
-    }
-  });
-
-  // Handle booking updates
-  socket.on('booking-update', (data) => {
-    if (socket.userRole === 'admin') {
-      // Broadcast to all users and admins
-      io.emit('booking-status-changed', data);
-
-      // Also send to specific user if userId is provided
-      if (data.userId) {
-        io.to(`user_${data.userId}`).emit('your-booking-updated', data);
-      }
-    }
-  });
-
-  // Handle new order creation
-  socket.on('new-order', (data) => {
-    if (socket.userRole === 'admin') {
-      // Broadcast to all users and admins
-      io.emit('order-created', data);
-
-      // Send to specific user
-      if (data.userId) {
-        io.to(`user_${data.userId}`).emit('your-order-created', data);
-      }
-    }
-  });
-
-  // Handle new booking creation
-  socket.on('new-booking', (data) => {
-    // Broadcast to admins
-    io.to('admin').emit('booking-created', data);
-
-    // Send to specific user
-    if (data.userId) {
-      io.to(`user_${data.userId}`).emit('your-booking-created', data);
-    }
-  });
-});
-
-// Make io accessible to routes
-app.set('io', io);
 
 app.use(express.json({ limit: '10mb' })); // Increase JSON payload limit
 app.use(express.urlencoded({ limit: '10mb', extended: true })); // Increase URL-encoded payload limit
@@ -513,7 +393,6 @@ const adminRouter = express.Router();
 adminRouter.use(verifyToken);
 adminRouter.use((req, res, next) => {
   req.db = db;
-  req.io = io; // Make io accessible to admin routes
   next();
 });
 adminRouter.use(adminRoutes);
@@ -524,7 +403,6 @@ const bookingRouter = express.Router();
 bookingRouter.use(verifyToken);
 bookingRouter.use((req, res, next) => {
   req.db = db;
-  req.io = io; // Make io accessible to booking routes
   next();
 });
 bookingRouter.use(bookingRoutes(db));
@@ -535,7 +413,6 @@ const orderRouter = express.Router();
 orderRouter.use(verifyToken);
 orderRouter.use((req, res, next) => {
   req.db = db;
-  req.io = io; // Make io accessible to order routes
   next();
 });
 orderRouter.use(orderRoutes(db));
@@ -555,7 +432,6 @@ app.get('/', (req, res) => {
     res.send('Server is running!');
 });
 
-server.listen(8800, () => {
-    console.log("Connected to backend with WebSocket support!");
-    console.log("WebSocket server ready for connections...");
+app.listen(8800, () => {
+    console.log("Connected to backend!");
 });

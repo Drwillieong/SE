@@ -1,17 +1,13 @@
-# Fix Booking Issues
+# GCash Payment Feature Fixes
 
-## Problems to Fix
-1. When booking in ScheduleBooking (customer), the count doesn't increment in the mini calendar.
-2. In Booking.jsx (admin), you can still create bookings even if the day is fully booked (max 3).
-3. When creating a booking in Booking.jsx (admin), the mini calendar in ScheduleBooking doesn't update.
+## Pending Tasks
+- [x] Fix "Pay" button visibility in ScheduleBooking.jsx to only show for orders (not bookings)
+- [x] Fix PaymentReviewModal opening condition in OrderManagement.jsx
+- [x] Fix payment submission parameter mismatch in orderController.js
+- [x] Fix Order.js submitPaymentProof method parameter
+- [ ] Test the complete GCash payment flow after fixes
 
-## Plan
-- Add booking count check in admin Booking.jsx before creating booking to prevent overbooking.
-- Ensure real-time updates work via socket for customer mini calendar when admin creates bookings.
-- Verify that customer booking increments the count properly.
-
-## Steps
-1. Modify Booking.jsx to add count check before creating booking.
-2. Test the admin overbooking prevention.
-3. Test real-time updates from admin to customer.
-4. Test customer booking increment.
+## Completed Tasks
+- [x] Analyze code and identify issues
+- [x] Create comprehensive plan
+- [x] Get user approval for plan

@@ -509,9 +509,9 @@ export const approveBooking = (db) => async (req, res) => {
 
     // Emit real-time notification
     if (req.io && booking.user_id) {
-      req.io.to(`user_${booking.user_id}`).emit('booking-approved', {
+      req.io.to(`user_${booking.user_id}`).emit('your-booking-converted-to-order', {
         bookingId,
-        orderId,
+        order_id: orderId, // Use order_id to be consistent with frontend state
         message: 'Your booking has been approved and converted to an order. Please complete payment.',
         timestamp: new Date().toISOString()
       });

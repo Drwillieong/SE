@@ -36,21 +36,7 @@ const CheckOrderModal = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estimated Total Clothes
-              </label>
-              <input
-                type="number"
-                name="estimatedClothes"
-                value={orderFormData.estimatedClothes}
-                onChange={handleOrderFormChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                min="1"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Kilos of Laundry
+                Weight (Kilos)
               </label>
               <input
                 type="number"
@@ -60,54 +46,6 @@ const CheckOrderModal = ({
                 onChange={handleOrderFormChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Number of Pants
-              </label>
-              <input
-                type="number"
-                name="pants"
-                value={orderFormData.pants}
-                onChange={handleOrderFormChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Number of Shorts
-              </label>
-              <input
-                type="number"
-                name="shorts"
-                value={orderFormData.shorts}
-                onChange={handleOrderFormChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Number of T-Shirts
-              </label>
-              <input
-                type="number"
-                name="tshirts"
-                value={orderFormData.tshirts}
-                onChange={handleOrderFormChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Number of Bedsheets
-              </label>
-              <input
-                type="number"
-                name="bedsheets"
-                value={orderFormData.bedsheets}
-                onChange={handleOrderFormChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>

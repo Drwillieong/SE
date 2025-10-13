@@ -72,10 +72,6 @@ const Booking = () => {
   const [orderFormData, setOrderFormData] = useState({
     estimatedClothes: '',
     kilos: '',
-    pants: '',
-    shorts: '',
-    tshirts: '',
-    bedsheets: '',
     additionalPrice: '',
     laundryPhoto: null
   });
@@ -112,8 +108,12 @@ const Booking = () => {
     if (dateString.length === 10 && dateString.includes('-')) {
       return dateString;
     }
-    // Extract date part from ISO string (YYYY-MM-DD)
-    return new Date(dateString).toISOString().split('T')[0];
+    // Extract date part from ISO string (YYYY-MM-DD) using local date
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   // Test function to create a sample order
@@ -144,10 +144,6 @@ const Booking = () => {
         booking_id: selectedBookingForOrder.id,
         estimatedClothes: 10,
         kilos: 5.0,
-        pants: 2,
-        shorts: 1,
-        tshirts: 3,
-        bedsheets: 1,
         laundryPhoto: []
       };
 
@@ -199,6 +195,7 @@ const Booking = () => {
     return () => clearInterval(intervalId);
   }, []);
 
+  
   // Function to sort approved bookings
   const sortApprovedBookings = (bookings) => {
     let sorted = [...bookings];
@@ -226,6 +223,14 @@ const Booking = () => {
       localStorage.setItem('pickupSuccess', JSON.stringify(pickupSuccess));
     }
   }, [pickupSuccess]);
+
+  // Load pickup success state from localStorage on initial mount
+  useEffect(() => {
+    const savedPickupSuccess = localStorage.getItem('pickupSuccess');
+    if (savedPickupSuccess) {
+      setPickupSuccess(JSON.parse(savedPickupSuccess));
+    }
+  }, []);
 
 
 
@@ -713,8 +718,6 @@ const Booking = () => {
 
       if (response.ok) {
         alert("Booking created successfully!");
-        closeModal();
-        resetForm();
         fetchBookings(); // Refresh the bookings
       } else {
         const errorData = await response.json();
@@ -724,6 +727,8 @@ const Booking = () => {
       console.error("Error creating booking:", error);
       alert(error.message || "Error creating booking");
     } finally {
+      closeModal();
+      resetForm();
       setLoading(false);
     }
   };
@@ -891,10 +896,6 @@ const Booking = () => {
         booking_id: selectedBookingForOrder.id,
         estimatedClothes: parseInt(orderFormData.estimatedClothes) || 1,
         kilos: parseFloat(orderFormData.kilos) || 1.0,
-        pants: parseInt(orderFormData.pants) || 0,
-        shorts: parseInt(orderFormData.shorts) || 0,
-        tshirts: parseInt(orderFormData.tshirts) || 0,
-        bedsheets: parseInt(orderFormData.bedsheets) || 0,
         additionalPrice: additionalPrice,
         laundryPhoto: orderFormData.laundryPhoto ? [orderFormData.laundryPhoto] : []
       };
@@ -937,10 +938,6 @@ const Booking = () => {
         setOrderFormData({
           estimatedClothes: '',
           kilos: '',
-          pants: '',
-          shorts: '',
-          tshirts: '',
-          bedsheets: '',
           laundryPhoto: null
         });
         setLaundryPhotoFile(null);
@@ -966,12 +963,9 @@ const Booking = () => {
 
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full text-pink-600"></div>
-        <p className="mt-2">Loading bookings...</p>
-      </div>
-    </div>
+    <div className="flex items-center justify-center h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+            </div>
   );
 
   if (error) return (

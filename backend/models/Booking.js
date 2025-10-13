@@ -434,7 +434,7 @@ export class Booking {
         SELECT pickupDate, COUNT(*) as count
         FROM bookings
         WHERE pickupDate IN (${placeholders})
-        AND status NOT IN ('rejected', 'cancelled')
+        AND status NOT IN ('rejected', 'cancelled', 'completed')
         AND moved_to_history_at IS NULL
         AND is_deleted = FALSE
         GROUP BY pickupDate

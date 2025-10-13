@@ -137,7 +137,7 @@ export const createOrder = (db) => async (req, res) => {
     // Emit WebSocket notification for new order
     if (req.io) {
       req.io.emit('order-created', {
-        orderId,
+        order_id: orderId,
         message: 'New order created',
         timestamp: new Date().toISOString()
       });
@@ -145,14 +145,14 @@ export const createOrder = (db) => async (req, res) => {
       // Also send to specific user if userId is provided
       if (req.body.userId) {
         req.io.to(`user_${req.body.userId}`).emit('your-order-created', {
-          orderId,
+          order_id: orderId,
           message: 'Your order has been created',
           timestamp: new Date().toISOString()
         });
       }
     }
 
-    res.status(201).json({ message: 'Order created successfully', orderId });
+    res.status(201).json({ message: 'Order created successfully', order_id: orderId });
   } catch (error) {
     console.error('Error creating order:', error);
     res.status(500).json({ message: 'Server error creating order' });
@@ -180,7 +180,7 @@ export const updateOrder = (db) => async (req, res) => {
     // Emit WebSocket notification for order update
     if (req.io) {
       const notificationData = {
-        orderId,
+        order_id: orderId,
         previousStatus: orderBefore.status,
         newStatus: orderAfter.status,
         updates,
@@ -192,7 +192,7 @@ export const updateOrder = (db) => async (req, res) => {
       // Also send to specific user if userId is provided
       if (orderAfter.user_id) {
         req.io.to(`user_${orderAfter.user_id}`).emit('your-order-updated', {
-          orderId,
+          order_id: orderId,
           previousStatus: orderBefore.status,
           newStatus: orderAfter.status,
           message: `Your order status has been updated to ${orderAfter.status}`,
@@ -224,7 +224,7 @@ export const deleteOrder = (db) => async (req, res) => {
     // Emit WebSocket notification for order deletion
     if (req.io) {
       req.io.emit('order-deleted', {
-        orderId,
+        order_id: orderId,
         message: 'Order deleted',
         timestamp: new Date().toISOString()
       });
@@ -291,10 +291,6 @@ export const createOrderFromPickup = (db) => async (req, res) => {
       user_id: userId, // Use authenticated user ID instead of req.body.userId
       estimatedClothes: req.body.estimatedClothes || 0,
       kilos: req.body.kilos || 0,
-      pants: req.body.pants || 0,
-      shorts: req.body.shorts || 0,
-      tshirts: req.body.tshirts || 0,
-      bedsheets: req.body.bedsheets || 0,
       laundryPhoto: req.body.laundryPhoto || [],
       bookingId: req.body.bookingId || req.body.booking_id || null
     };
@@ -306,7 +302,7 @@ export const createOrderFromPickup = (db) => async (req, res) => {
     // Emit WebSocket notification for new order from pickup
     if (req.io) {
       const notificationData = {
-        orderId,
+        order_id: orderId,
         message: 'New order created from pickup',
         serviceType: mappedServiceType,
         userId: userId,
@@ -318,8 +314,8 @@ export const createOrderFromPickup = (db) => async (req, res) => {
       // Send to specific user if userId is provided
       if (userId) {
         req.io.to(`user_${userId}`).emit('your-booking-converted-to-order', {
-          orderId,
-          bookingId: req.body.bookingId,
+          order_id: orderId, // Use order_id to be consistent with frontend state
+          bookingId: parseInt(req.body.bookingId || req.body.booking_id), // Ensure bookingId is a number
           message: 'Your booking has been converted to an order',
           timestamp: new Date().toISOString()
         });
@@ -343,7 +339,7 @@ export const createOrderFromPickup = (db) => async (req, res) => {
         if (req.io) {
           req.io.emit('booking-converted-to-order', {
             bookingId: req.body.bookingId,
-            orderId,
+            order_id: orderId,
             message: 'Booking converted to order',
             timestamp: new Date().toISOString()
           });
@@ -356,7 +352,7 @@ export const createOrderFromPickup = (db) => async (req, res) => {
       }
     }
 
-    res.status(201).json({ message: 'Order created successfully from pickup', orderId });
+    res.status(201).json({ message: 'Order created successfully from pickup', order_id: orderId });
   } catch (error) {
     console.error('Error creating order from pickup:', error);
     console.error(error.stack);
@@ -378,7 +374,7 @@ export const startOrderTimer = (db) => async (req, res) => {
     // Emit WebSocket notification for timer start
     if (req.io) {
       req.io.emit('order-timer-started', {
-        orderId,
+        order_id: orderId,
         status,
         timerData,
         message: 'Order timer started',
@@ -410,7 +406,7 @@ export const stopOrderTimer = (db) => async (req, res) => {
     // Emit WebSocket notification for timer stop
     if (req.io) {
       req.io.emit('order-timer-stopped', {
-        orderId,
+        order_id: orderId,
         message: 'Order timer stopped',
         timestamp: new Date().toISOString()
       });
@@ -452,7 +448,7 @@ export const toggleOrderAutoAdvance = (db) => async (req, res) => {
     // Emit WebSocket notification for auto-advance toggle
     if (req.io) {
       req.io.emit('order-auto-advance-toggled', {
-        orderId,
+        order_id: orderId,
         enabled,
         message: `Auto-advance ${enabled ? 'enabled' : 'disabled'}`,
         timestamp: new Date().toISOString()
@@ -494,7 +490,7 @@ export const advanceOrderToNextStatus = (db) => async (req, res) => {
     // Emit WebSocket notification for status advancement
     if (req.io) {
       const notificationData = {
-        orderId,
+        order_id: orderId,
         previousStatus,
         newStatus: updatedOrder.status,
         message: `Order advanced from ${previousStatus} to ${updatedOrder.status}`,
@@ -506,7 +502,7 @@ export const advanceOrderToNextStatus = (db) => async (req, res) => {
       // Send to specific user if userId is provided
       if (updatedOrder.user_id) {
         req.io.to(`user_${updatedOrder.user_id}`).emit('your-order-status-advanced', {
-          orderId,
+          order_id: orderId,
           previousStatus,
           newStatus: updatedOrder.status,
           message: `Your order has been advanced to ${updatedOrder.status}`,
@@ -623,7 +619,7 @@ export const moveOrderToHistory = (db) => async (req, res) => {
     // Emit WebSocket notification for order moved to history
     if (req.io) {
       req.io.emit('order-moved-to-history', {
-        orderId,
+        order_id: orderId,
         message: 'Order moved to history',
         timestamp: new Date().toISOString()
       });
@@ -734,7 +730,7 @@ export const completeOrder = (db) => async (req, res) => {
     // Emit WebSocket notification for order completion
     if (req.io) {
       const notificationData = {
-        orderId,
+        order_id: orderId,
         previousStatus: order.status,
         newStatus: 'completed',
         message: 'Order completed and moved to history',
@@ -746,7 +742,7 @@ export const completeOrder = (db) => async (req, res) => {
       // Send to specific user if userId is provided
       if (order.user_id) {
         req.io.to(`user_${order.user_id}`).emit('your-order-completed', {
-          orderId,
+          order_id: orderId,
           message: 'Your order has been completed!',
           timestamp: new Date().toISOString()
         });
@@ -811,7 +807,7 @@ export const updatePaymentStatus = (db) => async (req, res) => {
     // Emit WebSocket notification for payment status update
     if (req.io) {
       const notificationData = {
-        orderId,
+        order_id: orderId,
         previousPaymentStatus: order.paymentStatus,
         newPaymentStatus: paymentStatus,
         message: `Payment status updated to ${paymentStatus}`,
@@ -823,7 +819,7 @@ export const updatePaymentStatus = (db) => async (req, res) => {
       // Send to specific user if userId is provided
       if (updatedOrder.user_id) {
         req.io.to(`user_${updatedOrder.user_id}`).emit('your-order-payment-updated', {
-          orderId,
+          order_id: orderId,
           previousPaymentStatus: order.paymentStatus,
           newPaymentStatus: paymentStatus,
           message: `Your order payment status has been updated to ${paymentStatus}`,
@@ -892,5 +888,230 @@ export const softDeleteItem = (db) => async (req, res) => {
       return res.status(404).json({ message: 'Item not found or already deleted' });
     }
     res.status(500).json({ message: 'Server error deleting item' });
+  }
+};
+
+// GCash Payment Controllers
+
+// Submit GCash payment proof
+export const submitGcashPayment = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const { referenceNumber, proof } = req.body;
+  const orderModel = new Order(db);
+  const bookingModel = new Booking(db);
+
+  try {
+    // Validate required fields
+    if (!proof) {
+      return res.status(400).json({ message: 'Payment proof is required' });
+    }
+
+    if (!referenceNumber) {
+      return res.status(400).json({ message: 'Reference ID is required' });
+    }
+
+    // Get user ID from authenticated user
+    const userId = req.user ? req.user.user_id : null;
+
+    // Try to get order first
+    let order = await orderModel.getById(orderId, userId);
+
+    if (!order) {
+      // If not found as order, try as booking
+      const booking = await bookingModel.getById(orderId);
+      if (booking && booking.status === 'approved' && booking.paymentMethod === 'gcash') {
+        // Check if user owns the booking
+        if (booking.user_id !== userId) {
+          return res.status(403).json({ message: 'Not authorized to pay for this booking' });
+        }
+
+        // Create order from booking
+        const orderData = {
+          serviceType: booking.mainService === 'washDryFold' ? 'washFold' : booking.mainService,
+          pickupDate: booking.pickupDate,
+          pickupTime: booking.pickupTime,
+          loadCount: booking.loadCount,
+          instructions: booking.instructions,
+          status: 'pending',
+          paymentMethod: booking.paymentMethod,
+          name: booking.name,
+          contact: booking.contact,
+          email: booking.email,
+          address: booking.address,
+          photos: booking.photos,
+          totalPrice: booking.totalPrice,
+          user_id: booking.user_id,
+          estimatedClothes: 0,
+          kilos: 0,
+          laundryPhoto: [],
+          bookingId: booking.booking_id
+        };
+
+        const newOrderId = await orderModel.create(orderData);
+
+        // Move booking to history
+        await bookingModel.moveToHistory(booking.booking_id, 'converted_to_order');
+
+        // Emit WebSocket notifications
+        if (req.io) {
+          req.io.emit('booking-converted-to-order', {
+            bookingId: booking.booking_id,
+            orderId: newOrderId,
+            message: 'Booking converted to order',
+            timestamp: new Date().toISOString()
+          });
+
+          if (booking.user_id) {
+            req.io.to(`user_${booking.user_id}`).emit('your-booking-converted-to-order', {
+              order_id: newOrderId,
+              bookingId: booking.booking_id,
+              message: 'Your booking has been converted to an order',
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+
+        // Get the new order
+        order = await orderModel.getById(newOrderId, userId);
+        orderId = newOrderId; // Update orderId for payment processing
+      } else {
+        return res.status(404).json({ message: 'Order or approved GCash booking not found' });
+      }
+    }
+
+    if (order.paymentMethod !== 'gcash') {
+      return res.status(400).json({ message: 'Order payment method is not GCash' });
+    }
+
+    if (order.payment_status === 'approved') {
+      return res.status(400).json({ message: 'Payment has already been approved' });
+    }
+
+    // Save base64 image to file
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const filename = `gcash_payment_${orderId}_${timestamp}.png`;
+    const filepath = path.join(uploadsDir, filename);
+
+    // Remove data URL prefix and save
+    const base64Data = proof.replace(/^data:image\/[a-z]+;base64,/, '');
+    fs.writeFileSync(filepath, base64Data, 'base64');
+
+    // Submit payment proof
+    await orderModel.submitPaymentProof(orderId, filename, referenceNumber);
+
+    // Get updated order
+    const updatedOrder = await orderModel.getById(orderId, userId);
+
+    // Emit WebSocket notification for payment submission
+    if (req.io) {
+      const notificationData = {
+        order_id: orderId,
+        paymentProof: filename,
+        reference_id: referenceNumber,
+        message: 'GCash payment proof submitted',
+        timestamp: new Date().toISOString()
+      };
+
+      req.io.emit('gcash-payment-submitted', notificationData);
+
+      // Send to admin users
+      req.io.emit('admin-notification', {
+        type: 'gcash_payment_submitted',
+        order_id: orderId,
+        customerName: order.name,
+        message: `New GCash payment submitted by ${order.name}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({
+      message: 'GCash payment proof submitted successfully',
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Error submitting GCash payment:', error);
+    if (error.message === 'Order not found or not a GCash payment') {
+      return res.status(404).json({ message: 'Order not found or not a GCash payment' });
+    }
+    res.status(500).json({ message: 'Server error submitting payment' });
+  }
+};
+
+// Review GCash payment (admin only)
+export const reviewGcashPayment = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const { status, adminNotes } = req.body;
+  const orderModel = new Order(db);
+
+  try {
+    // Validate status
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Status must be "approved" or "rejected"' });
+    }
+
+    // Get order
+    const order = await orderModel.getById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.paymentMethod !== 'gcash') {
+      return res.status(400).json({ message: 'Order payment method is not GCash' });
+    }
+
+    // Update payment status
+    await orderModel.updateGcashPaymentStatus(orderId, status);
+
+    // If approved, also update the general paymentStatus to 'paid'
+    if (status === 'approved') {
+      await orderModel.updatePaymentStatus(orderId, 'paid');
+    }
+
+    // Get updated order
+    const updatedOrder = await orderModel.getById(orderId);
+
+    // Emit WebSocket notification for payment review
+    if (req.io) {
+      const notificationData = {
+        order_id: orderId,
+        status,
+        adminNotes,
+        message: `GCash payment ${status}`,
+        timestamp: new Date().toISOString()
+      };
+
+      req.io.emit('gcash-payment-reviewed', notificationData);
+
+      // Send to specific user if userId is provided
+      if (updatedOrder.user_id) {
+        req.io.to(`user_${updatedOrder.user_id}`).emit('your-gcash-payment-reviewed', {
+          order_id: orderId,
+          status,
+          message: `Your GCash payment has been ${status}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    res.json({
+      message: `GCash payment ${status} successfully`,
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Error reviewing GCash payment:', error);
+    if (error.message === 'Order not found or not a GCash payment') {
+      return res.status(404).json({ message: 'Order not found or not a GCash payment' });
+    }
+    res.status(500).json({ message: 'Server error reviewing payment' });
   }
 };

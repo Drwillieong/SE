@@ -5,9 +5,11 @@ import {
   createOrder,
   updateOrder,
   deleteOrder,
-  getOrdersByStatus
+  getOrdersByStatus,
+  submitGcashPayment
 } from '../controllers/orderController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
+import { multerUpload } from '../controllers/uploadController.js';
 
 const router = express.Router();
 
@@ -36,6 +38,9 @@ export default (db) => {
 
     // Get orders by status
     router.get('/status/:status', verifyToken, getOrdersByStatus(db));
+
+    // Submit GCash payment proof
+    router.post('/:id/gcash-payment', verifyToken, submitGcashPayment(db));
 
     return router;
 };

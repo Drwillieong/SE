@@ -49,27 +49,23 @@ export const createBooking = (db) => async (req, res) => {
 
   const bookingModel = new Booking(db);
 
-  // Always check booking limit, but use a transaction for non-admins to prevent race conditions.
-  try {
-    const countSql = `
-      SELECT COUNT(*) as count
-      FROM bookings
-      WHERE pickupDate = ? AND status NOT IN ('rejected', 'cancelled', 'completed') AND is_deleted = FALSE
-    `;
-    const [countResults] = await db.promise().query(countSql, [bookingData.pickupDate]);
-    const count = countResults[0].count;
-
-    if (count >= 3) {
-      return res.status(400).json({ message: 'This day is fully booked. Maximum 3 bookings per day allowed.' });
-    }
-
-    // For non-admin users, we use a transaction to ensure atomicity of check and insert.
-    // This helps prevent race conditions where two users book the last slot simultaneously.
-    if (req.user.role !== 'admin') {
-      // The original logic for non-admin users remains largely the same,
-      // but we can simplify it since we've already performed the initial check.
+  // For non-admin users, check booking limit and use a transaction to prevent race conditions.
+  // This helps prevent race conditions where two users book the last slot simultaneously.
+  if (req.user.role !== 'admin') {
     try {
-        // Use transaction to prevent race condition
+      const countSql = `
+        SELECT COUNT(*) as count
+        FROM bookings
+        WHERE pickupDate = ? AND status NOT IN ('rejected', 'cancelled', 'completed') AND is_deleted = FALSE AND moved_to_history_at IS NULL
+      `;
+      const [countResults] = await db.promise().query(countSql, [bookingData.pickupDate]);
+      const count = countResults[0].count;
+
+      if (count >= 3) {
+        return res.status(400).json({ message: 'This day is fully booked. Maximum 3 bookings per day allowed.' });
+      }
+
+      // Use transaction to prevent race condition
       const counts = await new Promise((resolve, reject) => {
         db.beginTransaction((err) => {
           if (err) return reject(err);
@@ -79,7 +75,7 @@ export const createBooking = (db) => async (req, res) => {
             SELECT COUNT(*) as count
             FROM bookings
             WHERE pickupDate = ?
-            AND status NOT IN ('rejected', 'cancelled')
+            AND status NOT IN ('rejected', 'cancelled', 'completed')
             AND moved_to_history_at IS NULL
             AND is_deleted = FALSE
             FOR UPDATE
@@ -175,28 +171,41 @@ export const createBooking = (db) => async (req, res) => {
 
       res.status(201).json({ message: 'Booking created successfully', bookingId: counts.bookingId });
     } catch (error) {
-        console.error('Error creating booking for user:', error);
-        res.status(500).json({ message: 'Server error creating booking' });
-      }
-    } else {
-      // For admin users, we can proceed without the transaction as the initial check is sufficient.
-      try {
-        const bookingId = await bookingModel.create(bookingData);
-
-        // Emit real-time update for booking counts
-        if (req.io) {
-          req.io.emit('booking-counts-updated', { date: bookingData.pickupDate, change: 1 });
-        }
-
-        res.status(201).json({ message: 'Booking created successfully', bookingId });
-      } catch (error) {
-        console.error('Error creating booking for admin:', error);
-        res.status(500).json({ message: 'Server error creating booking' });
-      }
+      console.error('Error creating booking for user:', error);
+      res.status(500).json({ message: 'Server error creating booking' });
     }
-  } catch (error) {
-    console.error('Error checking booking count:', error);
-    res.status(500).json({ message: 'Server error checking booking availability' });
+  } else {
+    // For admin users, check booking limit as well
+    try {
+      const countSql = `
+        SELECT COUNT(*) as count
+        FROM bookings
+        WHERE pickupDate = ? AND status NOT IN ('rejected', 'cancelled', 'completed') AND is_deleted = FALSE AND moved_to_history_at IS NULL
+      `;
+
+      const count = await new Promise((resolve, reject) => {
+        db.query(countSql, [bookingData.pickupDate], (err, results) => {
+          if (err) return reject(err);
+          resolve(results[0].count);
+        });
+      });
+
+      if (count >= 3) {
+        return res.status(400).json({ message: 'This day is fully booked. Maximum 3 bookings per day allowed.' });
+      }
+
+      const bookingId = await bookingModel.create(bookingData);
+
+      // Emit real-time update for booking counts
+      if (req.io) {
+        req.io.emit('booking-counts-updated', { date: bookingData.pickupDate, change: 1 });
+      }
+
+      res.status(201).json({ message: 'Booking created successfully', bookingId });
+    } catch (error) {
+      console.error('Error creating booking for admin:', error);
+      res.status(500).json({ message: 'Server error creating booking' });
+    }
   }
 };
 
@@ -244,8 +253,8 @@ export const updateBooking = (db) => async (req, res) => {
       }
     }
 
-    // Emit real-time update for booking counts if status changed to rejected or cancelled
-    if ((updates.status === 'rejected' || updates.status === 'cancelled') && req.io) {
+    // Emit real-time update for booking counts if status changed to rejected, cancelled, or completed
+    if ((updates.status === 'rejected' || updates.status === 'cancelled' || updates.status === 'completed') && req.io) {
       // Get the updated booking to get the pickupDate
       const updatedBooking = await bookingModel.getById(bookingId);
       if (updatedBooking) {

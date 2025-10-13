@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import SocketClient from '../../components/SocketClient';
-import RealTimeUpdates from '../../components/RealTimeUpdates';
 import StatusIcon from '../../components/StatusIcon';
-
+import GcashPaymentModal from '../../components/GcashPaymentModal';
+import main from "../../../../assets/logo.png";
+import washing from "../../../../assets/logo.png";
 import OrderDetailsModal from "../../components/OrderDetailsModal";
 
 // Define free pickup barangays and their fees
@@ -50,6 +50,62 @@ const ScheduleBooking = () => {
 
   // Booking counts state
   const [bookingCounts, setBookingCounts] = useState({});
+  const [bookingCountsLoading, setBookingCountsLoading] = useState(true);
+
+      // GCash Payment Modal state
+  const [showGcashModal, setShowGcashModal] = useState(false);
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null);
+
+  // Handle GCash payment submission
+  const handleGcashPaymentSubmit = async (paymentData, orderId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const payload = {
+        referenceId: paymentData.referenceNumber,
+        proof: paymentData.proof
+      };
+
+      await axios.post(`http://localhost:8800/api/orders/${orderId}/gcash-payment`, payload, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+
+      alert('Payment submitted successfully! Please wait for admin approval.');
+      setShowGcashModal(false);
+
+      // Refresh orders and bookings data to get updated order_id after booking conversion
+      const [bookingsRes, ordersRes] = await Promise.all([
+        axios.get('http://localhost:8800/api/bookings', {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
+        }),
+        axios.get('http://localhost:8800/api/orders?page=1&limit=100', {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
+        })
+      ]);
+
+      const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
+      const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
+
+      // Merge bookings with order statuses
+      const mergedData = bookingsData.map(booking => {
+        const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
+        if (matchingOrder) {
+          return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
+        }
+        return booking;
+      });
+
+      // Add direct orders that don't have matching bookings
+      const directOrders = ordersData.filter(order => !order.bookingId || !bookingsData.find(booking => Number(booking.booking_id || booking.id) === Number(order.bookingId)));
+      const allOrders = [...mergedData, ...directOrders.map(order => ({ ...order, id: order.order_id, order_id: order.order_id }))];
+
+      setOrders(allOrders);
+    } catch (error) {
+      console.error('Error submitting payment:', error);
+      alert('Failed to submit payment. Please try again.');
+    }
+  };
 
   // Booking form state
   const [formData, setFormData] = useState({
@@ -115,9 +171,19 @@ const ScheduleBooking = () => {
 
   // Fetch booking counts for dates
   const fetchBookingCounts = async () => {
+    setBookingCountsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const dates = getPickupDates().map(d => d.fullDate);
+      // Generate dates directly without depending on the bookingCounts state
+      const dates = [];
+      const today = new Date();
+      for (let i = 0; i < 7; i++) {
+        const date = new Date();
+        date.setDate(today.getDate() + i);
+        const fullDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+        dates.push(fullDate);
+      }
+
       const response = await axios.post('http://localhost:8800/api/bookings/counts', { dates }, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true
@@ -125,6 +191,9 @@ const ScheduleBooking = () => {
       setBookingCounts(response.data);
     } catch (error) {
       console.error('Error fetching booking counts:', error);
+    }
+    finally {
+      setBookingCountsLoading(false);
     }
   };
 
@@ -163,23 +232,29 @@ const ScheduleBooking = () => {
     return 30;
   };
 
-  // Available pickup dates (next 7 days)
+  // Available pickup dates (next 14 days)
   const getPickupDates = () => {
     const dates = [];
     const today = new Date();
     for (let i = 0; i < 7; i++) {
       const date = new Date();
       date.setDate(today.getDate() + i);
-      const fullDate = date.toISOString().split('T')[0];
+      const fullDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
       dates.push({
         date: date.getDate(),
         day: date.toLocaleDateString('en-US', { weekday: 'short' }),
         fullDate,
         count: bookingCounts[fullDate] || 0
+     
       });
     }
     return dates;
   };
+
+  // State for the pickup dates to be displayed
+  const [pickupDates, setPickupDates] = useState([]);
+
+
 
   // Fetch user data and orders
   useEffect(() => {
@@ -210,7 +285,7 @@ const ScheduleBooking = () => {
         const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
 
         // Fetch orders to get status for completed bookings
-        const ordersRes = await axios.get('http://localhost:8800/api/orders', {
+        const ordersRes = await axios.get('http://localhost:8800/api/orders?page=1&limit=100', {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 10000,
           withCredentials: true
@@ -226,15 +301,19 @@ const ScheduleBooking = () => {
           const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
           if (matchingOrder) {
             // Prioritize order data, but keep the original booking's unique ID and creation date.
-            return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, orderId: matchingOrder.order_id };
+            return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
           }
           return booking;
         });
 
-        // --- DEBUGGING LOG ---
-        console.log("--- Final Merged Data (Bookings + Orders) ---", mergedData);
+        // Add direct orders that don't have matching bookings
+        const directOrders = ordersData.filter(order => !order.bookingId || !bookingsData.find(booking => Number(booking.booking_id || booking.id) === Number(order.bookingId)));
+        const allOrders = [...mergedData, ...directOrders.map(order => ({ ...order, id: order.order_id, order_id: order.order_id }))];
 
-        setOrders(mergedData);
+        // --- DEBUGGING LOG ---
+        console.log("--- Final Merged Data (Bookings + Orders) ---", allOrders);
+
+        setOrders(allOrders);
 
         // Fetch booking counts for dates
         await fetchBookingCounts();
@@ -255,12 +334,19 @@ const ScheduleBooking = () => {
     }
   }, [formData.loadCount, userData]);
 
-
+  // Update pickup dates when booking counts change
+  useEffect(() => {
+    // Only update pickupDates if bookingCounts has data.
+    if (Object.keys(bookingCounts).length > 0) {
+      setPickupDates(getPickupDates());
+    }
+  }, [bookingCounts]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
 
   const handlePaymentMethodChange = (method) => {
     setPaymentDetails(prev => ({ ...prev, method }));
@@ -315,8 +401,9 @@ const ScheduleBooking = () => {
       const currentCount = countResponse.data[formData.pickupDate] || 0;
       if (currentCount >= 3) {
         alert('This day is now fully booked. Please select another date.');
+        // Immediately update the local state to reflect the day is full
+        setBookingCounts(prev => ({ ...prev, [formData.pickupDate]: 3 }));
         setShowConfirmation(false);
-        await fetchBookingCounts(); // Update calendar
         return;
       }
 
@@ -353,16 +440,14 @@ const ScheduleBooking = () => {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true
         });
+
         alert('Booking submitted successfully! Our team will review your request.');
       }
-
-      // Refetch booking counts to update calendar
-      await fetchBookingCounts();
 
       setShowConfirmation(false);
       setEditingOrder(null);
       resetForm();
-      setActiveTab('orders');
+      setActiveTab('pickup');
       // Refresh bookings and orders
       const [bookingsRes, ordersRes] = await Promise.all([
         axios.get('http://localhost:8800/api/bookings', {
@@ -387,7 +472,7 @@ const ScheduleBooking = () => {
         const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
         if (matchingOrder) {
           // Prioritize order data, but keep the original booking's unique ID and creation date.
-          return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, orderId: matchingOrder.order_id };
+          return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
         }
         return booking;
       });
@@ -398,7 +483,14 @@ const ScheduleBooking = () => {
       setOrders(mergedData);
     } catch (error) {
       console.error('Error saving order:', error);
-      alert(error.message || 'Failed to save order. Please try again.');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save order. Please try again.';
+      alert(errorMessage);
+
+      // If the error is that the day is fully booked, update the UI immediately
+      if (errorMessage.includes('This day is fully booked')) {
+        setBookingCounts(prev => ({ ...prev, [formData.pickupDate]: 3 }));
+        setShowConfirmation(false); // Go back to the booking form
+      }
     } finally {
       setLoading(false);
     }
@@ -520,11 +612,14 @@ const ScheduleBooking = () => {
     console.log('Booking converted to order:', bookingData);
     // Handle when admin converts booking to order - set status to 'pending' as order starts with pending status
     setOrders(prevOrders =>
-      prevOrders.map(order =>
-        order.id === bookingData.id || order.booking_id === bookingData.bookingId ?
-          { ...order, ...bookingData, status: 'pending' } :
-          order
-      )
+      prevOrders.map(order => {
+        // Match by the original booking ID. The `order.id` on the client is the booking's ID.
+        if (Number(order.id) === Number(bookingData.bookingId)) {
+          // This is the booking that was converted. Update it to become an order.
+          return { ...order, status: 'pending', order_id: bookingData.order_id, paymentStatus: 'unpaid', payment_status: 'pending' };
+        }
+        return order;
+      })
     );
   };
 
@@ -563,7 +658,20 @@ const ScheduleBooking = () => {
     <div className="min-h-fit bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-pink-600 mb-8">Laundry Booking</h1>
-
+        
+        {/* Hero Banner Image to Attract Customers */}
+<div className="mb-8 rounded-lg overflow-hidden shadow-lg relative">
+  <img 
+      src={main}
+    alt="Professional Laundry and Dry Cleaning Services" 
+    className="w-full h-48 object-cover" 
+  />
+  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+  <div className="relative p-6 bg-white">
+    <h2 className="text-2xl font-bold text-pink-600 mb-2">Fresh, Clean, and Delivered to Your Door</h2>
+    <p className="text-gray-600">Book your laundry pickup today and enjoy hassle-free service with a smile!</p>
+  </div>
+</div>
         {/* Tabs */}
         <div className="flex border-b mb-6">
           <button
@@ -587,7 +695,14 @@ const ScheduleBooking = () => {
             <div className="p-6">
               <div className="mb-6">
                 <h2 className="text-xl font-bold mb-4">Choose Your Service</h2>
-
+                {/* Service Selection Image */}
+<div className="mb-6 text-center">
+  <img 
+      src={washing}
+    alt="Laundry Services" 
+    className="mx-auto w-full max-w-md h-32 object-cover rounded-lg shadow-md" 
+  />
+</div>
           {/* Main Services */}
 <div className="mb-6">
   <h3 className="text-lg font-semibold mb-3">Laundry Services</h3>
@@ -640,6 +755,14 @@ const ScheduleBooking = () => {
                 {/* Dry Cleaning Services */}
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-3">Dry Cleaning Services (Optional)</h3>
+                  {/* Dry Cleaning Image */}
+<div className="mb-4 text-center">
+  <img 
+    src={main}
+    alt="Dry Cleaning Services" 
+    className="mx-auto w-full max-w-sm h-24 object-cover rounded-lg shadow-md" 
+  />
+</div> 
                   <div className="space-y-3">
                     {dryCleaningServices.map(service => (
                       <div
@@ -706,7 +829,7 @@ const ScheduleBooking = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date *</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {getPickupDates().map((date) => {
+                      {!bookingCountsLoading && pickupDates.map((date) => {
                         const isFullyBooked = date.count >= 3;
                         return (
                           <button
@@ -720,17 +843,24 @@ const ScheduleBooking = () => {
                               setFormData(prev => ({ ...prev, pickupDate: date.fullDate }));
                             }}
                             disabled={isFullyBooked}
-                            className={`py-2 text-center rounded ${
+                            className={`py-2 text-center rounded relative ${
                               isFullyBooked
-                                ? 'bg-red-100 text-red-600 cursor-not-allowed opacity-50'
+                                ? 'bg-red-100 text-red-600 cursor-not-allowed opacity-50 border-2 border-red-300'
                                 : formData.pickupDate === date.fullDate
                                 ? 'bg-pink-600 text-white'
                                 : 'bg-gray-100 hover:bg-gray-200'
                             }`}
                           >
                             <div className="text-xs">{date.day}</div>
-                            <div className="font-medium">{isFullyBooked ? 'Fully Booked' : date.date}</div>
-                            <div className="text-xs">{date.count}/3</div>
+                            <div className="font-medium">{date.date}</div>
+                            <div className="text-xs font-bold">
+                              {isFullyBooked ? 'FULL' : `${date.count}/3`}
+                            </div>
+                            {isFullyBooked && (
+                              <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 py-0.5 rounded-full font-bold">
+                                !
+                              </div>
+                            )}
                           </button>
                         );
                       })}
@@ -985,6 +1115,13 @@ const ScheduleBooking = () => {
               ) : (
                 orders.map((order, index) => (
                   <div key={order.id || index} className="p-6 cursor-pointer" onClick={() => setEditingOrder(order)}>
+                    {/* Debugging: Log order properties relevant to payment button visibility */}
+                    {console.log(`Order ID: ${order.id || index}`, {
+                      order_id: order.order_id,
+                      paymentMethod: order.paymentMethod,
+                      paymentStatus: order.paymentStatus,
+                      status: order.status
+                    })}
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium">
@@ -1010,14 +1147,29 @@ const ScheduleBooking = () => {
                       <div className="flex space-x-2">
                         {order.status === 'pending' && (
                           <>
-                           
-                            <button
+                            <button // This button is for cancelling a booking before it becomes an order
                               onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
                               className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                             >
                               Cancel
                             </button>
                           </>
+                        )}
+                        {order.paymentMethod === 'gcash' &&
+                          ((order.order_id && (order.paymentStatus === 'unpaid' || order.paymentStatus === 'gcash_pending')) ||
+                           (!order.order_id && order.status === 'approved')) &&
+                          order.status !== 'completed' &&
+                          order.status !== 'cancelled' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOrderForPayment(order);
+                              setShowGcashModal(true);
+                            }}
+                            className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                          >
+                            Pay with GCash
+                          </button>
                         )}
                       </div>
                     </div>
@@ -1041,12 +1193,12 @@ const ScheduleBooking = () => {
       {showPaymentDetailsModal && (
         <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-         
+
             <div className="bg-gray-100 p-4 rounded mb-4 text-sm text-gray-700">
-           
+
               <ul className="list-disc list-inside mt-2">
                 <li>GCash</li>
-               
+
               </ul>
             </div>
             <div className="bg-yellow-100 p-3 rounded text-yellow-800 text-sm mb-4">
@@ -1070,21 +1222,18 @@ const ScheduleBooking = () => {
         </div>
       )}
 
-      {/* Real-time Updates Components */}
-      <SocketClient
-        userId={user?.id}
-        userRole="user"
-        onOrderUpdate={handleOrderUpdate}
-        onBookingUpdate={handleOrderUpdate}
-        onNotification={(notification) => console.log('Notification:', notification)}
-        onNewOrder={handleNewOrder}
-        onBookingToOrder={handleBookingToOrder}
-        onBookingCountsUpdate={updateBookingCounts}
-      />
-      <RealTimeUpdates
-        orders={orders}
-        onOrderUpdate={handleOrderUpdate}
-      />
+      {/* GCash Payment Modal */}
+      {showGcashModal && selectedOrderForPayment && (
+        <GcashPaymentModal
+          isOpen={showGcashModal}
+          onClose={() => setShowGcashModal(false)}
+          amount={selectedOrderForPayment.totalPrice}
+          orderId={selectedOrderForPayment.order_id || selectedOrderForPayment.id}
+          onSubmit={handleGcashPaymentSubmit}
+        />
+      )}
+
+
     </div>
   );
 };

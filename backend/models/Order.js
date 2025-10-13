@@ -137,11 +137,8 @@ export class Order {
   async create(orderData) {
     const sql = `
       INSERT INTO orders (
-        serviceType, pickupDate, pickupTime, loadCount, instructions, status,
-        paymentMethod, name, contact, email, address, photos, totalPrice,
-        paymentStatus, user_id, estimatedClothes, kilos, pants, shorts, tshirts, bedsheets,
-        laundryPhoto, bookingId
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        serviceType, pickupDate, pickupTime, loadCount, instructions, status, paymentMethod, name, contact, email, address, photos, totalPrice, paymentStatus, user_id, kilos, laundryPhoto, bookingId
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
@@ -160,12 +157,7 @@ export class Order {
       orderData.totalPrice || 0,
       orderData.paymentStatus || 'unpaid',
       orderData.user_id || null,
-      orderData.estimatedClothes || 0,
       orderData.kilos || 0,
-      orderData.pants || 0,
-      orderData.shorts || 0,
-      orderData.tshirts || 0,
-      orderData.bedsheets || 0,
       JSON.stringify(orderData.laundryPhoto || []),
       orderData.bookingId || null
     ];
@@ -667,6 +659,71 @@ export class Order {
     });
   }
 
+  // Submit GCash payment proof
+  async submitPaymentProof(orderId, paymentProof, referenceNumber) {
+    const sql = 'UPDATE orders SET payment_proof = ?, reference_id = ?, payment_status = ? WHERE order_id = ? AND paymentMethod = ?';
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [paymentProof, referenceNumber, 'pending', orderId, 'gcash'], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Order not found or not a GCash payment'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Update GCash payment status (admin approval/rejection)
+  async updateGcashPaymentStatus(orderId, status) {
+    const validStatuses = ['pending', 'approved', 'rejected'];
+    if (!validStatuses.includes(status)) {
+      throw new Error('Invalid payment status');
+    }
+
+    const sql = 'UPDATE orders SET payment_status = ? WHERE order_id = ? AND paymentMethod = ?';
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [status, orderId, 'gcash'], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Order not found or not a GCash payment'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Get orders by GCash payment status
+  async getOrdersByGcashPaymentStatus(status) {
+    const validStatuses = ['pending', 'approved', 'rejected'];
+    if (!validStatuses.includes(status)) {
+      throw new Error('Invalid payment status');
+    }
+
+    const sql = `
+      SELECT * FROM orders
+      WHERE paymentMethod = 'gcash' AND payment_status = ?
+      AND moved_to_history_at IS NULL
+      AND is_deleted = FALSE
+      ORDER BY createdAt DESC
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [status], (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results);
+        }
+      });
+    });
+  }
+
   // Get active orders (not in history and not deleted)
   async getActiveOrders(page = 1, limit = 50) {
     const offset = (page - 1) * limit;
@@ -704,3 +761,4 @@ export class Order {
     });
   }
 }
+
