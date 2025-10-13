@@ -8,6 +8,15 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, orderId, onSubmit }) => {
 
   if (!isOpen) return null;
 
+  const convertToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!referenceNumber || !proof) {
@@ -16,43 +25,16 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, orderId, onSubmit }) => {
     }
 
     setLoading(true);
-    setError("");
+    setError('');
 
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setError('Authentication required. Please log in again.');
-        return;
-      }
+      // Convert image to base64
+      const base64Image = await convertToBase64(proof);
 
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('referenceId', referenceNumber);
-      formData.append('paymentProof', proof);
-
-      const response = await fetch(`http://localhost:8800/api/orders/${orderId}/gcash-payment`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        onSubmit(result);
-        onClose();
-        // Reset form
-        setReferenceNumber("");
-        setProof(null);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to submit payment proof');
-      }
+      onSubmit({ referenceNumber, proof: base64Image });
+      // The parent component will handle closing and loading state
     } catch (error) {
-      console.error('Error submitting payment:', error);
-      setError('Network error. Please try again.');
-    } finally {
+      setError('Failed to process image. Please try again.');
       setLoading(false);
     }
   };

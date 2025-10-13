@@ -896,7 +896,8 @@ export const softDeleteItem = (db) => async (req, res) => {
 // Submit GCash payment proof
 export const submitGcashPayment = (db) => async (req, res) => {
   const orderId = req.params.id;
-  const { paymentProof, referenceId } = req.body;
+  const { referenceId } = req.body;
+  const paymentProof = req.file ? req.file.filename : null;
   const orderModel = new Order(db);
 
   try {

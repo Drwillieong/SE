@@ -31,50 +31,155 @@ USE wash;
  );
 
 -- Orders table for customer orders
-CREATE TABLE IF NOT EXISTS orders (
-  order_id INT AUTO_INCREMENT PRIMARY KEY,
-  serviceType ENUM('washFold', 'dryCleaning', 'hangDry') NOT NULL,
-  pickupDate DATE NOT NULL,
-  pickupTime ENUM('7am-10am', '5pm-7pm') NOT NULL,
-  loadCount INT NOT NULL DEFAULT 1,
-  instructions TEXT,
-  status ENUM('pending', 'washing', 'drying', 'folding', 'ready', 'completed') DEFAULT 'pending',
-  rejectionReason TEXT,
-  paymentMethod ENUM('cash', 'gcash', 'card') NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  contact VARCHAR(20) NOT NULL,
-  email VARCHAR(255),
-  address TEXT NOT NULL,
-  photos JSON, -- Store photo URLs as JSON array
-  totalPrice DECIMAL(10, 2) NOT NULL,
-  paymentStatus ENUM('unpaid', 'paid') DEFAULT 'unpaid',
-  payment_proof VARCHAR(255), -- File path for uploaded payment proof
-  payment_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending', -- GCash payment approval status
-  user_id INT, -- Reference to users table if order is from registered user
-  -- New fields for order details from pickup
-  estimatedClothes INT,
-  kilos DECIMAL(5, 2),
-  laundryPhoto JSON, -- Store laundry photo URL as JSON
-  bookingId INT, -- Reference to bookings table for orders created from bookings
-  -- Timer fields for order management
-  timer_start DATETIME NULL,
-  timer_end DATETIME NULL,
-  auto_advance_enabled BOOLEAN DEFAULT FALSE,
-  current_timer_status VARCHAR(20) NULL,
-  -- History tracking fields
-  moved_to_history_at DATETIME NULL,
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at DATETIME NULL,
-  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_status (status),
-  INDEX idx_created_at (createdAt),
-  INDEX idx_user_id (user_id),
-  INDEX idx_pickup_date (pickupDate),
-  INDEX idx_moved_to_history (moved_to_history_at),
-  INDEX idx_is_deleted (is_deleted),
-  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
-);
+Field
+Type
+Null
+Key
+Default
+Extra
+order_id
+int
+NO
+PRI
+NULL
+auto_increment
+serviceType
+enum('washFold','dryCleaning','hangDry')
+NO
+NULL
+pickupDate
+date
+NO
+MUL
+NULL
+pickupTime
+enum('7am-10am','5pm-7pm')
+NO
+NULL
+loadCount
+int
+NO
+1
+instructions
+text
+YES
+NULL
+status
+enum('pending','washing','drying','folding','ready','completed')
+YES
+MUL
+pending
+rejectionReason
+text
+YES
+NULL
+paymentMethod
+enum('cash','gcash','card')
+NO
+NULL
+name
+varchar(255)
+NO
+NULL
+contact
+varchar(20)
+NO
+NULL
+email
+varchar(255)
+YES
+NULL
+address
+text
+NO
+NULL
+photos
+json
+YES
+NULL
+totalPrice
+decimal(10,2)
+NO
+NULL
+paymentStatus
+enum('unpaid','paid')
+YES
+unpaid
+payment_proof
+varchar(255)
+YES
+NULL
+reference_id
+varchar(255)
+YES
+NULL
+payment_status
+enum('pending','approved','rejected')
+YES
+pending
+user_id
+int
+YES
+MUL
+NULL
+estimatedClothes
+int
+YES
+NULL
+kilos
+decimal(5,2)
+YES
+NULL
+laundryPhoto
+json
+YES
+NULL
+bookingId
+int
+YES
+NULL
+timer_start
+datetime
+YES
+NULL
+timer_end
+datetime
+YES
+NULL
+auto_advance_enabled
+tinyint(1)
+YES
+0
+current_timer_status
+varchar(20)
+YES
+NULL
+moved_to_history_at
+datetime
+YES
+MUL
+NULL
+is_deleted
+tinyint(1)
+YES
+MUL
+0
+deleted_at
+datetime
+YES
+NULL
+createdAt
+timestamp
+YES
+MUL
+CURRENT_TIMESTAMP
+DEFAULT_GENERATED
+updatedAt
+timestamp
+YES
+CURRENT_TIMESTAMP
+DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+
 
 
 

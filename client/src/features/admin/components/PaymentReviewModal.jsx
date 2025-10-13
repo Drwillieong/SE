@@ -12,13 +12,13 @@ const PaymentReviewModal = ({ isOpen, onClose, payment, onDecision }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/orders/${payment.order_id}/gcash-payment-status`, {
+      const response = await fetch(`http://localhost:8800/api/admin/orders/${payment.order_id}/gcash-payment-review`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ decision: status })
+        body: JSON.stringify({ status: status })
       });
 
       if (response.ok) {

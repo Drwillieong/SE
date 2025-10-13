@@ -53,7 +53,7 @@ const ScheduleBooking = () => {
   const [bookingCounts, setBookingCounts] = useState({});
   const [bookingCountsLoading, setBookingCountsLoading] = useState(true);
 
-  // GCash Payment Modal state
+      // GCash Payment Modal state
   const [showGcashModal, setShowGcashModal] = useState(false);
   const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null);
 
@@ -62,11 +62,11 @@ const ScheduleBooking = () => {
     try {
       const token = localStorage.getItem('token');
       const formData = new FormData();
-      formData.append('referenceNumber', paymentData.referenceNumber);
+      formData.append('referenceId', paymentData.referenceNumber);
       formData.append('proof', paymentData.proof);
-      formData.append('orderId', selectedOrderForPayment.id);
 
-      await axios.post('http://localhost:8800/api/payments/gcash', formData, {
+      const orderId = selectedOrderForPayment.order_id || selectedOrderForPayment.id;
+      await axios.post(`http://localhost:8800/api/orders/${orderId}/gcash-payment`, formData, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true
       });
@@ -218,6 +218,7 @@ const ScheduleBooking = () => {
         day: date.toLocaleDateString('en-US', { weekday: 'short' }),
         fullDate,
         count: bookingCounts[fullDate] || 0
+     
       });
     }
     return dates;
@@ -273,15 +274,19 @@ const ScheduleBooking = () => {
           const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
           if (matchingOrder) {
             // Prioritize order data, but keep the original booking's unique ID and creation date.
-            return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, orderId: matchingOrder.order_id };
+            return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
           }
           return booking;
         });
 
-        // --- DEBUGGING LOG ---
-        console.log("--- Final Merged Data (Bookings + Orders) ---", mergedData);
+        // Add direct orders that don't have matching bookings
+        const directOrders = ordersData.filter(order => !order.bookingId || !bookingsData.find(booking => Number(booking.booking_id || booking.id) === Number(order.bookingId)));
+        const allOrders = [...mergedData, ...directOrders.map(order => ({ ...order, id: order.order_id, order_id: order.order_id }))];
 
-        setOrders(mergedData);
+        // --- DEBUGGING LOG ---
+        console.log("--- Final Merged Data (Bookings + Orders) ---", allOrders);
+
+        setOrders(allOrders);
 
         // Fetch booking counts for dates
         await fetchBookingCounts();
@@ -440,7 +445,7 @@ const ScheduleBooking = () => {
         const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
         if (matchingOrder) {
           // Prioritize order data, but keep the original booking's unique ID and creation date.
-          return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, orderId: matchingOrder.order_id };
+          return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
         }
         return booking;
       });
@@ -1085,7 +1090,9 @@ const ScheduleBooking = () => {
                             </button>
                           </>
                         )}
-                        {(order.status === 'approved' || order.status === 'ready_for_payment') && order.paymentMethod === 'gcash' && (
+                        {order.paymentMethod === 'gcash' &&
+                          order.status !== 'completed' &&
+                          order.status !== 'cancelled' && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1154,6 +1161,7 @@ const ScheduleBooking = () => {
           isOpen={showGcashModal}
           onClose={() => setShowGcashModal(false)}
           amount={selectedOrderForPayment.totalPrice}
+          orderId={selectedOrderForPayment.order_id}
           onSubmit={handleGcashPaymentSubmit}
         />
       )}

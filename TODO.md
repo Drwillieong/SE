@@ -1,20 +1,14 @@
-# GCash Payment Review Fix
+# GCash Payment Feature Fixes
 
-## Steps to Complete:
+## Current Issues
+- GcashPaymentModal not showing in ScheduleBooking.jsx
+- PaymentReviewModal not showing in OrderManagement.jsx
+- Using multer for file uploads, need to store images in database directly
 
-1. **Edit PaymentReviewModal.jsx**:
-   - Update the fetch URL in `handleDecision` to use `payment.order_id` instead of `payment.id`. ✅
-   - Update the `onDecision` call to pass `payment.order_id` instead of `payment.id`. ✅
-
-2. **Verify OrderManagement.jsx**:
-   - Confirm that `handlePaymentDecision` receives and uses the correct `orderId` (no changes needed). ✅
-
-3. **Test the Fix**:
-   - Restart the frontend dev server if necessary. ✅
-   - Create a test GCash order and submit proof.
-   - In admin panel, review and approve/reject the payment.
-   - Verify API call succeeds, state updates, and no errors in console.
-
-4. **Complete and Close Task**:
-   - Confirm end-to-end functionality. ✅
-   - Mark all steps as done. ✅
+## Tasks
+- [ ] Fix GcashPaymentModal visibility condition in ScheduleBooking.jsx
+- [ ] Add PaymentReviewModal rendering in OrderManagement.jsx
+- [ ] Modify GcashPaymentModal to use base64 image conversion
+- [ ] Update backend controller to handle base64 images
+- [ ] Update PaymentReviewModal to display base64 images
+- [ ] Test payment submission and review flow

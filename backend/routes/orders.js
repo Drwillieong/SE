@@ -9,6 +9,7 @@ import {
   submitGcashPayment
 } from '../controllers/orderController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
+import { multerUpload } from '../controllers/uploadController.js';
 
 const router = express.Router();
 
@@ -39,7 +40,7 @@ export default (db) => {
     router.get('/status/:status', verifyToken, getOrdersByStatus(db));
 
     // Submit GCash payment proof
-    router.post('/:id/gcash-payment', verifyToken, submitGcashPayment(db));
+    router.post('/:id/gcash-payment', verifyToken, multerUpload.single('proof'), submitGcashPayment(db));
 
     return router;
 };

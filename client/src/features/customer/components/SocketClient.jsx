@@ -227,6 +227,22 @@ const SocketClient = ({
       }
     });
 
+    socket.on('your-gcash-payment-reviewed', (data) => {
+      console.log('Your GCash payment reviewed:', data);
+      if (onOrderUpdate) {
+        onOrderUpdate('gcash_payment_reviewed', data);
+      }
+      if (onNotification) {
+        onNotification({
+          type: 'gcash_payment_reviewed',
+          title: 'Payment Reviewed',
+          message: data.message,
+          data: data,
+          timestamp: new Date()
+        });
+      }
+    });
+
     // Return cleanup function for useEffect
     return () => {
       if (socketRef.current) {

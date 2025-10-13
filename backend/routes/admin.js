@@ -114,6 +114,6 @@ router.put('/orders/:id/soft-delete', verifyToken, requireAdmin, (req, res) => s
 router.get('/analytics', verifyToken, requireAdmin, (req, res) => getAnalyticsData(req.db)(req, res));
 
 // GCash payment review route (admin only)
-router.put('/orders/:id/gcash-payment-status', verifyToken, requireAdmin, (req, res) => reviewGcashPayment(req.db)(req, res));
+router.put('/orders/:id/gcash-payment-review', verifyToken, requireAdmin, (req, res) => reviewGcashPayment(req.db)(req, res));
 
 export default router;
