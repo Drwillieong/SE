@@ -27,7 +27,8 @@ import {
   restoreFromHistory,
   deleteFromHistory,
   softDeleteItem,
-  updatePaymentStatus
+  updatePaymentStatus,
+  reviewGcashPayment
 } from '../controllers/orderController.js';
 import { verifyToken, requireAdmin } from '../middleware/authMiddleware.js';
 
@@ -111,5 +112,8 @@ router.put('/orders/:id/soft-delete', verifyToken, requireAdmin, (req, res) => s
 
 // Analytics route (admin only)
 router.get('/analytics', verifyToken, requireAdmin, (req, res) => getAnalyticsData(req.db)(req, res));
+
+// GCash payment review route (admin only)
+router.put('/orders/:id/gcash-payment-status', verifyToken, requireAdmin, (req, res) => reviewGcashPayment(req.db)(req, res));
 
 export default router;

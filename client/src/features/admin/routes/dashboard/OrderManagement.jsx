@@ -1,10 +1,13 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from 'react-modal';
 import OrderDetailsModal from '../../components/OrderDetailsModal';
+import PaymentReviewModal from '../../components/PaymentReviewModal';
 import TimerDisplay from '../../components/TimerDisplay';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import StatusIcon from '../../components/StatusIcon';
+import SocketClient from '../../../customer/components/SocketClient';
 
 // Initialize modal
 Modal.setAppElement('#root');
@@ -35,16 +38,30 @@ const OrderManagement = () => {
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedPayment, setSelectedPayment] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [timerStatuses, setTimerStatuses] = useState({});
   const [loadingStatus, setLoadingStatus] = useState({});
+  const [userId, setUserId] = useState(null);
+  const [paymentReviewModalOpen, setPaymentReviewModalOpen] = useState(false);
 
   useEffect(() => {
     console.log('OrderManagement component mounted/updated');
     fetchOrders();
     fetchStats();
+
+    // Get user ID from token or localStorage
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserId(payload.userId || payload.id);
+      } catch (error) {
+        console.error('Error parsing token:', error);
+      }
+    }
 
     // Check if we need to refresh due to order creation
     const urlParams = new URLSearchParams(window.location.search);
@@ -482,6 +499,47 @@ const OrderManagement = () => {
     }
   };
 
+  const handlePaymentDecision = async (decision, orderId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/gcash-payment-status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ decision })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update local state
+        setOrders(prev => prev.map(order =>
+          order.order_id === orderId ? { ...order, paymentStatus: data.paymentStatus } : order
+        ));
+        alert(`Payment ${decision} successfully!`);
+        setSelectedPayment(null);
+        setPaymentReviewModalOpen(false);
+      } else {
+        alert('Failed to update payment decision');
+      }
+    } catch (error) {
+      console.error('Error updating payment decision:', error);
+      alert('Failed to update payment decision');
+    }
+  };
+
+  const handleReviewPayment = (order) => {
+    setSelectedPayment(order);
+    setPaymentReviewModalOpen(true);
+  };
+
+  const handleOrderUpdate = (updatedOrder) => {
+    setOrders(prev => prev.map(order =>
+      order.order_id === updatedOrder.order_id ? updatedOrder : order
+    ));
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -741,11 +799,21 @@ const OrderManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-2">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                          order.paymentStatus === 'gcash_pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
                         }`}>
-                          {order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                          {order.paymentStatus === 'paid' ? 'Paid' :
+                           order.paymentStatus === 'gcash_pending' ? 'GCash Pending' : 'Unpaid'}
                         </span>
-                        {order.paymentStatus !== 'paid' && (
+                        {order.paymentStatus === 'gcash_pending' && (
+                          <button
+                            onClick={() => handleReviewPayment(order)}
+                            className="text-blue-600 hover:text-blue-900 text-xs"
+                          >
+                            Review Payment
+                          </button>
+                        )}
+                        {order.paymentStatus !== 'paid' && order.paymentStatus !== 'gcash_pending' && (
                           <button
                             onClick={() => handleMarkAsPaid(order.order_id)}
                             className="text-green-600 hover:text-green-900 text-xs"
@@ -788,6 +856,23 @@ const OrderManagement = () => {
         onCompleteOrder={handleOrderCompletion}
         onMarkAsPaid={handleMarkAsPaid}
       />
+
+      {/* Payment Review Modal */}
+      <PaymentReviewModal
+        isOpen={!!selectedPayment}
+        onClose={() => setSelectedPayment(null)}
+        payment={selectedPayment}
+        onDecision={handlePaymentDecision}
+      />
+
+      {/* Socket Client for real-time updates */}
+      {userId && (
+        <SocketClient
+          userId={userId}
+          userRole="admin"
+          onOrderUpdate={handleOrderUpdate}
+        />
+      )}
     </div>
   );
 };

@@ -2,16 +2,42 @@ import React, { useState } from "react";
 
 const PaymentReviewModal = ({ isOpen, onClose, payment, onDecision }) => {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   if (!isOpen || !payment) return null;
 
-  const handleDecision = (status) => {
+  const handleDecision = async (status) => {
     setLoading(true);
-    onDecision(status, payment.id);
-    setTimeout(() => {
+    setError("");
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8800/api/admin/orders/${payment.order_id}/gcash-payment-status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ decision: status })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Call the parent callback to update local state
+        if (onDecision) {
+          await onDecision(status, payment.order_id);
+        }
+        onClose();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update payment status');
+      }
+    } catch (error) {
+      console.error('Error processing payment decision:', error);
+      setError(error.message || 'Failed to process decision. Please try again.');
+    } finally {
       setLoading(false);
-      onClose();
-    }, 1000);
+    }
   };
 
   return (
@@ -41,7 +67,7 @@ const PaymentReviewModal = ({ isOpen, onClose, payment, onDecision }) => {
             Proof of Payment
           </h3>
           <img
-            src={payment.payment_proof}
+            src={`http://localhost:8800${payment.payment_proof}`}
             alt="Proof of payment"
             className="w-60 h-60 object-cover border rounded-lg shadow-sm"
           />
@@ -57,31 +83,38 @@ const PaymentReviewModal = ({ isOpen, onClose, payment, onDecision }) => {
           </p>
           <p className="text-gray-700 text-sm mt-2">
             <span className="font-medium">Customer Name:</span>{" "}
-            {payment.customer_name}
+            {payment.name}
           </p>
           <p className="text-gray-700 text-sm">
             <span className="font-medium">Amount:</span>{" "}
             <span className="text-green-600 font-semibold">
-              ₱{payment.amount}
+              ₱{payment.totalPrice}
             </span>
           </p>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="text-red-600 text-sm text-center mb-4">
+            {error}
+          </div>
+        )}
+
         {/* Decision Buttons */}
         <div className="flex justify-between gap-4">
           <button
-            onClick={() => handleDecision("Rejected")}
+            onClick={() => handleDecision("rejected")}
             disabled={loading}
             className="flex-1 bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-60"
           >
-            Reject
+            {loading ? 'Processing...' : 'Reject'}
           </button>
           <button
-            onClick={() => handleDecision("Paid")}
+            onClick={() => handleDecision("approved")}
             disabled={loading}
             className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-60"
           >
-            Approve
+            {loading ? 'Processing...' : 'Approve'}
           </button>
         </div>
       </div>

@@ -890,3 +890,144 @@ export const softDeleteItem = (db) => async (req, res) => {
     res.status(500).json({ message: 'Server error deleting item' });
   }
 };
+
+// GCash Payment Controllers
+
+// Submit GCash payment proof
+export const submitGcashPayment = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const { paymentProof, referenceId } = req.body;
+  const orderModel = new Order(db);
+
+  try {
+    // Validate required fields
+    if (!paymentProof) {
+      return res.status(400).json({ message: 'Payment proof is required' });
+    }
+
+    // Get user ID from authenticated user
+    const userId = req.user ? req.user.user_id : null;
+
+    // Get order to verify ownership and payment method
+    const order = await orderModel.getById(orderId, userId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.paymentMethod !== 'gcash') {
+      return res.status(400).json({ message: 'Order payment method is not GCash' });
+    }
+
+    if (order.payment_status === 'approved') {
+      return res.status(400).json({ message: 'Payment has already been approved' });
+    }
+
+    // Submit payment proof
+    await orderModel.submitPaymentProof(orderId, paymentProof, referenceId);
+
+    // Get updated order
+    const updatedOrder = await orderModel.getById(orderId, userId);
+
+    // Emit WebSocket notification for payment submission
+    if (req.io) {
+      const notificationData = {
+        orderId,
+        paymentProof,
+        referenceId,
+        message: 'GCash payment proof submitted',
+        timestamp: new Date().toISOString()
+      };
+
+      req.io.emit('gcash-payment-submitted', notificationData);
+
+      // Send to admin users
+      req.io.emit('admin-notification', {
+        type: 'gcash_payment_submitted',
+        orderId,
+        customerName: order.name,
+        message: `New GCash payment submitted by ${order.name}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({
+      message: 'GCash payment proof submitted successfully',
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Error submitting GCash payment:', error);
+    if (error.message === 'Order not found or not a GCash payment') {
+      return res.status(404).json({ message: 'Order not found or not a GCash payment' });
+    }
+    res.status(500).json({ message: 'Server error submitting payment' });
+  }
+};
+
+// Review GCash payment (admin only)
+export const reviewGcashPayment = (db) => async (req, res) => {
+  const orderId = req.params.id;
+  const { status, adminNotes } = req.body;
+  const orderModel = new Order(db);
+
+  try {
+    // Validate status
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Status must be "approved" or "rejected"' });
+    }
+
+    // Get order
+    const order = await orderModel.getById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.paymentMethod !== 'gcash') {
+      return res.status(400).json({ message: 'Order payment method is not GCash' });
+    }
+
+    // Update payment status
+    await orderModel.updateGcashPaymentStatus(orderId, status);
+
+    // If approved, also update the general paymentStatus to 'paid'
+    if (status === 'approved') {
+      await orderModel.updatePaymentStatus(orderId, 'paid');
+    }
+
+    // Get updated order
+    const updatedOrder = await orderModel.getById(orderId);
+
+    // Emit WebSocket notification for payment review
+    if (req.io) {
+      const notificationData = {
+        orderId,
+        status,
+        adminNotes,
+        message: `GCash payment ${status}`,
+        timestamp: new Date().toISOString()
+      };
+
+      req.io.emit('gcash-payment-reviewed', notificationData);
+
+      // Send to specific user if userId is provided
+      if (updatedOrder.user_id) {
+        req.io.to(`user_${updatedOrder.user_id}`).emit('your-gcash-payment-reviewed', {
+          orderId,
+          status,
+          message: `Your GCash payment has been ${status}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    res.json({
+      message: `GCash payment ${status} successfully`,
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Error reviewing GCash payment:', error);
+    if (error.message === 'Order not found or not a GCash payment') {
+      return res.status(404).json({ message: 'Order not found or not a GCash payment' });
+    }
+    res.status(500).json({ message: 'Server error reviewing payment' });
+  }
+};

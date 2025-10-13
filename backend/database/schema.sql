@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS orders (
   photos JSON, -- Store photo URLs as JSON array
   totalPrice DECIMAL(10, 2) NOT NULL,
   paymentStatus ENUM('unpaid', 'paid') DEFAULT 'unpaid',
+  payment_proof VARCHAR(255), -- File path for uploaded payment proof
+  payment_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending', -- GCash payment approval status
   user_id INT, -- Reference to users table if order is from registered user
   -- New fields for order details from pickup
   estimatedClothes INT,

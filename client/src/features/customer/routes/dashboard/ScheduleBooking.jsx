@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import SocketClient from '../../components/SocketClient';
 import RealTimeUpdates from '../../components/RealTimeUpdates';
 import StatusIcon from '../../components/StatusIcon';
+import GcashPaymentModal from '../../components/GcashPaymentModal';
 
 import OrderDetailsModal from "../../components/OrderDetailsModal";
 
@@ -51,6 +52,33 @@ const ScheduleBooking = () => {
   // Booking counts state
   const [bookingCounts, setBookingCounts] = useState({});
   const [bookingCountsLoading, setBookingCountsLoading] = useState(true);
+
+  // GCash Payment Modal state
+  const [showGcashModal, setShowGcashModal] = useState(false);
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null);
+
+  // Handle GCash payment submission
+  const handleGcashPaymentSubmit = async (paymentData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('referenceNumber', paymentData.referenceNumber);
+      formData.append('proof', paymentData.proof);
+      formData.append('orderId', selectedOrderForPayment.id);
+
+      await axios.post('http://localhost:8800/api/payments/gcash', formData, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true
+      });
+
+      alert('Payment submitted successfully! Please wait for admin approval.');
+      setShowGcashModal(false);
+      // Optionally refresh orders or update local state
+    } catch (error) {
+      console.error('Error submitting payment:', error);
+      alert('Failed to submit payment. Please try again.');
+    }
+  };
 
   // Booking form state
   const [formData, setFormData] = useState({
@@ -1049,7 +1077,6 @@ const ScheduleBooking = () => {
                       <div className="flex space-x-2">
                         {order.status === 'pending' && (
                           <>
-                           
                             <button
                               onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
                               className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
@@ -1057,6 +1084,18 @@ const ScheduleBooking = () => {
                               Cancel
                             </button>
                           </>
+                        )}
+                        {(order.status === 'approved' || order.status === 'ready_for_payment') && order.paymentMethod === 'gcash' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOrderForPayment(order);
+                              setShowGcashModal(true);
+                            }}
+                            className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                          >
+                            Pay with GCash
+                          </button>
                         )}
                       </div>
                     </div>
@@ -1080,12 +1119,12 @@ const ScheduleBooking = () => {
       {showPaymentDetailsModal && (
         <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-         
+
             <div className="bg-gray-100 p-4 rounded mb-4 text-sm text-gray-700">
-           
+
               <ul className="list-disc list-inside mt-2">
                 <li>GCash</li>
-               
+
               </ul>
             </div>
             <div className="bg-yellow-100 p-3 rounded text-yellow-800 text-sm mb-4">
@@ -1107,6 +1146,16 @@ const ScheduleBooking = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* GCash Payment Modal */}
+      {showGcashModal && selectedOrderForPayment && (
+        <GcashPaymentModal
+          isOpen={showGcashModal}
+          onClose={() => setShowGcashModal(false)}
+          amount={selectedOrderForPayment.totalPrice}
+          onSubmit={handleGcashPaymentSubmit}
+        />
       )}
 
       {/* Real-time Updates Components */}

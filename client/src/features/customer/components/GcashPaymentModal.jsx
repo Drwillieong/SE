@@ -1,26 +1,60 @@
 import React, { useState } from "react";
-
-const GcashPaymentModal = ({ isOpen, onClose, amount, onSubmit }) => {
+import QR from "../../../assets/ExampleQR.jpg";
+const GcashPaymentModal = ({ isOpen, onClose, amount, orderId, onSubmit }) => {
   const [referenceNumber, setReferenceNumber] = useState("");
   const [proof, setProof] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!referenceNumber || !proof) {
-      alert("Please fill in all fields.");
+      setError("Please fill in all fields.");
       return;
     }
 
-    const paymentData = {
-      referenceNumber,
-      proof,
-      amount,
-    };
+    setLoading(true);
+    setError("");
 
-    onSubmit(paymentData);
-    onClose();
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication required. Please log in again.');
+        return;
+      }
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('referenceId', referenceNumber);
+      formData.append('paymentProof', proof);
+
+      const response = await fetch(`http://localhost:8800/api/orders/${orderId}/gcash-payment`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        onSubmit(result);
+        onClose();
+        // Reset form
+        setReferenceNumber("");
+        setProof(null);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to submit payment proof');
+      }
+    } catch (error) {
+      console.error('Error submitting payment:', error);
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -37,7 +71,7 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, onSubmit }) => {
         {/* Header */}
         <div className="text-center mb-4">
           <img
-            src="/gcash-logo.png"
+          
             alt="GCash"
             className="w-24 mx-auto mb-2"
           />
@@ -52,7 +86,7 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, onSubmit }) => {
         {/* QR Code Section */}
         <div className="flex justify-center mb-4">
           <img
-            src="/gcash-qr.png"
+             src={QR}
             alt="GCash QR"
             className="w-48 h-48 border rounded-lg"
           />
@@ -68,7 +102,7 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, onSubmit }) => {
           </p>
           <p className="text-gray-700">
             <span className="font-medium">Account Name:</span>{" "}
-            <span className="font-semibold">Juan Dela Cruz</span>
+            <span className="font-semibold">Kayleen Jackie P. Bolado</span>
           </p>
           <p className="text-gray-700 mt-2">
             <span className="font-medium">Amount:</span>{" "}
@@ -95,7 +129,7 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, onSubmit }) => {
               placeholder="e.g., 123456789012"
               value={referenceNumber}
               onChange={(e) => setReferenceNumber(e.target.value)}
-              required
+             
             />
           </div>
 
@@ -117,12 +151,20 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, onSubmit }) => {
             />
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="text-red-600 text-sm text-center mb-2">
+              {error}
+            </div>
+          )}
+
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Submit Payment
+            {loading ? 'Submitting...' : 'Submit Payment'}
           </button>
         </form>
 

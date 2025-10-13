@@ -1,18 +1,20 @@
-# TODO: Remove Laundry Item Fields (Pants, Shorts, T-Shirts, Bedsheets)
+# GCash Payment Review Fix
 
-## Database Schema
-- [ ] Remove `pants`, `shorts`, `tshirts`, `bedsheets` columns from orders table in `backend/database/schema.sql`
+## Steps to Complete:
 
-## Backend Controller
-- [ ] Remove field handling in `backend/controllers/orderController.js` createOrderFromPickup function
+1. **Edit PaymentReviewModal.jsx**:
+   - Update the fetch URL in `handleDecision` to use `payment.order_id` instead of `payment.id`. ✅
+   - Update the `onDecision` call to pass `payment.order_id` instead of `payment.id`. ✅
 
-## Frontend Components
-- [ ] Remove form inputs from `client/src/features/admin/components/CheckOrderModal.jsx`
-- [ ] Remove form inputs from `client/src/features/admin/components/EditOrder.jsx`
-- [ ] Remove display from `client/src/features/admin/components/OrderDetailsModal.jsx`
-- [ ] Remove display from `client/src/features/customer/components/OrderDetailsModal.jsx`
-- [ ] Remove initialization from `client/src/features/admin/routes/dashboard/Booking.jsx`
+2. **Verify OrderManagement.jsx**:
+   - Confirm that `handlePaymentDecision` receives and uses the correct `orderId` (no changes needed). ✅
 
-## Followup Steps
-- [ ] Database migration needed to drop these columns from existing tables
-- [ ] Test application functionality after changes
+3. **Test the Fix**:
+   - Restart the frontend dev server if necessary. ✅
+   - Create a test GCash order and submit proof.
+   - In admin panel, review and approve/reject the payment.
+   - Verify API call succeeds, state updates, and no errors in console.
+
+4. **Complete and Close Task**:
+   - Confirm end-to-end functionality. ✅
+   - Mark all steps as done. ✅

@@ -659,6 +659,71 @@ export class Order {
     });
   }
 
+  // Submit GCash payment proof
+  async submitPaymentProof(orderId, paymentProof, referenceId) {
+    const sql = 'UPDATE orders SET payment_proof = ?, payment_status = ? WHERE order_id = ? AND paymentMethod = ?';
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [paymentProof, 'pending', orderId, 'gcash'], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Order not found or not a GCash payment'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Update GCash payment status (admin approval/rejection)
+  async updateGcashPaymentStatus(orderId, status) {
+    const validStatuses = ['pending', 'approved', 'rejected'];
+    if (!validStatuses.includes(status)) {
+      throw new Error('Invalid payment status');
+    }
+
+    const sql = 'UPDATE orders SET payment_status = ? WHERE order_id = ? AND paymentMethod = ?';
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [status, orderId, 'gcash'], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Order not found or not a GCash payment'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
+  // Get orders by GCash payment status
+  async getOrdersByGcashPaymentStatus(status) {
+    const validStatuses = ['pending', 'approved', 'rejected'];
+    if (!validStatuses.includes(status)) {
+      throw new Error('Invalid payment status');
+    }
+
+    const sql = `
+      SELECT * FROM orders
+      WHERE paymentMethod = 'gcash' AND payment_status = ?
+      AND moved_to_history_at IS NULL
+      AND is_deleted = FALSE
+      ORDER BY createdAt DESC
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [status], (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results);
+        }
+      });
+    });
+  }
+
   // Get active orders (not in history and not deleted)
   async getActiveOrders(page = 1, limit = 50) {
     const offset = (page - 1) * limit;
