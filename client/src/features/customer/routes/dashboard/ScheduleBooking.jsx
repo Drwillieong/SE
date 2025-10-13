@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import SocketClient from '../../components/SocketClient';
-import RealTimeUpdates from '../../components/RealTimeUpdates';
 import StatusIcon from '../../components/StatusIcon';
 import GcashPaymentModal from '../../components/GcashPaymentModal';
-
+import main from "../../../../assets/logo.png";
+import washing from "../../../../assets/logo.png";
 import OrderDetailsModal from "../../components/OrderDetailsModal";
 
 // Define free pickup barangays and their fees
@@ -58,22 +57,50 @@ const ScheduleBooking = () => {
   const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null);
 
   // Handle GCash payment submission
-  const handleGcashPaymentSubmit = async (paymentData) => {
+  const handleGcashPaymentSubmit = async (paymentData, orderId) => {
     try {
       const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('referenceId', paymentData.referenceNumber);
-      formData.append('proof', paymentData.proof);
+      const payload = {
+        referenceId: paymentData.referenceNumber,
+        proof: paymentData.proof
+      };
 
-      const orderId = selectedOrderForPayment.order_id || selectedOrderForPayment.id;
-      await axios.post(`http://localhost:8800/api/orders/${orderId}/gcash-payment`, formData, {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true
+      await axios.post(`http://localhost:8800/api/orders/${orderId}/gcash-payment`, payload, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
 
       alert('Payment submitted successfully! Please wait for admin approval.');
       setShowGcashModal(false);
-      // Optionally refresh orders or update local state
+
+      // Refresh orders and bookings data to get updated order_id after booking conversion
+      const [bookingsRes, ordersRes] = await Promise.all([
+        axios.get('http://localhost:8800/api/bookings', {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
+        }),
+        axios.get('http://localhost:8800/api/orders?page=1&limit=100', {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
+        })
+      ]);
+
+      const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
+      const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
+
+      // Merge bookings with order statuses
+      const mergedData = bookingsData.map(booking => {
+        const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
+        if (matchingOrder) {
+          return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
+        }
+        return booking;
+      });
+
+      // Add direct orders that don't have matching bookings
+      const directOrders = ordersData.filter(order => !order.bookingId || !bookingsData.find(booking => Number(booking.booking_id || booking.id) === Number(order.bookingId)));
+      const allOrders = [...mergedData, ...directOrders.map(order => ({ ...order, id: order.order_id, order_id: order.order_id }))];
+
+      setOrders(allOrders);
     } catch (error) {
       console.error('Error submitting payment:', error);
       alert('Failed to submit payment. Please try again.');
@@ -258,7 +285,7 @@ const ScheduleBooking = () => {
         const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
 
         // Fetch orders to get status for completed bookings
-        const ordersRes = await axios.get('http://localhost:8800/api/orders', {
+        const ordersRes = await axios.get('http://localhost:8800/api/orders?page=1&limit=100', {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 10000,
           withCredentials: true
@@ -585,11 +612,14 @@ const ScheduleBooking = () => {
     console.log('Booking converted to order:', bookingData);
     // Handle when admin converts booking to order - set status to 'pending' as order starts with pending status
     setOrders(prevOrders =>
-      prevOrders.map(order =>
-        order.id === bookingData.id || order.booking_id === bookingData.bookingId ?
-          { ...order, ...bookingData, status: 'pending' } :
-          order
-      )
+      prevOrders.map(order => {
+        // Match by the original booking ID. The `order.id` on the client is the booking's ID.
+        if (Number(order.id) === Number(bookingData.bookingId)) {
+          // This is the booking that was converted. Update it to become an order.
+          return { ...order, status: 'pending', order_id: bookingData.order_id, paymentStatus: 'unpaid', payment_status: 'pending' };
+        }
+        return order;
+      })
     );
   };
 
@@ -628,7 +658,20 @@ const ScheduleBooking = () => {
     <div className="min-h-fit bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-pink-600 mb-8">Laundry Booking</h1>
-
+        
+        {/* Hero Banner Image to Attract Customers */}
+<div className="mb-8 rounded-lg overflow-hidden shadow-lg relative">
+  <img 
+      src={main}
+    alt="Professional Laundry and Dry Cleaning Services" 
+    className="w-full h-48 object-cover" 
+  />
+  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+  <div className="relative p-6 bg-white">
+    <h2 className="text-2xl font-bold text-pink-600 mb-2">Fresh, Clean, and Delivered to Your Door</h2>
+    <p className="text-gray-600">Book your laundry pickup today and enjoy hassle-free service with a smile!</p>
+  </div>
+</div>
         {/* Tabs */}
         <div className="flex border-b mb-6">
           <button
@@ -652,7 +695,14 @@ const ScheduleBooking = () => {
             <div className="p-6">
               <div className="mb-6">
                 <h2 className="text-xl font-bold mb-4">Choose Your Service</h2>
-
+                {/* Service Selection Image */}
+<div className="mb-6 text-center">
+  <img 
+      src={washing}
+    alt="Laundry Services" 
+    className="mx-auto w-full max-w-md h-32 object-cover rounded-lg shadow-md" 
+  />
+</div>
           {/* Main Services */}
 <div className="mb-6">
   <h3 className="text-lg font-semibold mb-3">Laundry Services</h3>
@@ -705,6 +755,14 @@ const ScheduleBooking = () => {
                 {/* Dry Cleaning Services */}
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-3">Dry Cleaning Services (Optional)</h3>
+                  {/* Dry Cleaning Image */}
+<div className="mb-4 text-center">
+  <img 
+    src={main}
+    alt="Dry Cleaning Services" 
+    className="mx-auto w-full max-w-sm h-24 object-cover rounded-lg shadow-md" 
+  />
+</div> 
                   <div className="space-y-3">
                     {dryCleaningServices.map(service => (
                       <div
@@ -1057,6 +1115,13 @@ const ScheduleBooking = () => {
               ) : (
                 orders.map((order, index) => (
                   <div key={order.id || index} className="p-6 cursor-pointer" onClick={() => setEditingOrder(order)}>
+                    {/* Debugging: Log order properties relevant to payment button visibility */}
+                    {console.log(`Order ID: ${order.id || index}`, {
+                      order_id: order.order_id,
+                      paymentMethod: order.paymentMethod,
+                      paymentStatus: order.paymentStatus,
+                      status: order.status
+                    })}
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium">
@@ -1082,7 +1147,7 @@ const ScheduleBooking = () => {
                       <div className="flex space-x-2">
                         {order.status === 'pending' && (
                           <>
-                            <button
+                            <button // This button is for cancelling a booking before it becomes an order
                               onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
                               className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                             >
@@ -1091,6 +1156,8 @@ const ScheduleBooking = () => {
                           </>
                         )}
                         {order.paymentMethod === 'gcash' &&
+                          ((order.order_id && (order.paymentStatus === 'unpaid' || order.paymentStatus === 'gcash_pending')) ||
+                           (!order.order_id && order.status === 'approved')) &&
                           order.status !== 'completed' &&
                           order.status !== 'cancelled' && (
                           <button
@@ -1161,26 +1228,12 @@ const ScheduleBooking = () => {
           isOpen={showGcashModal}
           onClose={() => setShowGcashModal(false)}
           amount={selectedOrderForPayment.totalPrice}
-          orderId={selectedOrderForPayment.order_id}
+          orderId={selectedOrderForPayment.order_id || selectedOrderForPayment.id}
           onSubmit={handleGcashPaymentSubmit}
         />
       )}
 
-      {/* Real-time Updates Components */}
-      <SocketClient
-        userId={user?.id}
-        userRole="user"
-        onOrderUpdate={handleOrderUpdate}
-        onBookingUpdate={handleOrderUpdate}
-        onNotification={(notification) => console.log('Notification:', notification)}
-        onNewOrder={handleNewOrder}
-        onBookingToOrder={handleBookingToOrder}
-        onBookingCountsUpdate={updateBookingCounts}
-      />
-      <RealTimeUpdates
-        orders={orders}
-        onOrderUpdate={handleOrderUpdate}
-      />
+
     </div>
   );
 };

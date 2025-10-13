@@ -187,37 +187,115 @@ DEFAULT_GENERATED on update CURRENT_TIMESTAMP
 ALTER TABLE bookings ADD INDEX idx_pickup_date (pickupDate);
 
 
-CREATE TABLE IF NOT EXISTS bookings (
-  booking_id INT AUTO_INCREMENT PRIMARY KEY,
-  mainService ENUM('fullService', 'washDryFold') NOT NULL,
-  dryCleaningServices JSON, -- Store array of dry cleaning service IDs as JSON
-  pickupDate DATE NOT NULL,
-  pickupTime ENUM('7am-10am', '5pm-7pm') NOT NULL,
-  loadCount INT NOT NULL DEFAULT 1,
-  instructions TEXT,
-  status ENUM('pending', 'approved', 'rejected','cancelled') DEFAULT 'pending',
-  rejectionReason TEXT,
-  paymentMethod ENUM('cash', 'gcash', 'card') NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  contact VARCHAR(20) NOT NULL,
-  email VARCHAR(255),
-  address TEXT NOT NULL,
-  photos JSON, -- Store photo URLs as JSON array
-  totalPrice DECIMAL(10, 2) NOT NULL,
-  user_id INT, -- Reference to users table if order is from registered user
-  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  serviceOption varchar(50),
-  deliveryFee decimal(10,2),
-  -- History tracking fields
-  moved_to_history_at DATETIME NULL,
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at DATETIME NULL,
-  INDEX idx_status (status),
-  INDEX idx_created_at (createdAt),
-  INDEX idx_user_id (user_id),
-  INDEX idx_pickup_date (pickupDate),
-  INDEX idx_moved_to_history (moved_to_history_at),
-  INDEX idx_is_deleted (is_deleted),
-  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
-);
+Field
+Type
+Null
+Key
+Default
+Extra
+booking_id
+int
+NO
+PRI
+NULL
+auto_increment
+mainService
+enum('fullService','washDryFold')
+NO
+NULL
+dryCleaningServices
+json
+YES
+NULL
+pickupDate
+date
+NO
+MUL
+NULL
+pickupTime
+enum('7am-10am','5pm-7pm')
+NO
+NULL
+loadCount
+int
+NO
+1
+instructions
+text
+YES
+NULL
+status
+enum('pending','approved','rejected','cancelled')
+YES
+MUL
+pending
+rejectionReason
+text
+YES
+NULL
+paymentMethod
+enum('cash','gcash','card')
+NO
+NULL
+name
+varchar(255)
+NO
+NULL
+contact
+varchar(20)
+NO
+NULL
+email
+varchar(255)
+YES
+NULL
+address
+text
+NO
+NULL
+photos
+json
+YES
+NULL
+totalPrice
+decimal(10,2)
+NO
+NULL
+user_id
+int
+YES
+MUL
+NULL
+createdAt
+timestamp
+YES
+MUL
+CURRENT_TIMESTAMP
+DEFAULT_GENERATED
+updatedAt
+timestamp
+YES
+CURRENT_TIMESTAMP
+DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+serviceOption
+varchar(50)
+YES
+NULL
+deliveryFee
+decimal(10,2)
+YES
+NULL
+moved_to_history_at
+datetime
+YES
+MUL
+NULL
+is_deleted
+tinyint(1)
+YES
+MUL
+0
+deleted_at
+datetime
+YES
+NULL

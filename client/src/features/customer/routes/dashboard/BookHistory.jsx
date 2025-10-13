@@ -5,10 +5,22 @@ import OrderDetailsModal from "../../components/OrderDetailsModal";
 const OrderHistory = () => {
     const navigate = useNavigate();
     const [items, setItems] = useState([]);
+    const [filteredItems, setFilteredItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortBy, setSortBy] = useState('newest');
     const socketRef = useRef(null);
+
+    // History type options for filtering (adapted for user: all, booking, order)
+    const historyTypeOptions = [
+        { value: 'all', label: 'All History' },
+        { value: 'booking', label: 'Bookings' },
+        { value: 'order', label: 'Orders' }
+    ];
 
     useEffect(() => {
         fetchItems();
@@ -20,6 +32,45 @@ const OrderHistory = () => {
             }
         };
     }, []);
+
+    // Filter and sort items when dependencies change
+    useEffect(() => {
+        let filtered = [...items];
+
+        // Apply type filter
+        if (typeFilter !== 'all') {
+            filtered = filtered.filter(item => item.type === typeFilter);
+        }
+
+        // Apply search filter
+        if (searchTerm) {
+            filtered = filtered.filter(item =>
+                getItemService(item)?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                getItemId(item)?.toString().includes(searchTerm) ||
+                item.instructions?.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        // Apply sorting
+        switch (sortBy) {
+            case 'newest':
+                filtered.sort((a, b) => new Date(b.createdAt || b.created_at) - new Date(a.createdAt || a.created_at));
+                break;
+            case 'oldest':
+                filtered.sort((a, b) => new Date(a.createdAt || a.created_at) - new Date(b.createdAt || b.created_at));
+                break;
+            case 'service':
+                filtered.sort((a, b) => (getItemService(a) || '').localeCompare(getItemService(b) || ''));
+                break;
+            case 'status':
+                filtered.sort((a, b) => (a.status || '').localeCompare(b.status || ''));
+                break;
+            default:
+                break;
+        }
+
+        setFilteredItems(filtered);
+    }, [items, typeFilter, searchTerm, sortBy]);
 
     const setupWebSocket = () => {
         const token = localStorage.getItem('token');
@@ -68,6 +119,7 @@ const OrderHistory = () => {
         try {
             const token = localStorage.getItem('token');
             if (!token) {
+                setError('No authentication token found. Please log in again.');
                 navigate('/login');
                 return;
             }
@@ -123,8 +175,10 @@ const OrderHistory = () => {
 
             console.log('Combined items:', allItems);
             setItems(allItems);
+            setError(null);
         } catch (error) {
             console.error('Error fetching items:', error);
+            setError('Network error. Please check your connection and try again.');
         } finally {
             setLoading(false);
         }
@@ -132,12 +186,30 @@ const OrderHistory = () => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'pending': return 'bg-yellow-200 text-yellow-800';
-            case 'approved': return 'bg-green-200 text-green-800';
-            case 'rejected': return 'bg-red-200 text-red-800';
-            case 'completed': return 'bg-blue-200 text-blue-800';
-            case 'cancelled': return 'bg-gray-200 text-gray-800';
-            default: return 'bg-gray-200 text-gray-800';
+            case 'pending':
+            case 'approved':
+                return 'bg-green-100 text-green-800';
+            case 'rejected':
+                return 'bg-red-100 text-red-800';
+            case 'completed':
+                return 'bg-blue-100 text-blue-800';
+            case 'cancelled':
+            case 'deleted':
+                return 'bg-gray-100 text-gray-800';
+            default:
+                return 'bg-blue-100 text-blue-800';
+        }
+    };
+
+    // Type icon mapping (adapted from admin)
+    const getTypeIcon = (type) => {
+        switch (type) {
+            case 'order':
+                return '📦';
+            case 'booking':
+                return '📅';
+            default:
+                return '📋';
         }
     };
 
@@ -165,12 +237,40 @@ const OrderHistory = () => {
         }
     };
 
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
+    const formatPrice = (price) => {
+        if (price === null || price === undefined) return 'N/A';
+        return `₱${Number(price).toLocaleString()}`;
+    };
+
     if (loading) {
         return (
+            <div className="flex items-center justify-center h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full text-pink-600"></div>
-                    <p className="mt-2">Loading orders...</p>
+                <div className="text-center text-red-600">
+                    <p className="text-lg font-semibold mb-4">Error loading history</p>
+                    <p>{error}</p>
+                    <button
+                        onClick={fetchItems}
+                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                        Retry
+                    </button>
                 </div>
             </div>
         );
@@ -178,66 +278,142 @@ const OrderHistory = () => {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-8">My Order History</h1>
+            {/* Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
+                <h1 className="text-3xl font-bold text-gray-800">My Booking History</h1>
+            </div>
 
-            {items.length === 0 ? (
-                <div className="text-center py-8">
-                    <p className="text-gray-500">No orders found.</p>
-                    <p className="text-sm text-gray-400 mt-2">Your submitted bookings and orders will appear here.</p>
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {items.map((item) => (
-                        <div
-                            key={`${item.type}-${getItemId(item)}`}
-                            className="bg-white rounded-lg shadow p-6 border cursor-pointer hover:shadow-lg transition-shadow"
-                            onClick={() => handleItemClick(item)}
+            {/* Filters and Search */}
+            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div className="flex flex-col md:flex-row gap-4">
+                    {/* Search */}
+                    <div className="flex-1">
+                        <input
+                            type="text"
+                            placeholder="Search by service, ID, or instructions..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    {/* Type Filter */}
+                    <div className="md:w-48">
+                        <select
+                            value={typeFilter}
+                            onChange={(e) => setTypeFilter(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <h3 className="text-lg font-semibold">
-                                            {getItemTypeLabel(item.type)} #{getItemId(item)}
-                                        </h3>
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
-                                            {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                                        </span>
-                                    </div>
+                            {historyTypeOptions.map(option => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <p><span className="font-medium">Service:</span> {getItemService(item)}</p>
-                                            <p><span className="font-medium">Pickup:</span> {item.pickupDate} at {item.pickupTime}</p>
-                                            <p><span className="font-medium">Loads:</span> {item.loadCount || 1}</p>
-                                        </div>
-                                        <div>
-                                            <p><span className="font-medium">Total Price:</span> ₱{item.totalPrice}</p>
-                                            <p><span className="font-medium">Payment:</span> {item.paymentMethod}</p>
-                                            <p><span className="font-medium">Created:</span> {new Date(item.createdAt || item.created_at).toLocaleDateString()}</p>
-                                        </div>
-                                    </div>
-
-                                    {item.instructions && (
-                                        <div className="mt-3">
-                                            <p className="font-medium text-sm">Instructions:</p>
-                                            <p className="text-sm text-gray-600">{item.instructions}</p>
-                                        </div>
-                                    )}
-
-                                    {item.status === 'rejected' && item.rejectionReason && (
-                                        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-                                            <p className="font-medium text-red-800 text-sm">Rejection Reason:</p>
-                                            <p className="text-red-700 text-sm mt-1">{item.rejectionReason}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                    {/* Sort By */}
+                    <div className="md:w-48">
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="service">By Service</option>
+                            <option value="status">By Status</option>
+                        </select>
+                    </div>
                 </div>
-            )}
+            </div>
 
-          
+            {/* History Table */}
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                {filteredItems.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">
+                        <p className="text-lg">No history items found</p>
+                        <p className="text-sm">Try adjusting your search or filter criteria</p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Item Details
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Service
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Status
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Price
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Created
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {filteredItems.map((item) => (
+                                    <tr key={`${item.type}-${getItemId(item)}`} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleItemClick(item)}>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div>
+                                                <button
+                                                    className="text-sm font-medium text-blue-600 hover:text-blue-900 hover:underline cursor-pointer flex items-center gap-2"
+                                                >
+                                                    <span>{getTypeIcon(item.type)}</span>
+                                                    {getItemTypeLabel(item.type)} #{getItemId(item)}
+                                                </button>
+                                                <div className="text-sm text-gray-500">
+                                                    Created: {formatDate(item.createdAt || item.created_at)}
+                                                </div>
+                                                {item.pickupDate && (
+                                                    <div className="text-sm text-gray-500">
+                                                        Pickup: {item.pickupDate} at {item.pickupTime}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm text-gray-900">
+                                                {getItemService(item) || 'N/A'}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                Loads: {item.loadCount || 1}
+                                            </div>
+                                            {item.instructions && (
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    Instructions: {item.instructions}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+                                                {item.status?.charAt(0).toUpperCase() + item.status?.slice(1) || 'Unknown'}
+                                            </span>
+                                            {item.status === 'rejected' && item.rejectionReason && (
+                                                <div className="text-xs text-red-600 mt-1">
+                                                    Reason: {item.rejectionReason}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {formatPrice(item.totalPrice)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {formatDate(item.createdAt || item.created_at)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
 
             {/* Order Details Modal */}
             <OrderDetailsModal

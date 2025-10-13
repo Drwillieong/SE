@@ -660,11 +660,11 @@ export class Order {
   }
 
   // Submit GCash payment proof
-  async submitPaymentProof(orderId, paymentProof, referenceId) {
-    const sql = 'UPDATE orders SET payment_proof = ?, payment_status = ? WHERE order_id = ? AND paymentMethod = ?';
+  async submitPaymentProof(orderId, paymentProof, referenceNumber) {
+    const sql = 'UPDATE orders SET payment_proof = ?, reference_id = ?, payment_status = ? WHERE order_id = ? AND paymentMethod = ?';
 
     return new Promise((resolve, reject) => {
-      this.db.query(sql, [paymentProof, 'pending', orderId, 'gcash'], (err, result) => {
+      this.db.query(sql, [paymentProof, referenceNumber, 'pending', orderId, 'gcash'], (err, result) => {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
@@ -761,3 +761,4 @@ export class Order {
     });
   }
 }
+

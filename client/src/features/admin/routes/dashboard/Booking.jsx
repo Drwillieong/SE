@@ -195,6 +195,7 @@ const Booking = () => {
     return () => clearInterval(intervalId);
   }, []);
 
+  
   // Function to sort approved bookings
   const sortApprovedBookings = (bookings) => {
     let sorted = [...bookings];
@@ -962,12 +963,9 @@ const Booking = () => {
 
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full text-pink-600"></div>
-        <p className="mt-2">Loading bookings...</p>
-      </div>
-    </div>
+    <div className="flex items-center justify-center h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+            </div>
   );
 
   if (error) return (

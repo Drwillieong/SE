@@ -7,7 +7,7 @@ import PaymentReviewModal from '../../components/PaymentReviewModal';
 import TimerDisplay from '../../components/TimerDisplay';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import StatusIcon from '../../components/StatusIcon';
-import SocketClient from '../../../customer/components/SocketClient';
+
 
 // Initialize modal
 Modal.setAppElement('#root');
@@ -576,12 +576,9 @@ const OrderManagement = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full text-pink-600"></div>
-          <p className="mt-2">Loading orders...</p>
-        </div>
-      </div>
+      <div className="flex items-center justify-center h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+            </div>
     );
   }
 
@@ -859,8 +856,11 @@ const OrderManagement = () => {
 
       {/* Payment Review Modal */}
       <PaymentReviewModal
-        isOpen={!!selectedPayment}
-        onClose={() => setSelectedPayment(null)}
+        isOpen={paymentReviewModalOpen}
+        onClose={() => {
+          setSelectedPayment(null);
+          setPaymentReviewModalOpen(false);
+        }}
         payment={selectedPayment}
         onDecision={handlePaymentDecision}
       />

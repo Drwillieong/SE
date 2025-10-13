@@ -8,15 +8,6 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, orderId, onSubmit }) => {
 
   if (!isOpen) return null;
 
-  const convertToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = error => reject(error);
-    });
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!referenceNumber || !proof) {
@@ -28,13 +19,26 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, orderId, onSubmit }) => {
     setError('');
 
     try {
-      // Convert image to base64
-      const base64Image = await convertToBase64(proof);
+      // Convert image file to base64
+      const base64Image = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(proof);
+      });
 
-      onSubmit({ referenceNumber, proof: base64Image });
-      // The parent component will handle closing and loading state
+      const paymentData = {
+        referenceNumber,
+        proof: base64Image
+      };
+
+      await onSubmit(paymentData, orderId);
+      onClose();
+      alert('Payment submitted successfully! Please wait for admin approval.');
     } catch (error) {
-      setError('Failed to process image. Please try again.');
+      console.error('Error submitting payment:', error);
+      alert('Failed to submit payment. Please try again.');
+    } finally {
       setLoading(false);
     }
   };

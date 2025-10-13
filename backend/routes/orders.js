@@ -40,7 +40,7 @@ export default (db) => {
     router.get('/status/:status', verifyToken, getOrdersByStatus(db));
 
     // Submit GCash payment proof
-    router.post('/:id/gcash-payment', verifyToken, multerUpload.single('proof'), submitGcashPayment(db));
+    router.post('/:id/gcash-payment', verifyToken, submitGcashPayment(db));
 
     return router;
 };

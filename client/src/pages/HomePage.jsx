@@ -9,7 +9,7 @@ import AboutService from '../components/Homepage/AboutService';
 import FaqSection from '../components/Homepage/FaqSection';
 import HowItWorks from '../components/Homepage/HowItWorks';
 import AboutOurFees from '../components/Homepage/AboutOurFees';
-import backgroundImage from '../assets/laundrytub.jpg';
+import backgroundImage from '../assets/Selfservice.png';
 import basket from '../assets/basket.png'; 
 
 const HomePage = () => {

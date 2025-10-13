@@ -50,12 +50,9 @@ function App() {
                 </ProtectedRoute>
             ),
             children: [
-                {
-                    index: true,
-                    element: <Analytics />,
-                },
-                {
+                {   
                     path: "analytics",
+                    index: true,
                     element: <Analytics />,
                 },
               
