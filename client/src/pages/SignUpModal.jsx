@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import facebookpng from "../assets/facebook.png";
 import googlepng from "../assets/goggle.png"; 
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
 const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
   const navigate = useNavigate();
@@ -22,6 +24,9 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
   });
   const [errors, setErrors] = useState({});
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
 
   // Password strength calculator
   useEffect(() => {
@@ -461,7 +466,6 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
                 // Strictly restrict to numeric, starting with 09, max 11 digits
                 let value = e.target.value.replace(/[^0-9]/g, '');
                 if (value.length > 11) value = value.slice(0, 11);
-                if (value && !value.startsWith('09')) value = '';
                 handleChange({ target: { name: 'contact', value } });
               }}
               value={formData.contact}
@@ -480,7 +484,7 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
               id="email"
               name="email"
               placeholder="Enter your email"
-              pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"  // Strict email pattern
+              pattern="[^@]+@[^@]+\.[^@]+"
               title="Please enter a valid email address (e.g., user@example.com)"
               className={`w-full border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
               onChange={handleChange}
@@ -490,69 +494,90 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
             {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
           </div>
 
-          {/* Password with Show/Hide */}
-          <div className="relative">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              type={showPassword ? "text" : "password"}
-              id="password"
-              name="password"
-              placeholder="At least 8 characters"
-              className={`w-full pr-10 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
-              onChange={handleChange}
-              value={formData.password}
-              required
-              minLength="8"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {showPassword ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                )}
-              </svg>
-            </button>
-            {formData.password && <PasswordStrengthIndicator />}
-            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
-          </div>
+         {/* Password with Show/Hide */}
+<div className="relative">
+  <label
+    htmlFor="password"
+    className="block text-sm font-medium text-gray-700 mb-1"
+  >
+    Password
+  </label>
+
+  <div className="relative">
+    <input
+      type={showPassword ? "text" : "password"}
+      id="password"
+      name="password"
+      placeholder="At least 8 characters"
+      className={`w-full pr-12 border ${
+        errors.password ? "border-red-500" : "border-gray-300"
+      } rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
+      onChange={handleChange}
+      value={formData.password}
+      required
+      minLength="8"
+    />
+
+    {/* Eye toggle button */}
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-pink-500 focus:outline-none"
+      style={{ padding: "4px" }}
+    >
+      <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} size="lg" />
+    </button>
+  </div>
+
+  {/* Optional Password Strength Indicator */}
+  {formData.password && <PasswordStrengthIndicator />}
+
+  {/* Error Message */}
+  {errors.password && (
+    <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+  )}
+</div>
+
 
           {/* Confirm Password with Show/Hide */}
-          <div className="relative">
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
-            </label>
-            <input
-              type={showConfirmPassword ? "text" : "password"}
-              id="confirmPassword"
-              name="confirmPassword"
-              placeholder="Re-enter your password"
-              className={`w-full pr-10 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
-              onChange={handleChange}
-              value={formData.confirmPassword}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {showConfirmPassword ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                )}
-              </svg>
-            </button>
-            {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
-          </div>
+<div className="relative">
+  <label
+    htmlFor="confirmPassword"
+    className="block text-sm font-medium text-gray-700 mb-1"
+  >
+    Confirm Password
+  </label>
+  <div className="relative">
+    <input
+      type={showConfirmPassword ? "text" : "password"}
+      id="confirmPassword"
+      name="confirmPassword"
+      placeholder="Re-enter your password"
+      className={`w-full pr-12 border ${
+        errors.confirmPassword ? "border-red-500" : "border-gray-300"
+      } rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all`}
+      onChange={handleChange}
+      value={formData.confirmPassword}
+      required
+    />
+    <button
+      type="button"
+      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-pink-500 focus:outline-none"
+      style={{ padding: "4px" }}
+    >
+      <FontAwesomeIcon
+        icon={showConfirmPassword ? faEyeSlash : faEye}
+        size="lg"
+      />
+    </button>
+  </div>
+
+  {errors.confirmPassword && (
+    <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
+  )}
+</div>
+
 
           {/* Terms */}
           <div className="flex items-start">
