@@ -62,11 +62,19 @@ export const getAllOrders = (db) => async (req, res) => {
       userId ? orderModel.getTotalCountByUser(userId) : orderModel.getTotalCount()
     ]);
 
-    // Ensure photos and laundryPhoto are parsed correctly
+    // Ensure photos, laundryPhoto, and other fields are parsed correctly with defaults
     const transformedOrders = orders.map(order => ({
       ...order,
       photos: typeof order.photos === 'string' ? JSON.parse(order.photos) : order.photos || [],
       laundryPhoto: typeof order.laundryPhoto === 'string' ? JSON.parse(order.laundryPhoto) : order.laundryPhoto || [],
+      paymentStatus: order.paymentStatus || 'unpaid',
+      payment_status: order.payment_status || 'pending',
+      order_id: order.order_id || order.id,
+      status: order.status || 'pending',
+      totalPrice: order.totalPrice || 0,
+      loadCount: order.loadCount || 1,
+      kilos: order.kilos || 0,
+      estimatedClothes: order.estimatedClothes || 0
     }));
 
     // Calculate pagination metadata

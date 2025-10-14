@@ -308,7 +308,7 @@ const ScheduleBooking = () => {
 
         // Add direct orders that don't have matching bookings
         const directOrders = ordersData.filter(order => !order.bookingId || !bookingsData.find(booking => Number(booking.booking_id || booking.id) === Number(order.bookingId)));
-        const allOrders = [...mergedData, ...directOrders.map(order => ({ ...order, id: order.order_id, order_id: order.order_id }))];
+        const allOrders = [...mergedData, ...directOrders.map(order => ({ ...order, id: order.id, order_id: order.id }))];
 
         // --- DEBUGGING LOG ---
         console.log("--- Final Merged Data (Bookings + Orders) ---", allOrders);

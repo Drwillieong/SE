@@ -10,7 +10,7 @@ import FaqSection from '../components/Homepage/FaqSection';
 import HowItWorks from '../components/Homepage/HowItWorks';
 import AboutOurFees from '../components/Homepage/AboutOurFees';
 import backgroundImage from '../assets/Selfservice.png';
-import basket from '../assets/basket.png'; 
+import basket from '../assets/basket.png';
 
 const HomePage = () => {
   const [showSignUpModal, setShowSignUpModal] = useState(false);

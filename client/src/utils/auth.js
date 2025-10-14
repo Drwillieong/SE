@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Set up axios defaults
-const API_BASE_URL = 'http://localhost:8800';
+const API_BASE_URL = 'https://se-production-01e6.up.railway.app';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
