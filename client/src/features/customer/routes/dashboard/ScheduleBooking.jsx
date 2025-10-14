@@ -696,13 +696,7 @@ const ScheduleBooking = () => {
               <div className="mb-6">
                 <h2 className="text-xl font-bold mb-4">Choose Your Service</h2>
                 {/* Service Selection Image */}
-<div className="mb-6 text-center">
-  <img 
-      src={washing}
-    alt="Laundry Services" 
-    className="mx-auto w-full max-w-md h-32 object-cover rounded-lg shadow-md" 
-  />
-</div>
+
           {/* Main Services */}
 <div className="mb-6">
   <h3 className="text-lg font-semibold mb-3">Laundry Services</h3>
@@ -755,14 +749,7 @@ const ScheduleBooking = () => {
                 {/* Dry Cleaning Services */}
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-3">Dry Cleaning Services (Optional)</h3>
-                  {/* Dry Cleaning Image */}
-<div className="mb-4 text-center">
-  <img 
-    src={main}
-    alt="Dry Cleaning Services" 
-    className="mx-auto w-full max-w-sm h-24 object-cover rounded-lg shadow-md" 
-  />
-</div> 
+             
                   <div className="space-y-3">
                     {dryCleaningServices.map(service => (
                       <div

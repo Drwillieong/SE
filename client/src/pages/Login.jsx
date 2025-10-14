@@ -4,6 +4,8 @@ import { useNavigate, Link } from "react-router-dom";
 import pusa from "../assets/pusa.jpeg";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram } from '@fortawesome/free-brands-svg-icons';
+import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -19,6 +21,8 @@ const LoginPage = () => {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+
 
   // Handle Google OAuth callback
   useEffect(() => {
@@ -256,19 +260,33 @@ const LoginPage = () => {
                   autoComplete="username"
                 />
               </div>
-              <div>
-                <label className="text-gray-600">Password</label>
-                <input
-                  type="password"
-                  placeholder="Enter password"
-                  className="w-full p-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-pink-500 transition-all"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  minLength="8"
-                />
-              </div>
+
+              <div className="relative">
+  <label className="text-gray-600">Password</label>
+  <div className="relative">
+    <input
+      type={showPassword ? "text" : "password"}
+      placeholder="Enter password"
+      className="w-full p-3 pr-12 border border-gray-300 rounded-full focus:ring-2 focus:ring-pink-500 transition-all"
+      required
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      autoComplete="current-password"
+      minLength="8"
+    />
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-pink-500 focus:outline-none"
+      style={{ padding: "4px" }}
+    >
+      <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} size="lg" />
+    </button>
+  </div>
+</div>
+
+
+
               <div className="flex justify-between text-sm">
                 <div className="flex items-center">
                   <input 
