@@ -447,7 +447,7 @@ const ScheduleBooking = () => {
       setShowConfirmation(false);
       setEditingOrder(null);
       resetForm();
-      setActiveTab('pickup');
+      setActiveTab('orders');
       // Refresh bookings and orders
       const [bookingsRes, ordersRes] = await Promise.all([
         axios.get('http://localhost:8800/api/bookings', {
@@ -841,7 +841,7 @@ const ScheduleBooking = () => {
                             <div className="text-xs">{date.day}</div>
                             <div className="font-medium">{date.date}</div>
                             <div className="text-xs font-bold">
-                              {isFullyBooked ? 'FULL' : `${date.count}/3`}
+                           
                             </div>
                             {isFullyBooked && (
                               <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 py-0.5 rounded-full font-bold">
