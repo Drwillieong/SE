@@ -353,10 +353,33 @@ export const createOrderFromPickup = (db) => async (req, res) => {
           });
         }
 
-        console.log('Booking moved to history successfully');
+    console.log('Booking moved to history successfully');
       } catch (bookingError) {
         console.error('Error moving booking to history:', bookingError);
         // Don't fail the entire operation if booking update fails
+      }
+    }
+
+    // Send order confirmation email if customer has email
+    if (orderData.email) {
+      try {
+        const { sendOrderConfirmationEmail } = await import('../utils/orderEmail.js');
+        await sendOrderConfirmationEmail(
+          orderData.email,
+          orderData.name,
+          orderId,
+          orderData.kilos,
+          orderData.totalPrice,
+          orderData.laundryPhoto && orderData.laundryPhoto.length > 0 ? orderData.laundryPhoto[0] : null,
+          orderData.paymentMethod,
+          orderData.serviceType,
+          orderData.loadCount
+        );
+        console.log('✅ Order confirmation email sent successfully to:', orderData.email);
+      } catch (emailError) {
+        console.error('❌ Error sending order confirmation email:', emailError.message);
+        // Don't fail the order creation if email fails, just log it
+        console.error('💡 Order was created but confirmation email failed. This is not critical but should be investigated.');
       }
     }
 

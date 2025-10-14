@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configure nodemailer for email sending
-const createTransporter = () => {
+export const createTransporter = () => {
     // Check if environment variables are set
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
         console.error('❌ Email configuration error: EMAIL_USER and EMAIL_PASS environment variables are required');
