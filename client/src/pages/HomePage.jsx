@@ -142,23 +142,23 @@ const HomePage = () => {
       </nav>
       
       {/* Hero Section */}
-      <div className="relative text-left h-[85vh] max-w-[95vw] mx-auto px-10 bg-cover bg-center flex items-center" style={{ backgroundImage: `url(${backgroundImage})` }}>
+      <div className="relative text-left h-[85vh] max-w-[95vw] mx-auto px-4 md:px-10 bg-cover bg-center flex items-center" style={{ backgroundImage: `url(${backgroundImage})` }}>
         {/* Overlay */}
         <div className="absolute inset-0 bg-[#d8acd7] opacity-60 mix-blend-multiply z-0"></div>
 
         {/* Content */}
         <div className="relative max-w-6xl z-10">
-          <h1 className="text-6xl md:text-8xl font-extrabold italic text-white">EVERY LAUNDRY MAKES A DIFFERENCE</h1>
-          <p className="mt-5 text-xl text-white">Drop-off, self-service, pickup & delivery, dry-cleaning. Make laundry day easier!</p>
+          <h1 className="text-4xl md:text-6xl lg:text-8xl font-extrabold italic text-white">EVERY LAUNDRY MAKES A DIFFERENCE</h1>
+          <p className="mt-5 text-lg md:text-xl text-white">Drop-off, self-service, pickup & delivery, dry-cleaning. Make laundry day easier!</p>
           <div
             onClick={() => setShowSignUpModal(true)}
-            className="mt-6 flex items-center rounded-full cursor-pointer bg-white w-[25rem] hover:bg-pink-100 transition duration-300"
+            className="mt-6 flex items-center rounded-full cursor-pointer bg-white w-full max-w-[25rem] hover:bg-pink-100 transition duration-300"
           >
-            <div className="px-8 py-3 border-r text-black font-medium">
+            <div className="px-4 md:px-8 py-3 border-r text-black font-medium text-sm md:text-base">
               Pickup <br /> Now?
             </div>
-            <div className="flex items-center justify-between flex-grow px-6 py-3">
-              <div className="text-black font-semibold">
+            <div className="flex items-center justify-between flex-grow px-4 md:px-6 py-3">
+              <div className="text-black font-semibold text-sm md:text-base">
                 Where? <br /> Add address
               </div>
               <span className="ml-4 w-12 h-12 bg-pink-400 text-white flex items-center justify-center rounded-full transition-transform duration-300 transform hover:scale-110">
@@ -188,24 +188,24 @@ const HomePage = () => {
         <div className="text-white h-80">
           {/* Flexbox Container for Text and Image */}
           <div className="flex flex-col md:flex-row justify-center items-center md:items-start text-center md:text-left relative h-full">
-            
+
             {/* Left Text Section */}
             <div className="flex-1 pr-0 px-6 md:pl-36 mt-4 md:mt-16">
-              <h3 className="text-2xl md:text-5xl font-bold leading-tight">Call for a quick pickup</h3>
-              <p className="text-base md:text-lg">Pick up & Delivery Free</p>
+              <h3 className="text-xl md:text-2xl lg:text-5xl font-bold leading-tight">Call for a quick pickup</h3>
+              <p className="text-sm md:text-base lg:text-lg">Pick up & Delivery Free</p>
             </div>
 
             {/* Image */}
             <img
               src={basket}
               alt="Laundry Basket"
-              className="w-100 md:max-w-[400px] h-auto object-contain my-2 md:my-0 md:-translate-y-28 overflow-hidden"
+              className="w-80 md:max-w-[400px] h-auto object-contain my-2 md:my-0 md:-translate-y-28 overflow-hidden"
             />
 
             {/* Right Text Section */}
             <div className="flex-1 px-6 md:pl-4 md:pr-16 mt-4 md:mt-16">
-              <h3 className="text-2xl md:text-5xl font-bold leading-tight">0968-856-3288</h3>
-              <p className="text-base md:text-lg">Call Now!</p>
+              <h3 className="text-xl md:text-2xl lg:text-5xl font-bold leading-tight">0968-856-3288</h3>
+              <p className="text-sm md:text-base lg:text-lg">Call Now!</p>
             </div>
           </div>
         </div>

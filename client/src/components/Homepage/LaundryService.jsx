@@ -23,7 +23,7 @@ export default function LaundryService() {
         {steps.map((item, index) => (
           <div
             key={index}
-            className="relative bg-white p-20 rounded-lg shadow-xl w-full md:w-1/3 flex flex-col items-center transition-transform duration-300 hover:scale-105 hover:shadow-3xl cursor-pointer"
+            className="relative bg-white p-8 md:p-20 rounded-lg shadow-xl w-full md:w-1/3 flex flex-col items-center transition-transform duration-300 hover:scale-105 hover:shadow-3xl cursor-pointer"
           >
             <div className="absolute -top-16 left-4 text-pink-200 font-extrabold text-9xl select-none">
               {item.step}
