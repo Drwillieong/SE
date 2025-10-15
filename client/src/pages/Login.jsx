@@ -394,7 +394,7 @@ const LoginPage = () => {
                   <button
                     type="button"
                     className="text-gray-500 hover:underline"
-                    onClick={() => setShowResetForm(false)}
+                    onClick={() => setShowResetForm(true)}
                   >
                     Back to Login
                   </button>

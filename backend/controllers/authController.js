@@ -204,11 +204,8 @@ export const resetPassword = (db) => async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired reset token" });
     }
 
-    await userModel.update(user.id, {
-      password,
-      resetToken: null,
-      resetTokenExpiry: null
-    });
+    const hashedPassword = await userModel.hashPassword(password);
+    await userModel.updatePassword(user.user_id, hashedPassword);
 
     console.log(`Password reset successful for user: ${user.email}`);
     res.json({ message: "Password reset successfully. You can now log in with your new password." });
