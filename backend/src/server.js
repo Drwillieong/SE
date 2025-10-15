@@ -243,7 +243,43 @@ db.connect(async (err) => {
             });
         }
     });
+    
 
+            // Check and update the ENUM values for the 'status' column in the 'bookings' table
+            const checkBookingStatusEnumSql = `
+                SELECT COLUMN_TYPE 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = '${process.env.DB_NAME || 'wash'}' 
+                AND TABLE_NAME = 'bookings' 
+                AND COLUMN_NAME = 'status'
+            `;
+            db.query(checkBookingStatusEnumSql, (err, result) => {
+                if (err) {
+                    console.error('Error checking bookings status enum:', err.message);
+                    return;
+                }
+                if (result.length > 0 && !result[0].COLUMN_TYPE.includes('completed')) {
+                    console.log("Updating 'bookings.status' ENUM to include 'completed'...");
+                    const alterTableSql = "ALTER TABLE bookings MODIFY COLUMN status ENUM('pending', 'approved', 'rejected', 'completed', 'cancelled') DEFAULT 'pending'";
+                    db.query(alterTableSql, (err) => {
+                        if (err) console.error("Error updating bookings.status ENUM:", err.message);
+                        else console.log("'bookings.status' ENUM updated successfully.");
+                    });
+                }
+            });
+
+            // Update existing users with role 'customer' to 'user'
+            const updateCustomerRoleSql = "UPDATE users SET role = 'user' WHERE role = 'customer'";
+            db.query(updateCustomerRoleSql, (err, result) => {
+                if (err) {
+                    console.error('Error updating customer roles:', err.message);
+                } else if (result.affectedRows > 0) {
+                    console.log(`Updated ${result.affectedRows} users from role 'customer' to 'user'`);
+                } else {
+                    console.log('No users with role \'customer\' found to update');
+                }
+            });
+   
     // Check if bookings table exists, create it if not
     const checkBookingsTableSql = "SHOW TABLES LIKE 'bookings'";
     db.query(checkBookingsTableSql, (err, result) => {
@@ -291,15 +327,26 @@ db.connect(async (err) => {
         } else {
             console.log('Bookings table exists');
 
-            // Update existing users with role 'customer' to 'user'
-            const updateCustomerRoleSql = "UPDATE users SET role = 'user' WHERE role = 'customer'";
-            db.query(updateCustomerRoleSql, (err, result) => {
+            // Check and update the ENUM values for the 'status' column in the 'bookings' table
+            const checkBookingStatusEnumSql = `
+                SELECT COLUMN_TYPE 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = '${process.env.DB_NAME || 'wash'}' 
+                AND TABLE_NAME = 'bookings' 
+                AND COLUMN_NAME = 'status'
+            `;
+            db.query(checkBookingStatusEnumSql, (err, result) => {
                 if (err) {
-                    console.error('Error updating customer roles:', err.message);
-                } else if (result.affectedRows > 0) {
-                    console.log(`Updated ${result.affectedRows} users from role 'customer' to 'user'`);
-                } else {
-                    console.log('No users with role \'customer\' found to update');
+                    console.error('Error checking bookings status enum:', err.message);
+                    return;
+                }
+                if (result.length > 0 && !result[0].COLUMN_TYPE.includes('completed')) {
+                    console.log("Updating 'bookings.status' ENUM to include 'completed'...");
+                    const alterTableSql = "ALTER TABLE bookings MODIFY COLUMN status ENUM('pending', 'approved', 'rejected', 'completed', 'cancelled') DEFAULT 'pending'";
+                    db.query(alterTableSql, (err) => {
+                        if (err) console.error("Error updating bookings.status ENUM:", err.message);
+                        else console.log("'bookings.status' ENUM updated successfully.");
+                    });
                 }
             });
         }
@@ -435,3 +482,4 @@ app.get('/', (req, res) => {
 app.listen(8800, () => {
     console.log("Connected to backend!");
 });
+   

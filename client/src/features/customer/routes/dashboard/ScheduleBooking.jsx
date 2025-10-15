@@ -61,7 +61,7 @@ const ScheduleBooking = () => {
     try {
       const token = localStorage.getItem('token');
       const payload = {
-        referenceId: paymentData.referenceNumber,
+        referenceNumber: paymentData.referenceNumber,
         proof: paymentData.proof
       };
 
@@ -69,38 +69,18 @@ const ScheduleBooking = () => {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
 
-      alert('Payment submitted successfully! Please wait for admin approval.');
-      setShowGcashModal(false);
-
-      // Refresh orders and bookings data to get updated order_id after booking conversion
-      const [bookingsRes, ordersRes] = await Promise.all([
-        axios.get('http://localhost:8800/api/bookings', {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true
-        }),
-        axios.get('http://localhost:8800/api/orders?page=1&limit=100', {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true
-        })
-      ]);
-
-      const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
-      const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
-
-      // Merge bookings with order statuses
-      const mergedData = bookingsData.map(booking => {
-        const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
-        if (matchingOrder) {
-          return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
-        }
-        return booking;
-      });
-
-      // Add direct orders that don't have matching bookings
-      const directOrders = ordersData.filter(order => !order.bookingId || !bookingsData.find(booking => Number(booking.booking_id || booking.id) === Number(order.bookingId)));
-      const allOrders = [...mergedData, ...directOrders.map(order => ({ ...order, id: order.order_id, order_id: order.order_id }))];
-
-      setOrders(allOrders);
+     
+      
+      // Update the order in the local state to mark it as complete
+      setOrders(prevOrders =>
+        prevOrders.map(order =>
+          (order.order_id === orderId || order.id === orderId)
+            ? { ...order, status: 'completed', paymentStatus: 'paid' }
+            : order
+        )
+      );
+      
+      setShowGcashModal(false); // Close modal on success
     } catch (error) {
       console.error('Error submitting payment:', error);
       alert('Failed to submit payment. Please try again.');
@@ -1215,7 +1195,7 @@ const ScheduleBooking = () => {
           isOpen={showGcashModal}
           onClose={() => setShowGcashModal(false)}
           amount={selectedOrderForPayment.totalPrice}
-          orderId={selectedOrderForPayment.order_id || selectedOrderForPayment.id}
+          orderId={selectedOrderForPayment.order_id || selectedOrderForPayment.booking_id || selectedOrderForPayment.id}
           onSubmit={handleGcashPaymentSubmit}
         />
       )}

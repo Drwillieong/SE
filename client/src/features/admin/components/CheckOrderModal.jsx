@@ -106,14 +106,7 @@ const CheckOrderModal = ({
             >
               Cancel
             </button>
-            <button
-              type="button"
-              onClick={createTestOrder}
-              disabled={creatingOrder}
-              className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50"
-            >
-              {creatingOrder ? 'Creating...' : 'Test Order'}
-            </button>
+           
             <button
               type="submit"
               disabled={creatingOrder}
