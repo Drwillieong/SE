@@ -61,7 +61,7 @@ const ScheduleBooking = () => {
     try {
       const token = localStorage.getItem('token');
       const payload = {
-        referenceId: paymentData.referenceNumber,
+        referenceNumber: paymentData.referenceNumber,
         proof: paymentData.proof
       };
 
@@ -69,38 +69,18 @@ const ScheduleBooking = () => {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
 
-      alert('Payment submitted successfully! Please wait for admin approval.');
-      setShowGcashModal(false);
-
-      // Refresh orders and bookings data to get updated order_id after booking conversion
-      const [bookingsRes, ordersRes] = await Promise.all([
-        axios.get('http://localhost:8800/api/bookings', {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true
-        }),
-        axios.get('http://localhost:8800/api/orders?page=1&limit=100', {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true
-        })
-      ]);
-
-      const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
-      const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
-
-      // Merge bookings with order statuses
-      const mergedData = bookingsData.map(booking => {
-        const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
-        if (matchingOrder) {
-          return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
-        }
-        return booking;
-      });
-
-      // Add direct orders that don't have matching bookings
-      const directOrders = ordersData.filter(order => !order.bookingId || !bookingsData.find(booking => Number(booking.booking_id || booking.id) === Number(order.bookingId)));
-      const allOrders = [...mergedData, ...directOrders.map(order => ({ ...order, id: order.order_id, order_id: order.order_id }))];
-
-      setOrders(allOrders);
+     
+      
+      // Update the order in the local state to mark it as complete
+      setOrders(prevOrders =>
+        prevOrders.map(order =>
+          (order.order_id === orderId || order.id === orderId)
+            ? { ...order, status: 'completed', paymentStatus: 'paid' }
+            : order
+        )
+      );
+      
+      setShowGcashModal(false); // Close modal on success
     } catch (error) {
       console.error('Error submitting payment:', error);
       alert('Failed to submit payment. Please try again.');
@@ -308,7 +288,7 @@ const ScheduleBooking = () => {
 
         // Add direct orders that don't have matching bookings
         const directOrders = ordersData.filter(order => !order.bookingId || !bookingsData.find(booking => Number(booking.booking_id || booking.id) === Number(order.bookingId)));
-        const allOrders = [...mergedData, ...directOrders.map(order => ({ ...order, id: order.order_id, order_id: order.order_id }))];
+        const allOrders = [...mergedData, ...directOrders.map(order => ({ ...order, id: order.id, order_id: order.id }))];
 
         // --- DEBUGGING LOG ---
         console.log("--- Final Merged Data (Bookings + Orders) ---", allOrders);
@@ -447,7 +427,7 @@ const ScheduleBooking = () => {
       setShowConfirmation(false);
       setEditingOrder(null);
       resetForm();
-      setActiveTab('pickup');
+      setActiveTab('orders');
       // Refresh bookings and orders
       const [bookingsRes, ordersRes] = await Promise.all([
         axios.get('http://localhost:8800/api/bookings', {
@@ -696,13 +676,7 @@ const ScheduleBooking = () => {
               <div className="mb-6">
                 <h2 className="text-xl font-bold mb-4">Choose Your Service</h2>
                 {/* Service Selection Image */}
-<div className="mb-6 text-center">
-  <img 
-      src={washing}
-    alt="Laundry Services" 
-    className="mx-auto w-full max-w-md h-32 object-cover rounded-lg shadow-md" 
-  />
-</div>
+
           {/* Main Services */}
 <div className="mb-6">
   <h3 className="text-lg font-semibold mb-3">Laundry Services</h3>
@@ -755,14 +729,7 @@ const ScheduleBooking = () => {
                 {/* Dry Cleaning Services */}
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-3">Dry Cleaning Services (Optional)</h3>
-                  {/* Dry Cleaning Image */}
-<div className="mb-4 text-center">
-  <img 
-    src={main}
-    alt="Dry Cleaning Services" 
-    className="mx-auto w-full max-w-sm h-24 object-cover rounded-lg shadow-md" 
-  />
-</div> 
+             
                   <div className="space-y-3">
                     {dryCleaningServices.map(service => (
                       <div
@@ -854,7 +821,7 @@ const ScheduleBooking = () => {
                             <div className="text-xs">{date.day}</div>
                             <div className="font-medium">{date.date}</div>
                             <div className="text-xs font-bold">
-                              {isFullyBooked ? 'FULL' : `${date.count}/3`}
+                           
                             </div>
                             {isFullyBooked && (
                               <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 py-0.5 rounded-full font-bold">
@@ -1228,7 +1195,7 @@ const ScheduleBooking = () => {
           isOpen={showGcashModal}
           onClose={() => setShowGcashModal(false)}
           amount={selectedOrderForPayment.totalPrice}
-          orderId={selectedOrderForPayment.order_id || selectedOrderForPayment.id}
+          orderId={selectedOrderForPayment.order_id || selectedOrderForPayment.booking_id || selectedOrderForPayment.id}
           onSubmit={handleGcashPaymentSubmit}
         />
       )}

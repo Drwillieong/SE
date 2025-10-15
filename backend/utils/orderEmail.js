@@ -1,71 +1,93 @@
-import { transporter } from './email.js';
+import { createTransporter } from './email.js';
 
-export const sendOrderReadyEmail = async (
-  to,
-  name,
-  orderId,
-  totalKilos,
-  totalPrice,
-  laundryPhotoUrl,
-  paymentMethod,
-  serviceType,
-  loadCount
-) => {
-  // Helper to format names for display
-  const formatPaymentMethod = (method) => {
-    const map = {
-      cash: 'Cash on pickup',
-      gcash: 'GCash',
-      card: 'Credit/Debit Card'
-    };
-    return map[method] || method;
-  };
+// Function to send order confirmation email
+export const sendOrderConfirmationEmail = async (email, name, orderId, kilos, totalPrice, laundryPhoto, paymentMethod, serviceType, loadCount) => {
+    console.log('📤 Attempting to send order confirmation email to:', email);
 
-  const formatServiceType = (type) => {
-    const map = {
-      washDryFold: 'Wash, Dry & Fold',
-      fullService: 'Full Service (Wash, Dry & Fold)'
-    };
-    return map[type] || type;
-  };
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to,
-    subject: `Your Laundry Order #${orderId} is Ready for Washing!`,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-        <h2 style="color: #333;">Your Laundry Order #${orderId} is Ready!</h2>
-        <p>Hi ${name},</p>
-        <p>We have received and weighed your laundry. Here are the details of your order:</p>
-        <div style="background-color: #f9f9f9; border: 1px solid #eee; padding: 15px; border-radius: 5px;">
-          <p><strong>Order ID:</strong> ${orderId}</p>
-          <p><strong>Total Weight:</strong> ${totalKilos} kg</p>
-          <p><strong>Total Price:</strong> ₱${totalPrice.toFixed(2)}</p>
-          <p><strong>Payment Method:</strong> ${formatPaymentMethod(paymentMethod)}</p>
-          <p><strong>Service Type:</strong> ${formatServiceType(serviceType)} (${loadCount} load${loadCount > 1 ? 's' : ''})</p>
-        </div>
-        ${laundryPhotoUrl ? `
-          <p>Please see the photo of your laundry below:</p>
-          <img src="${laundryPhotoUrl}" alt="Laundry Photo" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; padding: 5px;" />
-        ` : ''}
-        <p>Your laundry is now in the queue for washing. We will notify you again once it's ready for delivery or pickup.</p>
-        <p>Thank you for choosing our service!</p>
-        <p>Best regards,<br/>The Laundry Service Team</p>
-      </div>
-    `,
-  };
-
-  try {
+    const transporter = createTransporter();
     if (!transporter) {
-      throw new Error('Email transporter not configured');
+        throw new Error('Email transporter not configured');
     }
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Order ready email sent successfully to: ${to}`);
-  } catch (error) {
-    console.error(`❌ Error sending order ready email to ${to}:`, error.message);
-    // We re-throw the error so the calling function can decide how to handle it.
-    // For example, it might decide to proceed with the order creation even if the email fails.
-    throw new Error(`Failed to send order ready email: ${error.message}`);
-  }
+
+    // Format service type for display
+    const serviceName = serviceType === 'washFold' ? 'Wash & Fold' :
+                       serviceType === 'dryCleaning' ? 'Dry Cleaning' :
+                       serviceType === 'hangDry' ? 'Hang Dry' : 'Laundry Service';
+
+    // Format payment method for display
+    const paymentDisplay = paymentMethod === 'cash' ? 'Cash on Delivery' :
+                          paymentMethod === 'gcash' ? 'GCash' : paymentMethod;
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: `Order Confirmation - Wash It Izzy #${orderId}`,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #007bff;">🎉 Order Confirmed!</h2>
+                <p>Dear ${name},</p>
+                <p>Thank you for choosing Wash It Izzy! Your order has been successfully created and confirmed.</p>
+
+                <div style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                    <h3 style="color: #495057; margin-top: 0;">Order Details:</h3>
+                    <p style="margin-bottom: 5px;"><strong>Order ID:</strong> #${orderId}</p>
+                    <p style="margin-bottom: 5px;"><strong>Service:</strong> ${serviceName}</p>
+                    <p style="margin-bottom: 5px;"><strong>Weight:</strong> ${kilos} kg</p>
+                    <p style="margin-bottom: 5px;"><strong>Load Count:</strong> ${loadCount}</p>
+                    <p style="margin-bottom: 5px;"><strong>Total Price:</strong> ₱${totalPrice?.toLocaleString()}</p>
+                    <p style="margin-bottom: 0;"><strong>Payment Method:</strong> ${paymentDisplay}</p>
+                </div>
+
+                <p><strong>What happens next?</strong></p>
+                <ul>
+                    <li>📞 Our team will contact you to schedule pickup</li>
+                    <li>🚚 We'll collect your laundry at the scheduled time</li>
+                    <li>🧺 Your clothes will be professionally cleaned</li>
+                    <li>📱 You'll receive updates throughout the process</li>
+                </ul>
+
+                <p>If you have any questions or need to make changes to your order, please don't hesitate to contact us:</p>
+                <ul>
+                    <li>📱 Phone: 0968-856-3288</li>
+                    <li>📧 Email: ${process.env.EMAIL_USER}</li>
+                </ul>
+
+                <p>Thank you for trusting Wash It Izzy with your laundry needs!</p>
+
+                <hr style="border: none; border-top: 1px solid #e9ecef; margin: 20px 0;">
+                <p style="color: #6c757d; font-size: 12px;">
+                    This is an automated message from Wash It Izzy. Please do not reply to this email.
+                </p>
+            </div>
+        `
+    };
+
+    // Add laundry photo attachment if available
+    if (laundryPhoto && laundryPhoto.length > 0) {
+        try {
+            // If it's a base64 string, convert it
+            if (laundryPhoto.startsWith('data:image')) {
+                const base64Data = laundryPhoto.replace(/^data:image\/[a-z]+;base64,/, '');
+                mailOptions.attachments = [{
+                    filename: `laundry_photo_order_${orderId}.jpg`,
+                    content: Buffer.from(base64Data, 'base64'),
+                    contentType: 'image/jpeg'
+                }];
+            }
+        } catch (attachmentError) {
+            console.warn('⚠️ Could not attach laundry photo to email:', attachmentError.message);
+            // Continue without attachment
+        }
+    }
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Order confirmation email sent successfully:', info.response);
+        console.log('📧 Message ID:', info.messageId);
+        return info;
+    } catch (error) {
+        console.error('❌ Error sending order confirmation email:', error.message);
+        console.error('🔧 Error details:', error.response || error);
+        throw error;
+    }
 };

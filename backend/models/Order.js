@@ -141,6 +141,11 @@ export class Order {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
+    // Validate and cap totalPrice to prevent database range errors
+    // DECIMAL(10,2) max is 99999999.99
+    const maxTotalPrice = 99999999.99;
+    const validatedTotalPrice = Math.min(Math.max(orderData.totalPrice || 0, 0), maxTotalPrice);
+
     const values = [
       orderData.serviceType,
       orderData.pickupDate,
@@ -154,7 +159,7 @@ export class Order {
       orderData.email || '',
       orderData.address,
       JSON.stringify(orderData.photos || []),
-      orderData.totalPrice || 0,
+      validatedTotalPrice,
       orderData.paymentStatus || 'unpaid',
       orderData.user_id || null,
       orderData.kilos || 0,

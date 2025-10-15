@@ -1,35 +1,37 @@
 import React, { useState } from "react";
 import QR from "../../../assets/ExampleQR.jpg";
+
 const GcashPaymentModal = ({ isOpen, onClose, amount, orderId, onSubmit }) => {
-  const [referenceNumber, setReferenceNumber] = useState("");
-  const [proof, setProof] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const [proof, setProof] = useState(null);
+
+  const toBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!referenceNumber || !proof) {
-      setError("Please fill in all fields.");
+
+    if (!referenceNumber && !proof) {
+      alert('Please provide either a reference number or a payment proof.');
       return;
     }
 
     setLoading(true);
-    setError('');
 
     try {
-      // Convert image file to base64
-      const base64Image = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(proof);
-      });
-
+      const proofBase64 = proof ? await toBase64(proof) : null;
       const paymentData = {
         referenceNumber,
-        proof: base64Image
+        proof: proofBase64,
       };
 
       await onSubmit(paymentData, orderId);
@@ -102,47 +104,33 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, orderId, onSubmit }) => {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Reference Number */}
           <div>
-            <label
-              htmlFor="reference"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Enter GCash Reference Number
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Reference Number
             </label>
             <input
               type="text"
-              id="reference"
-              className="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-blue-200"
-              placeholder="e.g., 123456789012"
               value={referenceNumber}
               onChange={(e) => setReferenceNumber(e.target.value)}
-             
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter GCash reference number"
             />
           </div>
 
-          {/* Upload Proof */}
+          {/* Payment Proof */}
           <div>
-            <label
-              htmlFor="proof"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Upload Proof of Payment
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Payment Proof (Screenshot)
             </label>
             <input
               type="file"
-              id="proof"
               accept="image/*"
-              className="w-full text-sm text-gray-600"
               onChange={(e) => setProof(e.target.files[0])}
-              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Please provide either a Reference Number or a Payment Proof.
+            </p>
           </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="text-red-600 text-sm text-center mb-2">
-              {error}
-            </div>
-          )}
 
           {/* Submit Button */}
           <button
@@ -150,12 +138,12 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, orderId, onSubmit }) => {
             disabled={loading}
             className="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? 'Submitting...' : 'Submit Payment'}
+            {loading ? 'Sending...' : 'Send Payment Notification'}
           </button>
         </form>
 
         <p className="text-xs text-center text-gray-500 mt-3">
-          Please make sure your reference number or screenshot is clear.
+          Click to notify admin that payment has been sent.
         </p>
       </div>
     </div>

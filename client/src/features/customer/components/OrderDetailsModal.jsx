@@ -206,14 +206,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Payment Status</label>
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    selectedOrder.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {selectedOrder.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-                  </span>
-                </div>
+              
               </div>
             </div>
           </div>
@@ -315,38 +308,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
           </div>
         )}
 
-        {/* Status Progress Indicator */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6" data-testid="order-progress">
-          <h4 className="text-lg font-semibold text-gray-800 mb-4">Order Progress</h4>
-          <div className="flex items-center space-x-2">
-            {['pending', 'washing', 'drying', 'folding', 'ready', 'completed'].map((status, index) => (
-              <React.Fragment key={status}>
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium ${
-                  ['pending', 'washing', 'drying', 'folding', 'ready', 'completed'].indexOf(selectedOrder.status) >= index
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {getStatusIcon(status)}
-                </div>
-                {index < 5 && (
-                  <div className={`h-0.5 w-8 ${
-                    ['pending', 'washing', 'drying', 'folding', 'ready', 'completed'].indexOf(selectedOrder.status) > index
-                      ? 'bg-blue-500'
-                      : 'bg-gray-200'
-                  }`} />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-          <div className="flex justify-between mt-2 text-xs text-gray-600">
-            <span>Pending</span>
-            <span>Washing</span>
-            <span>Drying</span>
-            <span>Folding</span>
-            <span>Ready</span>
-            <span>Completed</span>
-          </div>
-        </div>
+      
 
         {/* Rejection Reason */}
         {selectedOrder.status === 'rejected' && selectedOrder.rejectionReason && (

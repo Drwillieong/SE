@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowRight, faArrowLeft, faStar, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons'; // Added faEye and faEyeSlash
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -9,6 +11,8 @@ const ResetPassword = () => {
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [token, setToken] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // State for toggling new password visibility
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // State for toggling confirm password visibility
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -45,7 +49,7 @@ const ResetPassword = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8800/reset-password', {
+      const response = await axios.post('http://localhost:8800/auth/reset-password', {
         token,
         password
       });
@@ -96,29 +100,44 @@ const ResetPassword = () => {
           <p className="text-center text-gray-500 font-semibold mb-6">Wash It Izzy</p>
 
           <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
-            <div>
+            <div className="relative"> {/* Wrapper for positioning the toggle button */}
               <label className="text-gray-600">New Password</label>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}  // Toggle type
                 placeholder="Enter new password"
-                className="w-full p-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-pink-500 transition-all"
+                className="w-full p-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-pink-500 transition-all pl-4 pr-12"  // Added padding for the icon
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 minLength="8"
               />
+              <button
+                type="button"  // Not a submit button
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-11 right-3 flex items-center text-gray-500 hover:text-pink-500 focus:outline-none"
+              >
+                <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />  {/* Toggle icon */}
+              </button>
             </div>
-            <div>
+
+            <div className="relative"> {/* Wrapper for positioning the toggle button */}
               <label className="text-gray-600">Confirm New Password</label>
               <input
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}  // Toggle type
                 placeholder="Confirm new password"
-                className="w-full p-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-pink-500 transition-all"
+                className="w-full p-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-pink-500 transition-all pl-4 pr-12"  // Added padding for the icon
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 minLength="8"
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute inset-y-11 right-3 flex items-center text-gray-500 hover:text-pink-500 focus:outline-none"
+              >
+                <FontAwesomeIcon icon={showConfirmPassword ? faEyeSlash : faEye} />  {/* Toggle icon */}
+              </button>
             </div>
 
             {error && (

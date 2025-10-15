@@ -2,7 +2,7 @@ import { useState } from "react";
 import wash from "/src/assets/wash.png";
 import dry from "/src/assets/Dry.png";
 import selfService from "/src/assets/Selfservice.png";
-
+import first from "/src/assets/Latest bg.jpg";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowRight, faCheck } from '@fortawesome/free-solid-svg-icons';
 import SignUpModal from '../../pages/SignUpModal';
@@ -15,7 +15,7 @@ const services = {
       "Save time and enjoy clean clothes at your door."
     ],
     pricing: "28 pesos per kilo for regular clothes, or 199 pesos for 7 kilos or less. Detergent and fabric conditioner included.",
-    image: wash,
+    image: first,
   },
   "Dry Cleaning": {
     title: "Dry Cleaning",
@@ -50,7 +50,7 @@ const services = {
       "Extra Wash(38 minutes): 75 pesos",
       "Extra Rinse & Spin(28 minutes): 45 pesos"
     ],
-    image: selfService, // Reuse image, or add a new one if available
+    image: wash, // Reuse image, or add a new one if available
   },
 };
 

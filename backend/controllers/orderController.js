@@ -62,11 +62,19 @@ export const getAllOrders = (db) => async (req, res) => {
       userId ? orderModel.getTotalCountByUser(userId) : orderModel.getTotalCount()
     ]);
 
-    // Ensure photos and laundryPhoto are parsed correctly
+    // Ensure photos, laundryPhoto, and other fields are parsed correctly with defaults
     const transformedOrders = orders.map(order => ({
       ...order,
       photos: typeof order.photos === 'string' ? JSON.parse(order.photos) : order.photos || [],
       laundryPhoto: typeof order.laundryPhoto === 'string' ? JSON.parse(order.laundryPhoto) : order.laundryPhoto || [],
+      paymentStatus: order.paymentStatus || 'unpaid',
+      payment_status: order.payment_status || 'pending',
+      order_id: order.order_id || order.id,
+      status: order.status || 'pending',
+      totalPrice: order.totalPrice || 0,
+      loadCount: order.loadCount || 1,
+      kilos: order.kilos || 0,
+      estimatedClothes: order.estimatedClothes || 0
     }));
 
     // Calculate pagination metadata
@@ -326,14 +334,13 @@ export const createOrderFromPickup = (db) => async (req, res) => {
   const bookingId = parseInt(req.body.bookingId || req.body.booking_id);
     if (bookingId) {
       try {
-        console.log('Moving booking to history as converted to order for booking ID:', bookingId);
-        const updateResult = await bookingModel.moveToHistory(bookingId, 'converted_to_order');
-        console.log('Booking move to history result:', updateResult);
-
-        // Verify the update worked
-        const updatedBooking = await bookingModel.getById(bookingId);
-        console.log('Updated booking status:', updatedBooking ? updatedBooking.status : 'NOT FOUND');
-        console.log('Updated booking moved_to_history_at:', updatedBooking ? updatedBooking.moved_to_history_at : 'NOT FOUND');
+        // Only mark the booking as 'completed' if the payment method is 'cash'.
+        // For other methods like GCash, it will remain 'approved' until payment is made.
+        if (orderData.paymentMethod === 'cash') {
+          console.log(`Updating booking status to 'completed' for cash payment booking ID: ${bookingId}`);
+          await bookingModel.update(bookingId, { status: 'completed' });
+          console.log(`✅ Booking ${bookingId} status updated to: completed.`);
+        }
 
         // Emit WebSocket notification for booking conversion
         if (req.io) {
@@ -345,10 +352,33 @@ export const createOrderFromPickup = (db) => async (req, res) => {
           });
         }
 
-        console.log('Booking moved to history successfully');
+        console.log('Booking conversion processed successfully.');
       } catch (bookingError) {
         console.error('Error moving booking to history:', bookingError);
         // Don't fail the entire operation if booking update fails
+      }
+    }
+
+    // Send order confirmation email if customer has email
+    if (orderData.email) {
+      try {
+        const { sendOrderConfirmationEmail } = await import('../utils/orderEmail.js');
+        await sendOrderConfirmationEmail(
+          orderData.email,
+          orderData.name,
+          orderId,
+          orderData.kilos,
+          orderData.totalPrice,
+          orderData.laundryPhoto && orderData.laundryPhoto.length > 0 ? orderData.laundryPhoto[0] : null,
+          orderData.paymentMethod,
+          orderData.serviceType,
+          orderData.loadCount
+        );
+        console.log('✅ Order confirmation email sent successfully to:', orderData.email);
+      } catch (emailError) {
+        console.error('❌ Error sending order confirmation email:', emailError.message);
+        // Don't fail the order creation if email fails, just log it
+        console.error('💡 Order was created but confirmation email failed. This is not critical but should be investigated.');
       }
     }
 
@@ -893,40 +923,32 @@ export const softDeleteItem = (db) => async (req, res) => {
 
 // GCash Payment Controllers
 
-// Submit GCash payment proof
+// Submit GCash payment notification (email only, no DB storage)
 export const submitGcashPayment = (db) => async (req, res) => {
-  const orderId = req.params.id;
-  const { referenceNumber, proof } = req.body;
+  const itemId = req.params.id;
   const orderModel = new Order(db);
   const bookingModel = new Booking(db);
+  const { referenceNumber, proof } = req.body;
 
   try {
-    // Validate required fields
-    if (!proof) {
-      return res.status(400).json({ message: 'Payment proof is required' });
-    }
-
-    if (!referenceNumber) {
-      return res.status(400).json({ message: 'Reference ID is required' });
-    }
-
     // Get user ID from authenticated user
-    const userId = req.user ? req.user.user_id : null;
+    const userId = req.user?.user_id;
 
     // Try to get order first
-    let order = await orderModel.getById(orderId, userId);
+    let item = await orderModel.getById(itemId, userId);
 
-    if (!order) {
+    if (!item) {
       // If not found as order, try as booking
-      const booking = await bookingModel.getById(orderId);
+      const booking = await bookingModel.getById(itemId);
       if (booking && booking.status === 'approved' && booking.paymentMethod === 'gcash') {
         // Check if user owns the booking
         if (booking.user_id !== userId) {
           return res.status(403).json({ message: 'Not authorized to pay for this booking' });
         }
 
-        // Create order from booking
-        const orderData = {
+        // Map booking to order-like object for email
+        item = {
+          order_id: `B-${booking.id}`, // Use a prefixed booking ID for clarity
           serviceType: booking.mainService === 'washDryFold' ? 'washFold' : booking.mainService,
           pickupDate: booking.pickupDate,
           pickupTime: booking.pickupTime,
@@ -944,105 +966,32 @@ export const submitGcashPayment = (db) => async (req, res) => {
           estimatedClothes: 0,
           kilos: 0,
           laundryPhoto: [],
-          bookingId: booking.booking_id
+          bookingId: booking.id
         };
-
-        const newOrderId = await orderModel.create(orderData);
-
-        // Move booking to history
-        await bookingModel.moveToHistory(booking.booking_id, 'converted_to_order');
-
-        // Emit WebSocket notifications
-        if (req.io) {
-          req.io.emit('booking-converted-to-order', {
-            bookingId: booking.booking_id,
-            orderId: newOrderId,
-            message: 'Booking converted to order',
-            timestamp: new Date().toISOString()
-          });
-
-          if (booking.user_id) {
-            req.io.to(`user_${booking.user_id}`).emit('your-booking-converted-to-order', {
-              order_id: newOrderId,
-              bookingId: booking.booking_id,
-              message: 'Your booking has been converted to an order',
-              timestamp: new Date().toISOString()
-            });
-          }
-        }
-
-        // Get the new order
-        order = await orderModel.getById(newOrderId, userId);
-        orderId = newOrderId; // Update orderId for payment processing
       } else {
         return res.status(404).json({ message: 'Order or approved GCash booking not found' });
       }
     }
 
-    if (order.paymentMethod !== 'gcash') {
-      return res.status(400).json({ message: 'Order payment method is not GCash' });
+    // Send email notification to admin
+    if (item.bookingId && String(item.order_id).startsWith('B-')) {
+      // This is a booking. Update its status to 'completed'.
+      await bookingModel.update(item.bookingId, { status: 'completed' });
+      console.log(`✅ Booking ${item.bookingId} status updated to completed.`);
+    } else if (item.order_id) {
+      // This is an order. Update its payment status.
+      await orderModel.update(item.order_id, { paymentStatus: 'paid', status: 'completed' });
+      console.log(`✅ Order ${item.order_id} status updated to completed.`);
     }
 
-    if (order.payment_status === 'approved') {
-      return res.status(400).json({ message: 'Payment has already been approved' });
-    }
+    // Send email notification to admin
+    const { sendGcashPaymentNotificationEmail } = await import('../utils/gcashEmail.js');
+    await sendGcashPaymentNotificationEmail(item, referenceNumber, proof);
+    console.log('✅ GCash payment notification email sent to admin');
 
-    // Save base64 image to file
-    const fs = await import('fs');
-    const path = await import('path');
-
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const filename = `gcash_payment_${orderId}_${timestamp}.png`;
-    const filepath = path.join(uploadsDir, filename);
-
-    // Remove data URL prefix and save
-    const base64Data = proof.replace(/^data:image\/[a-z]+;base64,/, '');
-    fs.writeFileSync(filepath, base64Data, 'base64');
-
-    // Submit payment proof
-    await orderModel.submitPaymentProof(orderId, filename, referenceNumber);
-
-    // Get updated order
-    const updatedOrder = await orderModel.getById(orderId, userId);
-
-    // Emit WebSocket notification for payment submission
-    if (req.io) {
-      const notificationData = {
-        order_id: orderId,
-        paymentProof: filename,
-        reference_id: referenceNumber,
-        message: 'GCash payment proof submitted',
-        timestamp: new Date().toISOString()
-      };
-
-      req.io.emit('gcash-payment-submitted', notificationData);
-
-      // Send to admin users
-      req.io.emit('admin-notification', {
-        type: 'gcash_payment_submitted',
-        order_id: orderId,
-        customerName: order.name,
-        message: `New GCash payment submitted by ${order.name}`,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    res.json({
-      message: 'GCash payment proof submitted successfully',
-      order: updatedOrder
-    });
+    res.json({ message: 'GCash payment notification sent successfully' });
   } catch (error) {
     console.error('Error submitting GCash payment:', error);
-    if (error.message === 'Order not found or not a GCash payment') {
-      return res.status(404).json({ message: 'Order not found or not a GCash payment' });
-    }
     res.status(500).json({ message: 'Server error submitting payment' });
   }
 };
