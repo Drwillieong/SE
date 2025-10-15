@@ -23,7 +23,7 @@ const connectionConfig = {
 
 // In production (like on Render), Aiven requires an SSL certificate.
 if (process.env.NODE_ENV === "production") {
-  const caPath = "/etc/secrets/AIVEN_CA_CERT";
+mmit -  const caPath = "/etc/secrets/AIVEN_CA_CERT";
   console.log(`Production environment detected. Loading SSL certificate from ${caPath}`);
   if (fs.existsSync(caPath)) {
     console.log("✅ Found AIVEN_CA_CERT secret file.");
