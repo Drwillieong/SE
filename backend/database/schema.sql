@@ -30,272 +30,85 @@ USE wash;
    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
  );
 
--- Orders table for customer orders
-Field
-Type
-Null
-Key
-Default
-Extra
-order_id
-int
-NO
-PRI
-NULL
-auto_increment
-serviceType
-enum('washFold','dryCleaning','hangDry')
-NO
-NULL
-pickupDate
-date
-NO
-MUL
-NULL
-pickupTime
-enum('7am-10am','5pm-7pm')
-NO
-NULL
-loadCount
-int
-NO
-1
-instructions
-text
-YES
-NULL
-status
-enum('pending','washing','drying','folding','ready','completed')
-YES
-MUL
-pending
-rejectionReason
-text
-YES
-NULL
-paymentMethod
-enum('cash','gcash','card')
-NO
-NULL
-name
-varchar(255)
-NO
-NULL
-contact
-varchar(20)
-NO
-NULL
-email
-varchar(255)
-YES
-NULL
-address
-text
-NO
-NULL
-photos
-json
-YES
-NULL
-totalPrice
-decimal(10,2)
-NO
-NULL
-paymentStatus
-enum('unpaid','paid')
-YES
-unpaid
-payment_proof
-varchar(255)
-YES
-NULL
-reference_id
-varchar(255)
-YES
-NULL
-payment_status
-enum('pending','approved','rejected')
-YES
-pending
-user_id
-int
-YES
-MUL
-NULL
-estimatedClothes
-int
-YES
-NULL
-kilos
-decimal(5,2)
-YES
-NULL
-laundryPhoto
-json
-YES
-NULL
-bookingId
-int
-YES
-NULL
-timer_start
-datetime
-YES
-NULL
-timer_end
-datetime
-YES
-NULL
-auto_advance_enabled
-tinyint(1)
-YES
-0
-current_timer_status
-varchar(20)
-YES
-NULL
-moved_to_history_at
-datetime
-YES
-MUL
-NULL
-is_deleted
-tinyint(1)
-YES
-MUL
-0
-deleted_at
-datetime
-YES
-NULL
-createdAt
-timestamp
-YES
-MUL
-CURRENT_TIMESTAMP
-DEFAULT_GENERATED
-updatedAt
-timestamp
-YES
-CURRENT_TIMESTAMP
-DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+
+
+
+-CREATE TABLE orders (
+  order_id INT NOT NULL AUTO_INCREMENT,
+  serviceType ENUM('washFold', 'dryCleaning', 'hangDry') NOT NULL,
+  pickupDate DATE NOT NULL,
+  pickupTime ENUM('7am-10am', '5pm-7pm') NOT NULL,
+  loadCount INT NOT NULL DEFAULT 1,
+  instructions TEXT DEFAULT NULL,
+  status ENUM('pending', 'washing', 'drying', 'folding', 'ready', 'completed') DEFAULT 'pending',
+  rejectionReason TEXT DEFAULT NULL,
+  paymentMethod ENUM('cash', 'gcash', 'card') NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  contact VARCHAR(20) NOT NULL,
+  email VARCHAR(255) DEFAULT NULL,
+  address TEXT NOT NULL,
+  photos JSON DEFAULT NULL,
+  totalPrice DECIMAL(10,2) NOT NULL,
+  paymentStatus ENUM('unpaid', 'paid') DEFAULT 'unpaid',
+  payment_proof VARCHAR(255) DEFAULT NULL,
+  reference_id VARCHAR(255) DEFAULT NULL,
+  payment_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  user_id INT DEFAULT NULL,
+  estimatedClothes INT DEFAULT NULL,
+  kilos DECIMAL(5,2) DEFAULT NULL,
+  laundryPhoto JSON DEFAULT NULL,
+  bookingId INT DEFAULT NULL,
+  timer_start DATETIME DEFAULT NULL,
+  timer_end DATETIME DEFAULT NULL,
+  auto_advance_enabled TINYINT(1) DEFAULT 0,
+  current_timer_status VARCHAR(20) DEFAULT NULL,
+  moved_to_history_at DATETIME DEFAULT NULL,
+  is_deleted TINYINT(1) DEFAULT 0,
+  deleted_at DATETIME DEFAULT NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (order_id),
+  KEY idx_pickupDate (pickupDate),
+  KEY idx_status (status),
+  KEY idx_user_id (user_id),
+  KEY idx_moved_to_history_at (moved_to_history_at),
+  KEY idx_is_deleted (is_deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 
 
 
 
 -- Add index on pickupDate for bookings table
-ALTER TABLE bookings ADD INDEX idx_pickup_date (pickupDate);
-
-
-Field
-Type
-Null
-Key
-Default
-Extra
-booking_id
-int
-NO
-PRI
-NULL
-auto_increment
-mainService
-enum('fullService','washDryFold')
-NO
-NULL
-dryCleaningServices
-json
-YES
-NULL
-pickupDate
-date
-NO
-MUL
-NULL
-pickupTime
-enum('7am-10am','5pm-7pm')
-NO
-NULL
-loadCount
-int
-NO
-1
-instructions
-text
-YES
-NULL
-status
-enum('pending','approved','rejected','cancelled')
-YES
-MUL
-pending
-rejectionReason
-text
-YES
-NULL
-paymentMethod
-enum('cash','gcash','card')
-NO
-NULL
-name
-varchar(255)
-NO
-NULL
-contact
-varchar(20)
-NO
-NULL
-email
-varchar(255)
-YES
-NULL
-address
-text
-NO
-NULL
-photos
-json
-YES
-NULL
-totalPrice
-decimal(10,2)
-NO
-NULL
-user_id
-int
-YES
-MUL
-NULL
-createdAt
-timestamp
-YES
-MUL
-CURRENT_TIMESTAMP
-DEFAULT_GENERATED
-updatedAt
-timestamp
-YES
-CURRENT_TIMESTAMP
-DEFAULT_GENERATED on update CURRENT_TIMESTAMP
-serviceOption
-varchar(50)
-YES
-NULL
-deliveryFee
-decimal(10,2)
-YES
-NULL
-moved_to_history_at
-datetime
-YES
-MUL
-NULL
-is_deleted
-tinyint(1)
-YES
-MUL
-0
-deleted_at
-datetime
-YES
-NULL
+CREATE TABLE bookings (
+  booking_id INT NOT NULL AUTO_INCREMENT,
+  mainService ENUM('fullService', 'washDryFold') NOT NULL,
+  dryCleaningServices JSON DEFAULT NULL,
+  pickupDate DATE NOT NULL,
+  pickupTime ENUM('7am-10am', '5pm-7pm') NOT NULL,
+  loadCount INT NOT NULL DEFAULT 1,
+  instructions TEXT DEFAULT NULL,
+  status ENUM('pending', 'approved', 'rejected', 'completed', 'cancelled') DEFAULT 'pending',
+  rejectionReason TEXT DEFAULT NULL,
+  paymentMethod ENUM('cash', 'gcash', 'card') NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  contact VARCHAR(20) NOT NULL,
+  email VARCHAR(255) DEFAULT NULL,
+  address TEXT NOT NULL,
+  photos JSON DEFAULT NULL,
+  totalPrice DECIMAL(10,2) NOT NULL,
+  user_id INT DEFAULT NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  serviceOption VARCHAR(50) DEFAULT NULL,
+  deliveryFee DECIMAL(10,2) DEFAULT NULL,
+  moved_to_history_at DATETIME DEFAULT NULL,
+  is_deleted TINYINT(1) DEFAULT 0,
+  deleted_at DATETIME DEFAULT NULL,
+  PRIMARY KEY (booking_id),
+  KEY idx_pickupDate (pickupDate),
+  KEY idx_status (status),
+  KEY idx_user_id (user_id),
+  KEY idx_moved_to_history_at (moved_to_history_at),
+  KEY idx_is_deleted (is_deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

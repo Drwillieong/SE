@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import mysql from 'mysql';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import passport from 'passport';
@@ -12,6 +11,7 @@ import bookingRoutes from '../routes/bookings.js';
 import orderRoutes from '../routes/orders.js';
 import analyticsRoutes from '../routes/analytics.js';
 import { initializeGoogleStrategy } from '../config/googleOAuth.js';
+import db from "../config/db.js";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -30,10 +30,15 @@ app.use(cors({
         if (process.env.FRONTEND_URL) {
             allowedOrigins.push(process.env.FRONTEND_URL);
         }
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
+        // Allow all origins in development, restrict in production
+        if (process.env.NODE_ENV === 'production') {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
         } else {
-            callback(new Error('Not allowed by CORS'));
+            callback(null, true);
         }
     },
     credentials: true,
@@ -60,24 +65,16 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-const db = mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'admin123',
-    database: process.env.DB_NAME || 'wash'
-});
+
 
 // Test database connection
 db.connect(async (err) => {
     if (err) {
         console.error('Database connection failed:', err.message);
         console.error('Please ensure:');
-        console.error('1. MySQL server is running on localhost');
-        console.error('2. Database "wash" exists');
-        console.error('3. User "root" has password "admin123"');
         return;
     }
-    console.log('Connected to MySQL database');
+    
 
     // Initialize Google OAuth strategy
     initializeGoogleStrategy(db);
