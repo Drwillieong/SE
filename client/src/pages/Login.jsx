@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram } from '@fortawesome/free-brands-svg-icons';
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8800';
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -41,7 +42,7 @@ const LoginPage = () => {
 
           // Fetch user data using the token
           console.log('LoginPage: Fetching user data from /auth/me');
-          const userResponse = await axios.get('http://localhost:8800/auth/me');
+          const userResponse = await axios.get(`${API_URL}/auth/me`);
           console.log('LoginPage: User data received:', userResponse.data);
 
           // Store the user data in localStorage
@@ -99,7 +100,7 @@ const LoginPage = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:8800/auth/login', {
+      const response = await axios.post(`${API_URL}/auth/login`, {
         email,
         password
       });
@@ -162,7 +163,7 @@ const LoginPage = () => {
     setResendMessage("");
     
     try {
-      const response = await axios.post('http://localhost:8800/auth/resend-verification', {
+      const response = await axios.post(`${API_URL}/auth/resend-verification`, {
         email: emailForVerification
       });
       
@@ -198,7 +199,7 @@ const LoginPage = () => {
 
     try {
       // Call your backend password reset endpoint
-      const response = await axios.post('http://localhost:8800/auth/forgot-password', {
+      const response = await axios.post(`${API_URL}/auth/forgot-password`, {
         email: resetEmail
       });
       
