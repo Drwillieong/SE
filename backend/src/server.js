@@ -30,10 +30,15 @@ app.use(cors({
         if (process.env.FRONTEND_URL) {
             allowedOrigins.push(process.env.FRONTEND_URL);
         }
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
+        // Allow all origins in development, restrict in production
+        if (process.env.NODE_ENV === 'production') {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
         } else {
-            callback(new Error('Not allowed by CORS'));
+            callback(null, true);
         }
     },
     credentials: true,
@@ -60,12 +65,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-const db = mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'admin123',
-    database: process.env.DB_NAME || 'wash'
-});
+
 
 // Test database connection
 db.connect(async (err) => {
