@@ -102,13 +102,13 @@ export default function AboutService() {
           </div>
           <div
           onClick={() => setShowSignUpModal(true)}
-          className="mt-8 flex items-center rounded-full cursor-pointer shadow-md bg-white w-[25rem] hover:bg-pink-100 transition duration-300"
+          className="mt-8 flex items-center rounded-full cursor-pointer shadow-md bg-white w-full max-w-[25rem] hover:bg-pink-100 transition duration-300"
           >
-          <div className="px-8 py-3 border-r text-black font-medium">
+          <div className="px-4 md:px-8 py-3 border-r text-black font-medium text-sm md:text-base">
           Pickup <br /> Now?
           </div>
-          <div className="flex items-center justify-between flex-grow px-6 py-3">
-          <div className="text-black font-semibold">
+          <div className="flex items-center justify-between flex-grow px-4 md:px-6 py-3">
+          <div className="text-black font-semibold text-sm md:text-base">
           Where? <br /> Add address
           </div>
           <span className="ml-4 w-12 h-12 bg-pink-400 text-white flex items-center justify-center rounded-full transition-transform duration-300 transform hover:scale-110">
