@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import mysql from 'mysql';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import passport from 'passport';
