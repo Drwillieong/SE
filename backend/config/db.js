@@ -1,6 +1,6 @@
 import mysql from "mysql2";
 import dotenv from "dotenv";
-import db from "../config/db.js";
+
 if (process.env.NODE_ENV !== "production") {
   dotenv.config();
 }
@@ -18,12 +18,10 @@ const db = mysql.createConnection({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   port: process.env.DB_PORT,
-  ssl: {
-    rejectUnauthorized: true, // Aiven requires SSL
-  },
+  ssl: { rejectUnauthorized: true },
 });
 
-db.connect(err => {
+db.connect((err) => {
   if (err) {
     console.error("❌ Database connection failed:", err.message);
   } else {
