@@ -75,7 +75,7 @@ db.connect(async (err) => {
         console.error('Please ensure:');
         return;
     }
-    console.log('Connected to MySQL database');
+    
 
     // Initialize Google OAuth strategy
     initializeGoogleStrategy(db);
