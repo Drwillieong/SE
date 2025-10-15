@@ -58,7 +58,7 @@ export const sendVerificationEmail = async (email, token) => {
         throw new Error('Email transporter not configured');
     }
 
-    const verificationLink = `http://localhost:8800/verify-email?token=${token}`;
+    const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${token}`;
 
     const mailOptions = {
         from: process.env.EMAIL_USER,
@@ -113,7 +113,7 @@ export const sendPasswordResetEmail = async (email, token) => {
         throw new Error('Email transporter not configured');
     }
 
-    const resetLink = `http://localhost:5173/reset-password?token=${token}`;
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
 
     const mailOptions = {
         from: process.env.EMAIL_USER,
