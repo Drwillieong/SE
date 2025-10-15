@@ -67,18 +67,6 @@ app.use(passport.session());
 
 
 
-// Test database connection
-db.connect(async (err) => {
-    if (err) {
-        console.error('Database connection failed:', err.message);
-        console.error('Please ensure:');
-        console.error('1. MySQL server is running on localhost');
-        console.error('2. Database "wash" exists');
-        console.error('3. User "root" has password "admin123"');
-        return;
-    }
-    console.log('Connected to MySQL database');
-
     // Initialize Google OAuth strategy
     initializeGoogleStrategy(db);
 
