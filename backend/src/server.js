@@ -12,6 +12,7 @@ import bookingRoutes from '../routes/bookings.js';
 import orderRoutes from '../routes/orders.js';
 import analyticsRoutes from '../routes/analytics.js';
 import { initializeGoogleStrategy } from '../config/googleOAuth.js';
+import db from "../config/db.js";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -66,6 +67,15 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 
+
+// Test database connection
+db.connect(async (err) => {
+    if (err) {
+        console.error('Database connection failed:', err.message);
+        console.error('Please ensure:');
+        return;
+    }
+    console.log('Connected to MySQL database');
 
     // Initialize Google OAuth strategy
     initializeGoogleStrategy(db);
