@@ -25,7 +25,7 @@ export default (db) => {
     
     router.get('/google/callback',
         passport.authenticate('google', {
-            failureRedirect: 'http://localhost:5173/login?error=auth_failed',
+            failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=auth_failed`,
             session: false
         }),
         (req, res) => {
@@ -52,7 +52,7 @@ export default (db) => {
                         process.env.JWT_SECRET || 'your_jwt_secret',
                         { expiresIn: '1h' }
                     );
-                    const redirectUrl = `http://localhost:5173/newaccountsetup?token=${token}`;
+                    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/newaccountsetup?token=${token}`;
                     console.log('Error checking profile, redirecting to setup:', redirectUrl);
                     return res.redirect(redirectUrl);
                 }
@@ -73,7 +73,7 @@ export default (db) => {
                         process.env.JWT_SECRET || 'your_jwt_secret',
                         { expiresIn: '1h' }
                     );
-                    const redirectUrl = `http://localhost:5173/newaccountsetup?token=${token}`;
+                    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/newaccountsetup?token=${token}`;
                     console.log('No profile found, redirecting to setup:', redirectUrl);
                     return res.redirect(redirectUrl);
                 }
@@ -113,11 +113,11 @@ export default (db) => {
                 if (profileComplete) {
                     // User profile is complete, redirect to appropriate dashboard
                     const dashboardPath = userRole === 'admin' ? '/dashboard' : '/customer-dashboard';
-                    redirectUrl = `http://localhost:5173${dashboardPath}?token=${token}`;
+                    redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}${dashboardPath}?token=${token}`;
                     console.log('Profile complete, redirecting to dashboard:', redirectUrl);
                 } else {
                     // User profile is incomplete, redirect to new account setup
-                    redirectUrl = `http://localhost:5173/newaccountsetup?token=${token}`;
+                    redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/newaccountsetup?token=${token}`;
                     console.log('Profile incomplete, redirecting to setup:', redirectUrl);
                 }
 

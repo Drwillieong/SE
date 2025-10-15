@@ -8,6 +8,8 @@ import TimerDisplay from '../../components/TimerDisplay';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import StatusIcon from '../../components/StatusIcon';
 
+// API URL from environment variables
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8800';
 
 // Initialize modal
 Modal.setAppElement('#root');
@@ -147,7 +149,7 @@ const OrderManagement = () => {
       }
 
       console.log('Fetching orders from API...');
-      const response = await fetch('http://localhost:8800/api/admin/orders', {
+      const response = await fetch(`${API_URL}/api/admin/orders`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -197,7 +199,7 @@ const OrderManagement = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:8800/api/admin/orders/stats', {
+      const response = await fetch(`${API_URL}/api/admin/orders/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -215,7 +217,7 @@ const OrderManagement = () => {
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}`, {
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -242,7 +244,7 @@ const OrderManagement = () => {
   const autoAdvanceOrder = async (orderId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/auto-advance`, {
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/auto-advance`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -269,7 +271,7 @@ const OrderManagement = () => {
   const fetchTimerStatus = async (orderId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/timer/status`, {
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/timer/status`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -293,7 +295,7 @@ const OrderManagement = () => {
     try {
       setLoadingStatus(prev => ({ ...prev, [orderId]: true }));
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/timer/start`, {
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/timer/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -324,7 +326,7 @@ const OrderManagement = () => {
   const toggleAutoAdvance = async (orderId, enabled) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/auto-advance/toggle`, {
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/auto-advance/toggle`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -354,7 +356,7 @@ const OrderManagement = () => {
     try {
       setLoadingStatus(prev => ({ ...prev, [orderId]: true }));
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/status/next`, {
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/status/next`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -395,7 +397,7 @@ const OrderManagement = () => {
       setLoadingStatus(prev => ({ ...prev, [orderId]: true }));
 
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/complete`, {
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/complete`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -440,7 +442,7 @@ const OrderManagement = () => {
     if (window.confirm('Are you sure you want to delete this order? It will be moved to history and can be restored later.')) {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/soft-delete`, {
+        const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/soft-delete`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -474,7 +476,7 @@ const OrderManagement = () => {
     if (window.confirm('Are you sure you want to mark this order as paid?')) {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/payment-status`, {
+        const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/payment-status`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -502,7 +504,7 @@ const OrderManagement = () => {
   const handlePaymentDecision = async (decision, orderId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/orders/${orderId}/gcash-payment-status`, {
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/gcash-payment-status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
