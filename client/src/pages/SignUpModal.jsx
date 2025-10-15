@@ -107,7 +107,9 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
       // Prepare data for API (exclude confirmPassword and agreeToTerms)
       const { confirmPassword, agreeToTerms, ...userData } = formData;
 
-      const response = await axios.post('/auth/signup', userData);
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      const response = await axios.post(`${apiUrl}/auth/signup`, userData);
+
       console.log('SignUpModal: Signup response:', response.data);
 
       // Check if signup was successful and token is provided
@@ -123,7 +125,7 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
 
         // Fetch user data using the token to check profileComplete
         console.log('SignUpModal: Fetching user data from /auth/me');
-        const userResponse = await axios.get('/auth/me');
+        const userResponse = await axios.get(`${apiUrl}/auth/me`);
         console.log('SignUpModal: User data received:', userResponse.data);
 
         // Store the user data in localStorage
@@ -197,7 +199,8 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
       console.log('SignUpModal: Cleared localStorage before Google OAuth');
 
       // Redirect to Google OAuth endpoint
-      window.location.href = 'http://localhost:8800/auth/google';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8800';
+      window.location.href = `${apiUrl}/auth/google`;
     } catch (error) {
       console.error('Error initiating Google sign-up:', error);
       setErrors(prev => ({...prev, form: 'Failed to initiate Google sign-up. Please try again.'}));
