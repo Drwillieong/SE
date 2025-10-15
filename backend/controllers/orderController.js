@@ -334,14 +334,13 @@ export const createOrderFromPickup = (db) => async (req, res) => {
   const bookingId = parseInt(req.body.bookingId || req.body.booking_id);
     if (bookingId) {
       try {
-        console.log('Moving booking to history as converted to order for booking ID:', bookingId);
-        const updateResult = await bookingModel.moveToHistory(bookingId, 'converted_to_order');
-        console.log('Booking move to history result:', updateResult);
-
-        // Verify the update worked
-        const updatedBooking = await bookingModel.getById(bookingId);
-        console.log('Updated booking status:', updatedBooking ? updatedBooking.status : 'NOT FOUND');
-        console.log('Updated booking moved_to_history_at:', updatedBooking ? updatedBooking.moved_to_history_at : 'NOT FOUND');
+        // Only mark the booking as 'completed' if the payment method is 'cash'.
+        // For other methods like GCash, it will remain 'approved' until payment is made.
+        if (orderData.paymentMethod === 'cash') {
+          console.log(`Updating booking status to 'completed' for cash payment booking ID: ${bookingId}`);
+          await bookingModel.update(bookingId, { status: 'completed' });
+          console.log(`✅ Booking ${bookingId} status updated to: completed.`);
+        }
 
         // Emit WebSocket notification for booking conversion
         if (req.io) {
@@ -353,7 +352,7 @@ export const createOrderFromPickup = (db) => async (req, res) => {
           });
         }
 
-    console.log('Booking moved to history successfully');
+        console.log('Booking conversion processed successfully.');
       } catch (bookingError) {
         console.error('Error moving booking to history:', bookingError);
         // Don't fail the entire operation if booking update fails
