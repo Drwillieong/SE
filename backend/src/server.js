@@ -26,7 +26,8 @@ const app = express();
 
 const allowedOrigins = [
   'http://localhost:5173', // Local dev
-  'https://se-1s6w.vercel.app' // Your Vercel frontend
+  'https://se-1s6w.vercel.app', // Old Vercel frontend
+  'https://washit-fawn.vercel.app' // New Vercel frontend
 ];
 if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
