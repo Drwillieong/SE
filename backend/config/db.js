@@ -1,5 +1,6 @@
 import mysql from "mysql2";
 import dotenv from "dotenv";
+import fs from "fs";
 
 if (process.env.NODE_ENV !== "production") {
   dotenv.config();
@@ -21,10 +22,13 @@ const connectionConfig = {
 };
 
 if (process.env.NODE_ENV === "production") {
-  if (!process.env.AIVEN_CA_CERT) {
-    console.error("❌ AIVEN_CA_CERT environment variable is not set for production.");
+  // In Render, we mount the CA cert as a secret file at /etc/secrets/ca.pem
+  const caPath = "/etc/secrets/ca.pem";
+  if (!fs.existsSync(caPath)) {
+    console.error(`❌ Aiven CA certificate not found at ${caPath}. Make sure you have added it as a Secret File in Render.`);
+  } else {
+    connectionConfig.ssl = { ca: fs.readFileSync(caPath) };
   }
-  connectionConfig.ssl = { ca: process.env.AIVEN_CA_CERT };
 }
 
 const db = mysql.createConnection(connectionConfig);
