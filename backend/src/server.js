@@ -11,7 +11,7 @@ import bookingRoutes from '../routes/bookings.js';
 import orderRoutes from '../routes/orders.js';
 import analyticsRoutes from '../routes/analytics.js';
 import { initializeGoogleStrategy } from '../config/googleOAuth.js';
-import db from './../config/db.js';
+import db from '../config/db.js';
 
 
 // Load environment variables from .env file
