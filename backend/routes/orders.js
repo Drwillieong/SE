@@ -7,9 +7,9 @@ import {
   deleteOrder,
   getOrdersByStatus,
   submitGcashPayment
-} from '../controllers/orderController.js';
-import { verifyToken } from '../middleware/authMiddleware.js';
-import { multerUpload } from '../controllers/uploadController.js';
+} from './controllers/orderController.js';
+import { verifyToken } from './middleware/authMiddleware.js';
+import { multerUpload } from './controllers/uploadController.js';
 
 const router = express.Router();
 

@@ -1,8 +1,8 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { signup, login, verifyEmail, resendVerification, forgotPassword, resetPassword, changePassword } from '../controllers/authController.js';
+import { signup, login, verifyEmail, resendVerification, forgotPassword, resetPassword, changePassword } from './controllers/authController.js';
 import passport from 'passport';
-import { verifyToken } from '../middleware/authMiddleware.js';
+import { verifyToken } from './middleware/authMiddleware.js';
 
 const router = express.Router();
 
