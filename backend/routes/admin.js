@@ -1,8 +1,8 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { getAllBookings, getBookingById, createBooking, updateBooking, deleteBooking, sendPickupEmail } from './controllers/bookingController.js';
-import { getAllUsers } from './controllers/userController.js';
-import { getAnalyticsData } from './controllers/analyticsController.js';
+import { getAllBookings, getBookingById, createBooking, updateBooking, deleteBooking, sendPickupEmail } from '../controllers/bookingController.js';
+import { getAllUsers } from '../controllers/userController.js';
+import { getAnalyticsData } from '../controllers/analyticsController.js';
 import {
   getAllOrders,
   getOrderById,
@@ -29,8 +29,8 @@ import {
   softDeleteItem,
   updatePaymentStatus,
   reviewGcashPayment
-} from './controllers/orderController.js';
-import { verifyToken, requireAdmin } from './middleware/authMiddleware.js';
+} from '../controllers/orderController.js';
+import { verifyToken, requireAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 

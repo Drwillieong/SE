@@ -1,6 +1,6 @@
 import express from 'express';
-import { getAnalyticsData } from './controllers/analyticsController.js';
-import { verifyToken } from './middleware/authMiddleware.js';
+import { getAnalyticsData } from '../controllers/analyticsController.js';
+import { verifyToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
