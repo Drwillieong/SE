@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../../../../utils/auth"; // Use the centralized API client
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -148,19 +149,13 @@ const Booking = () => {
       };
 
       console.log('Creating test order with payload:', testOrderPayload);
-      const response = await fetch('http://localhost:8800/api/admin/orders/admin/create-from-pickup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(testOrderPayload)
-      });
+      const response = await apiClient.post('/api/admin/orders/admin/create-from-pickup', testOrderPayload);
 
-      console.log('Test order creation response status:', response.status);
+      console.log('Test order creation response status:', response.status); // apiClient uses axios, so response.status is correct
 
-      if (response.ok) {
-        const responseData = await response.json();
+      // With axios, a non-2xx status will throw an error and be caught in the catch block
+      if (response.status >= 200 && response.status < 300) {
+        const responseData = response.data;
         console.log('Test order created successfully:', responseData);
         alert('Test order created successfully!');
         setCheckOrderModalIsOpen(false);
@@ -171,9 +166,10 @@ const Booking = () => {
 
         navigate('/dashboard/order');
       } else {
-        const data = await response.json();
-        console.error('Test order creation failed:', data);
-        alert('Test order creation failed: ' + (data.message || 'Unknown error'));
+        // This block might not be reached with axios, but good for safety
+        const errorData = response.data || { message: 'Unknown error' };
+        console.error('Test order creation failed:', errorData);
+        alert('Test order creation failed: ' + (errorData.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Test order creation error:', error);
@@ -237,25 +233,16 @@ const Booking = () => {
   const fetchBookings = async () => {
     console.log('Starting fetchBookings...');
     try {
-      const token = localStorage.getItem('token');
-      console.log('Token present:', !!token);
-      if (!token) {
-        console.log('No token, navigating to login');
-        setError('No authentication token found. Please log in again.');
-        navigate('/login');
-        return;
-      }
+      // Token is now handled by the apiClient interceptor
 
       console.log('Making fetch request to /api/admin/bookings');
-      const response = await fetch('http://localhost:8800/api/admin/bookings', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiClient.get('/api/admin/bookings');
       console.log('Response received, status:', response.status);
 
-      if (response.ok) {
-        const orders = await response.json();
+      // With axios, a non-2xx status will throw an error and be caught in the catch block.
+      // So we can assume the response is successful here.
+      if (response.status >= 200 && response.status < 300) {
+        const orders = response.data;
         console.log('Orders received:', orders.length);
         const pendingData = orders.filter((order) => order.status === 'pending');
         const approvedData = orders.filter((order) => order.status === 'approved');
@@ -282,7 +269,7 @@ const Booking = () => {
         sortApprovedBookings(formattedApproved);
       } else {
         console.error('Failed to fetch bookings, status:', response.status);
-        if (response.status === 403) {
+        if (response.status === 403) { // This part is less likely to be hit with axios interceptors
           setError('Admin access required. Please log in as an administrator.');
           navigate('/login');
         } else if (response.status === 401) {
@@ -294,7 +281,14 @@ const Booking = () => {
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);
-      if (error.name === 'AbortError') {
+      if (error.response) {
+        if (error.response.status === 403) {
+          setError('Admin access required. Please log in as an administrator.');
+        } else if (error.response.status === 401) {
+          setError('Session expired. Please log in again.');
+        }
+        navigate('/login');
+      } else if (error.name === 'AbortError') {
         setError('Request timed out. Please check if the server is running and try again.');
       } else {
         setError('Network error. Please check your connection and try again.');
@@ -397,21 +391,14 @@ const Booking = () => {
 
   const handleApproveBooking = async (bookingId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/bookings/${bookingId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: "approved" }),
-      });
+      const response = await apiClient.put(`/api/admin/bookings/${bookingId}`, { status: "approved" });
 
-      if (response.ok) {
+      if (response.status >= 200 && response.status < 300) {
         alert("Booking approved successfully!");
         fetchBookings(); // Refresh the bookings
       } else {
-        alert("Failed to approve booking");
+        const errorData = response.data || {};
+        alert("Failed to approve booking: " + (errorData.message || 'Unknown error'));
       }
     } catch (error) {
       console.error("Error approving booking:", error);
@@ -431,22 +418,15 @@ const Booking = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/bookings/${bookingToReject.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: "rejected", rejectionReason: rejectionReason.trim() }),
-      });
+      const response = await apiClient.put(`/api/admin/bookings/${bookingToReject.id}`, { status: "rejected", rejectionReason: rejectionReason.trim() });
 
-      if (response.ok) {
+      if (response.status >= 200 && response.status < 300) {
         alert("Booking rejected successfully!");
         fetchBookings(); // Refresh the bookings
         closeRejectModal();
       } else {
-        alert("Failed to reject booking");
+        const errorData = response.data || {};
+        alert("Failed to reject booking: " + (errorData.message || 'Unknown error'));
       }
     } catch (error) {
       console.error("Error rejecting booking:", error);
@@ -468,20 +448,13 @@ const Booking = () => {
 
     setDeletingBooking(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/bookings/${bookingId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiClient.delete(`/api/admin/bookings/${bookingId}`);
 
-      if (response.ok) {
+      if (response.status >= 200 && response.status < 300) {
         alert('Booking deleted successfully!');
         fetchBookings(); // Refresh the bookings
       } else {
-        const data = await response.json();
-        alert('Failed to delete booking: ' + (data.message || 'Unknown error'));
+        alert('Failed to delete booking: ' + (response.data.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error deleting booking:', error);
@@ -588,22 +561,14 @@ const Booking = () => {
         }
       };
 
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/bookings/${bookingToEdit.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(updateData),
-      });
+      const response = await apiClient.put(`/api/admin/bookings/${bookingToEdit.id}`, updateData);
 
-      if (response.ok) {
+      if (response.status >= 200 && response.status < 300) {
         alert('Booking updated successfully!');
         closeEditModal();
         fetchBookings(); // Refresh the bookings
       } else {
-        const errorData = await response.json();
+        const errorData = response.data;
         throw new Error(errorData.message || 'Failed to update booking');
       }
     } catch (error) {
@@ -647,21 +612,14 @@ const Booking = () => {
 
     // Check booking count before creating
     try {
-      const token = localStorage.getItem('token');
-      const countResponse = await fetch('http://localhost:8800/api/bookings/counts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ dates: [newBooking.pickupDate] })
-      });
+      const countResponse = await apiClient.post('/api/bookings/counts', { dates: [newBooking.pickupDate] });
 
-      if (countResponse.ok) {
-        const countData = await countResponse.json();
+      if (countResponse.status >= 200 && countResponse.status < 300) {
+        const countData = countResponse.data;
         const currentCount = countData[newBooking.pickupDate] || 0;
         if (currentCount >= 3) {
           alert('This day is fully booked. Maximum 3 bookings per day allowed.');
+          setLoading(false); // Also set loading false here
           return;
         }
       } else {
@@ -706,21 +664,13 @@ const Booking = () => {
         }
       };
 
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8800/api/admin/bookings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(bookingData),
-      });
+      const response = await apiClient.post('/api/admin/bookings', bookingData);
 
-      if (response.ok) {
+      if (response.status >= 200 && response.status < 300) {
         alert("Booking created successfully!");
         fetchBookings(); // Refresh the bookings
       } else {
-        const errorData = await response.json();
+        const errorData = response.data;
         throw new Error(errorData.message || 'Failed to create booking');
       }
     } catch (error) {
@@ -797,18 +747,13 @@ const Booking = () => {
     setPickupLoading(true);
     setPickupError(null);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8800/api/admin/bookings/${bookingId}/pickup-email`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (response.ok) {
+      const response = await apiClient.post(`/api/admin/bookings/${bookingId}/pickup-email`);
+
+      if (response.status >= 200 && response.status < 300) {
         setPickupSuccess(prev => ({ ...prev, [bookingId]: true }));
         alert('Pickup notification email sent successfully.');
       } else {
-        const data = await response.json();
+        const data = response.data;
         setPickupError(data.message || 'Failed to send pickup notification email.');
       }
     } catch (error) {
@@ -873,7 +818,6 @@ const Booking = () => {
 
     setCreatingOrder(true);
     try {
-      const token = localStorage.getItem('token');
       const bookingTotalPrice = selectedBookingForOrder.totalPrice || 0;
       const additionalPrice = parseFloat(orderFormData.additionalPrice) || 0;
       const totalPrice = bookingTotalPrice + additionalPrice;
@@ -903,20 +847,13 @@ const Booking = () => {
       console.log('Order payload being sent:', orderPayload);
 
       console.log('Creating order with payload:', orderPayload);
-      const response = await fetch('http://localhost:8800/api/admin/orders/admin/create-from-pickup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(orderPayload)
-      });
+      const response = await apiClient.post('/api/admin/orders/admin/create-from-pickup', orderPayload);
 
       console.log('Order creation response status:', response.status);
       console.log('Order creation response headers:', response.headers);
 
-      if (response.ok) {
-        const responseData = await response.json();
+      if (response.status >= 200 && response.status < 300) {
+        const responseData = response.data;
         console.log('Order created successfully:', responseData);
         console.log('Booking ID being converted to order:', selectedBookingForOrder.id);
         console.log('Booking details:', selectedBookingForOrder);
@@ -949,7 +886,7 @@ const Booking = () => {
         navigate('/dashboard/order');
         console.log('Navigation completed');
       } else {
-        const data = await response.json();
+        const data = response.data;
         console.error('Order creation failed:', data);
         alert(data.message || 'Failed to create order.');
       }
