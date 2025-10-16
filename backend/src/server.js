@@ -24,10 +24,7 @@ console.log('Loaded env vars:', {
 
 const app = express();
 
-const allowedOrigins = [
-  'http://localhost:5173', // Local dev
-  'https://se-1s6w.vercel.app' // Your Vercel frontend
-];
+const allowedOrigins = ['http://localhost:5173']; // Local dev
 if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
