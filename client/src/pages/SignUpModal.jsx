@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../api/axios'; // Import the centralized client
 import facebookpng from "../assets/facebook.png";
 import googlepng from "../assets/goggle.png"; 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8800';
 
 const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
   const navigate = useNavigate();
@@ -109,7 +107,7 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
       // Prepare data for API (exclude confirmPassword and agreeToTerms)
       const { confirmPassword, agreeToTerms, ...userData } = formData;
 
-      const response = await axios.post(`${API_URL}/auth/signup`, userData);
+      const response = await apiClient.post('/auth/signup', userData);
 
       console.log('SignUpModal: Signup response:', response.data);
 
@@ -121,12 +119,8 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
         localStorage.setItem('token', token);
         console.log('SignUpModal: Token stored in localStorage');
 
-        // Set default Authorization header for axios
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
         // Fetch user data using the token to check profileComplete
-        console.log('SignUpModal: Fetching user data from /auth/me');
-        const userResponse = await axios.get(`${API_URL}/auth/me`);
+        const userResponse = await apiClient.get('/auth/me');
         console.log('SignUpModal: User data received:', userResponse.data);
 
         // Store the user data in localStorage
@@ -200,7 +194,7 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
       console.log('SignUpModal: Cleared localStorage before Google OAuth');
 
       // Redirect to Google OAuth endpoint
-      window.location.href = `${API_URL}/auth/google`;
+      window.location.href = `${apiClient.defaults.baseURL}/auth/google`;
     } catch (error) {
       console.error('Error initiating Google sign-up:', error);
       setErrors(prev => ({...prev, form: 'Failed to initiate Google sign-up. Please try again.'}));
