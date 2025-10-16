@@ -5,13 +5,13 @@ import session from 'express-session';
 import passport from 'passport';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
-import authRoutes from './routes/auth.js';
-import adminRoutes from './routes/admin.js';
-import bookingRoutes from './routes/bookings.js';
-import orderRoutes from './routes/orders.js';
-import analyticsRoutes from './routes/analytics.js';
-import { initializeGoogleStrategy } from './config/googleOAuth.js';
-import db from './config/db.js';
+import authRoutes from '../routes/auth.js';
+import adminRoutes from '../routes/admin.js';
+import bookingRoutes from '../routes/bookings.js';
+import orderRoutes from '../routes/orders.js';
+import analyticsRoutes from '../routes/analytics.js';
+import { initializeGoogleStrategy } from '../config/googleOAuth.js';
+import db from '../config/db.js';
 
 
 
