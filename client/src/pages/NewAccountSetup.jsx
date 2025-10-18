@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import apiClient from "../utils/axios";
 
 const freePickupBarangays = [
   "Brgy. 1", "Brgy. 2", "Brgy. 3", "Brgy. 4", "Brgy. 5", "Brgy. 6", "Brgy. 7",
@@ -50,7 +50,7 @@ const CustomerAccountSetup = () => {
       if (!localStorageToken) {
         console.log('NewAccountSetup: Token cookie found, setting token in localStorage');
         localStorage.setItem('token', tokenValue);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${tokenValue}`;
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${tokenValue}`;
       }
     }
   }, []);
@@ -78,7 +78,7 @@ const CustomerAccountSetup = () => {
         if (tokenFromUrl && !token) {
           console.log('NewAccountSetup: Token found in URL, storing in localStorage');
           localStorage.setItem('token', tokenFromUrl);
-          axios.defaults.headers.common['Authorization'] = `Bearer ${tokenFromUrl}`;
+          apiClient.defaults.headers.common['Authorization'] = `Bearer ${tokenFromUrl}`;
           token = tokenFromUrl;
 
           // Clean up URL by removing token parameter

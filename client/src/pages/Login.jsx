@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import apiClient from "../utils/axios";
 import { useNavigate, Link } from "react-router-dom";
 import pusa from "../assets/pusa.jpeg";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -38,11 +38,11 @@ const LoginPage = () => {
 
           // Store the token in localStorage
           localStorage.setItem('token', tokenFromUrl);
-          axios.defaults.headers.common['Authorization'] = `Bearer ${tokenFromUrl}`;
+          apiClient.defaults.headers.common['Authorization'] = `Bearer ${tokenFromUrl}`;
 
           // Fetch user data using the token
           console.log('LoginPage: Fetching user data from /auth/me');
-          const userResponse = await axios.get(`${API_URL}/auth/me`);
+          const userResponse = await apiClient.get('/auth/me');
           console.log('LoginPage: User data received:', userResponse.data);
 
           // Store the user data in localStorage
@@ -100,11 +100,11 @@ const LoginPage = () => {
     }
 
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, {
+      const response = await apiClient.post('/auth/login', {
         email,
         password
       });
-      
+
       const { token, user } = response.data;
 
       // Check if user data exists in response
@@ -117,7 +117,7 @@ const LoginPage = () => {
       // Store token and user data
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       // Reset failed attempts on successful login
       setFailedAttempts(0);
@@ -163,10 +163,10 @@ const LoginPage = () => {
     setResendMessage("");
     
     try {
-      const response = await axios.post(`${API_URL}/auth/resend-verification`, {
+      const response = await apiClient.post('/auth/resend-verification', {
         email: emailForVerification
       });
-      
+
       setResendMessage(response.data.message || "Verification email sent. Please check your inbox.");
       setRequiresEmailVerification(false);
     } catch (error) {
@@ -199,10 +199,10 @@ const LoginPage = () => {
 
     try {
       // Call your backend password reset endpoint
-      const response = await axios.post(`${API_URL}/auth/forgot-password`, {
+      const response = await apiClient.post('/auth/forgot-password', {
         email: resetEmail
       });
-      
+
       setResetMessage(response.data.message || "Password reset email sent. Please check your inbox.");
       setShowResetForm(false);
     } catch (error) {
