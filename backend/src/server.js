@@ -24,10 +24,10 @@ console.log('Loaded env vars:', {
 
 const app = express();
 
-const allowedOrigins = ['http://localhost:5173']; // Local dev
-if (process.env.FRONTEND_URL) {
-  allowedOrigins.push(process.env.FRONTEND_URL);
-}
+const allowedOrigins = [
+  'http://localhost:5173',          // Your local development frontend
+  'https://sanapasapo.netlify.app'  // Your deployed Netlify frontend
+];
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -45,6 +45,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+// Enable pre-flight requests for all routes
+app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' })); // Increase JSON payload limit
 app.use(express.urlencoded({ limit: '10mb', extended: true })); // Increase URL-encoded payload limit
