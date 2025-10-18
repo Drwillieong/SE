@@ -94,9 +94,7 @@ const CustomerAccountSetup = () => {
 
         console.log('NewAccountSetup: Verifying token with /auth/me');
         // Verify token and get user data
-        const response = await axios.get('/auth/me', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await apiClient.get('/auth/me');
 
         console.log('NewAccountSetup: /auth/me response:', response.data);
 
@@ -211,7 +209,7 @@ const CustomerAccountSetup = () => {
       // Get user email from token or form data
       const userEmail = formData.email;
 
-      await axios.post('/auth/resend-verification', { email: userEmail });
+      await apiClient.post('/auth/resend-verification', { email: userEmail });
 
       setVerificationSent(true);
     } catch (error) {
@@ -227,9 +225,7 @@ const CustomerAccountSetup = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      await axios.put('/auth/users/profile', formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await apiClient.put('/auth/users/profile', formData);
 
       // Send verification email after saving user data
       await sendVerificationEmail();
