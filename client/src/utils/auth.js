@@ -1,31 +1,7 @@
-import axios from 'axios';
-
-// Set up axios defaults
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8800';
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor to add token to requests
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+import apiClient from './axios'; // Use the centralized apiClient
 
 // Response interceptor to handle token refresh
-api.interceptors.response.use(
+apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
@@ -37,7 +13,7 @@ api.interceptors.response.use(
 
       try {
         // Try to refresh the token
-        const refreshResponse = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+        const refreshResponse = await apiClient.post(`/auth/refresh`, {
           token: localStorage.getItem('token')
         });
 
@@ -45,10 +21,10 @@ api.interceptors.response.use(
           // Update the stored token
           localStorage.setItem('token', refreshResponse.data.token);
           api.defaults.headers.common['Authorization'] = `Bearer ${refreshResponse.data.token}`;
-
+          
           // Retry the original request with the new token
           originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.token}`;
-          return api(originalRequest);
+          return apiClient(originalRequest);
         }
       } catch (refreshError) {
         // If refresh fails, redirect to login
@@ -100,7 +76,7 @@ export const authUtils = {
   // Validate token with server
   validateToken: async () => {
     try {
-      const response = await api.get('/auth/me');
+      const response = await apiClient.get('/auth/me');
       return response.data;
     } catch (error) {
       if (error.response?.status === 401) {
@@ -111,4 +87,4 @@ export const authUtils = {
   }
 };
 
-export default api;
+export default apiClient;

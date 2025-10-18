@@ -6,8 +6,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram } from '@fortawesome/free-brands-svg-icons';
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8800';
-
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,7 +36,6 @@ const LoginPage = () => {
 
           // Store the token in localStorage
           localStorage.setItem('token', tokenFromUrl);
-          apiClient.defaults.headers.common['Authorization'] = `Bearer ${tokenFromUrl}`;
 
           // Fetch user data using the token
           console.log('LoginPage: Fetching user data from /auth/me');
@@ -117,7 +114,6 @@ const LoginPage = () => {
       // Store token and user data
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       // Reset failed attempts on successful login
       setFailedAttempts(0);

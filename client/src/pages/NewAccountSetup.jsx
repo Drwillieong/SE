@@ -50,7 +50,6 @@ const CustomerAccountSetup = () => {
       if (!localStorageToken) {
         console.log('NewAccountSetup: Token cookie found, setting token in localStorage');
         localStorage.setItem('token', tokenValue);
-        apiClient.defaults.headers.common['Authorization'] = `Bearer ${tokenValue}`;
       }
     }
   }, []);
@@ -78,7 +77,6 @@ const CustomerAccountSetup = () => {
         if (tokenFromUrl && !token) {
           console.log('NewAccountSetup: Token found in URL, storing in localStorage');
           localStorage.setItem('token', tokenFromUrl);
-          apiClient.defaults.headers.common['Authorization'] = `Bearer ${tokenFromUrl}`;
           token = tokenFromUrl;
 
           // Clean up URL by removing token parameter
