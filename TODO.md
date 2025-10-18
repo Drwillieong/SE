@@ -1,4 +1,0 @@
-- [x] Update HomePage.jsx hero section: Adjust font sizes and button width for mobile
-- [x] Update LaundryService.jsx: Reduce padding on cards for mobile
-- [x] Update AboutService.jsx: Make button responsive
-- [x] Update footer in HomePage.jsx: Improve mobile stacking

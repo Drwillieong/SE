@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../api/axios'; // Import the centralized client
-import facebookpng from "../assets/facebook.png";
-import googlepng from "../assets/goggle.png"; 
+import apiClient from '../utils/axios'; // Import the centralized client
+
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
