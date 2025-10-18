@@ -148,8 +148,10 @@ const HomePage = () => {
 
         {/* Content */}
         <div className="relative max-w-6xl z-10">
-          <h1 className="text-4xl md:text-6xl lg:text-8xl font-extrabold italic text-white">EVERY LAUNDRY MAKES A DIFFERENCE</h1>
-          <p className="mt-5 text-lg md:text-xl text-white">Drop-off, self-service, pickup & delivery, dry-cleaning. Make laundry day easier!</p>
+          <h1 className="text-4xl md:text-6xl lg:text-8xl font-extrabold italic text-white">EVERY LAUNDRY MAKES A DIFFERENCE AYOKO NA BUSET
+
+          </h1>
+          <p className="mt-5 text-lg md:text-xl text-white"> Buset Drop-off, self-service, pickup & delivery, dry-cleaning. Make laundry day easier!</p>
           <div
             onClick={() => setShowSignUpModal(true)}
             className="mt-6 flex items-center rounded-full cursor-pointer bg-white w-full max-w-[25rem] hover:bg-pink-100 transition duration-300"
