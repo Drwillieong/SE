@@ -140,7 +140,8 @@ app.get('/', (req, res) => {
     res.send('Server is running!');
 });
 
-app.listen(8800, () => {
-    console.log("Connected to backend!");
+const PORT = process.env.PORT || 8800;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
    

@@ -20,7 +20,7 @@ apiClient.interceptors.response.use(
         if (refreshResponse.data.token) {
           // Update the stored token
           localStorage.setItem('token', refreshResponse.data.token);
-          api.defaults.headers.common['Authorization'] = `Bearer ${refreshResponse.data.token}`;
+          // The request interceptor in axios.js will handle adding the new token.
           
           // Retry the original request with the new token
           originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.token}`;
@@ -87,4 +87,4 @@ export const authUtils = {
   }
 };
 
-export default apiClient;
+export default authUtils;
