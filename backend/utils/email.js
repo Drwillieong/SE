@@ -1,67 +1,104 @@
 import nodemailer from 'nodemailer';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import sgMail from '@sendgrid/mail';
+import dotenv from 'dotenv';
 
-// Get current directory for proper path resolution
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
 
-// Configure nodemailer for email sending
-export const createTransporter = () => {
-    // Check if environment variables are set
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        console.error('❌ Email configuration error: EMAIL_USER and EMAIL_PASS environment variables are required');
-        console.error('Please set these variables in your .env file:');
-        console.error('EMAIL_USER=your-email@gmail.com');
-        console.error('EMAIL_PASS=your-app-password');
-        return null;
+// --- SendGrid Configuration ---
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log('✅ SendGrid API key configured.');
+} else {
+  console.warn('⚠️ SENDGRID_API_KEY not found. Falling back to Nodemailer for local development.');
+}
+
+// IMPORTANT: Replace this with an email address you have verified on SendGrid.
+const VERIFIED_SENDER = process.env.EMAIL_USER || 'do-not-reply@example.com';
+
+// --- Nodemailer (Gmail) Configuration ---
+let nodemailerTransporter;
+if (!process.env.SENDGRID_API_KEY && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  nodemailerTransporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
     }
+  });
+  console.log('✅ Nodemailer (Gmail) transporter configured for local development.');
+}
 
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
-        }
-    });
-
-    return transporter;
+/**
+ * A generic email sending function that uses SendGrid if available,
+ * otherwise falls back to Nodemailer.
+ * @param {object} mailOptions - { to, subject, html }
+ */
+const sendEmail = async (mailOptions) => {
+  if (process.env.SENDGRID_API_KEY) {
+    // --- Use SendGrid (for production on Render) ---
+    const msg = {
+      to: mailOptions.to,
+      from: {
+        name: 'Wash It Izzy',
+        email: VERIFIED_SENDER,
+      },
+      subject: mailOptions.subject,
+      html: mailOptions.html,
+    };
+    try {
+      await sgMail.send(msg);
+      console.log(`✅ [SendGrid] Email sent successfully to ${mailOptions.to}`);
+    } catch (error) {
+      console.error(`❌ [SendGrid] Error sending email:`, error.response?.body || error);
+      throw new Error('Failed to send email via SendGrid.');
+    }
+  } else if (nodemailerTransporter) {
+    // --- Use Nodemailer (for local development) ---
+    const optionsWithFrom = {
+      ...mailOptions,
+      from: `"Wash It Izzy" <${process.env.EMAIL_USER}>`,
+    };
+    try {
+      const info = await nodemailerTransporter.sendMail(optionsWithFrom);
+      console.log(`✅ [Nodemailer] Email sent successfully to ${mailOptions.to}: ${info.response}`);
+    } catch (error) {
+      console.error('❌ [Nodemailer] Error sending email:', error);
+      throw new Error('Failed to send email via Nodemailer.');
+    }
+  } else {
+    // --- No email service configured ---
+    console.error('❌ Cannot send email. No email service is configured (SendGrid or Nodemailer).');
+    throw new Error('Email service is not configured on the server.');
+  }
 };
 
 // Function to verify transporter configuration
 export const verifyEmailConfig = async () => {
-    const transporter = createTransporter();
-    if (!transporter) return false;
-
+  if (process.env.SENDGRID_API_KEY) {
+    console.log('✅ SendGrid is configured.');
+    return true;
+  }
+  if (nodemailerTransporter) {
     try {
-        await transporter.verify();
-        console.log('✅ Email transporter is ready to send messages');
-        console.log('📧 Using email:', process.env.EMAIL_USER);
-        return true;
+      await nodemailerTransporter.verify();
+      console.log('✅ Nodemailer transporter is ready to send messages.');
+      return true;
     } catch (error) {
-        console.error('❌ Email transporter verification failed:', error.message);
-        console.error('💡 Please check:');
-        console.error('1. Your Gmail account has 2-factor authentication enabled');
-        console.error('2. You have generated an App Password (not your regular password)');
-        console.error('3. The App Password is correctly set in EMAIL_PASS environment variable');
-        console.error('4. Less secure apps access is enabled (if not using App Password)');
-        return false;
+      console.error('❌ Nodemailer transporter verification failed:', error.message);
+      return false;
     }
+  }
+  console.error('❌ No email service is configured.');
+  return false;
 };
 
 // Function to send verification email (returns a promise)
 export const sendVerificationEmail = async (email, token) => {
     console.log('📤 Attempting to send verification email to:', email);
 
-    const transporter = createTransporter();
-    if (!transporter) {
-        throw new Error('Email transporter not configured');
-    }
-
     const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${token}`;
 
     const mailOptions = {
-        from: process.env.EMAIL_USER,
         to: email,
         subject: 'Verify Your Email Address - Wash It Izzy',
         html: `
@@ -92,31 +129,16 @@ export const sendVerificationEmail = async (email, token) => {
         `
     };
 
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Verification email sent successfully:', info.response);
-        console.log('📧 Message ID:', info.messageId);
-        return info;
-    } catch (error) {
-        console.error('❌ Error sending verification email:', error.message);
-        console.error('🔧 Error details:', error.response || error);
-        throw error;
-    }
+    await sendEmail(mailOptions);
 };
 
 // Function to send password reset email (returns a promise)
 export const sendPasswordResetEmail = async (email, token) => {
     console.log('📤 Attempting to send password reset email to:', email);
 
-    const transporter = createTransporter();
-    if (!transporter) {
-        throw new Error('Email transporter not configured');
-    }
-
     const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
 
     const mailOptions = {
-        from: process.env.EMAIL_USER,
         to: email,
         subject: 'Reset Your Password - Wash It Izzy',
         html: `
@@ -144,29 +166,14 @@ export const sendPasswordResetEmail = async (email, token) => {
         `
     };
 
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Password reset email sent successfully:', info.response);
-        console.log('📧 Message ID:', info.messageId);
-        return info;
-    } catch (error) {
-        console.error('❌ Error sending password reset email:', error.message);
-        console.error('🔧 Error details:', error.response || error);
-        throw error;
-    }
+    await sendEmail(mailOptions);
 };
 
 // Function to send pickup notification email (returns a promise)
 export const sendPickupEmail = async (email, name, address) => {
     console.log('📤 Attempting to send pickup notification email to:', email);
 
-    const transporter = createTransporter();
-    if (!transporter) {
-        throw new Error('Email transporter not configured');
-    }
-
     const mailOptions = {
-        from: process.env.EMAIL_USER,
         to: email,
         subject: 'Pickup Notification - Wash It Izzy',
         html: `
@@ -185,29 +192,14 @@ export const sendPickupEmail = async (email, name, address) => {
         `
     };
 
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Pickup notification email sent successfully:', info.response);
-        console.log('📧 Message ID:', info.messageId);
-        return info;
-    } catch (error) {
-        console.error('❌ Error sending pickup notification email:', error.message);
-        console.error('🔧 Error details:', error.response || error);
-        throw error;
-    }
+    await sendEmail(mailOptions);
 };
 
 // Function to send booking rejection email (returns a promise)
 export const sendRejectionEmail = async (email, name, rejectionReason) => {
     console.log('📤 Attempting to send booking rejection email to:', email);
 
-    const transporter = createTransporter();
-    if (!transporter) {
-        throw new Error('Email transporter not configured');
-    }
-
     const mailOptions = {
-        from: process.env.EMAIL_USER,
         to: email,
         subject: 'Booking Update - Wash It Izzy',
         html: `
@@ -237,33 +229,18 @@ export const sendRejectionEmail = async (email, name, rejectionReason) => {
         `
     };
 
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Booking rejection email sent successfully:', info.response);
-        console.log('📧 Message ID:', info.messageId);
-        return info;
-    } catch (error) {
-        console.error('❌ Error sending booking rejection email:', error.message);
-        console.error('🔧 Error details:', error.response || error);
-        throw error;
-    }
+    await sendEmail(mailOptions);
 };
 
 // Function to send "ready for pickup" notification email (returns a promise)
 export const sendReadyForPickupEmail = async (email, name, orderId, serviceType) => {
     console.log('📤 Attempting to send ready for pickup email to:', email);
 
-    const transporter = createTransporter();
-    if (!transporter) {
-        throw new Error('Email transporter not configured');
-    }
-
     const serviceName = serviceType === 'washFold' ? 'Wash & Fold' :
                        serviceType === 'dryCleaning' ? 'Dry Cleaning' :
                        serviceType === 'hangDry' ? 'Hang Dry' : 'Laundry Service';
 
     const mailOptions = {
-        from: process.env.EMAIL_USER,
         to: email,
         subject: 'Your Laundry is Ready for Pickup! - Wash It Izzy',
         html: `
@@ -301,33 +278,18 @@ export const sendReadyForPickupEmail = async (email, name, orderId, serviceType)
         `
     };
 
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Ready for pickup email sent successfully:', info.response);
-        console.log('📧 Message ID:', info.messageId);
-        return info;
-    } catch (error) {
-        console.error('❌ Error sending ready for pickup email:', error.message);
-        console.error('🔧 Error details:', error.response || error);
-        throw error;
-    }
+    await sendEmail(mailOptions);
 };
 
 // Function to send order completion/receipt email
 export const sendCompletionEmail = async (email, name, order) => {
     console.log('📤 Attempting to send completion email to:', email);
 
-    const transporter = createTransporter();
-    if (!transporter) {
-        throw new Error('Email transporter not configured');
-    }
-
     const serviceName = order.serviceType === 'washFold' ? 'Wash & Fold' :
                        order.serviceType === 'dryCleaning' ? 'Dry Cleaning' :
                        order.serviceType === 'hangDry' ? 'Hang Dry' : 'Laundry Service';
 
     const mailOptions = {
-        from: process.env.EMAIL_USER,
         to: email,
         subject: `Your Wash It Izzy Order #${order.order_id} is Complete!`,
         html: `
@@ -354,12 +316,5 @@ export const sendCompletionEmail = async (email, name, order) => {
         `
     };
 
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Completion email sent successfully:', info.response);
-        return info;
-    } catch (error) {
-        console.error('❌ Error sending completion email:', error.message);
-        throw error;
-    }
+    await sendEmail(mailOptions);
 };
