@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import OrderDetailsModal from "../../components/OrderDetailsModal";
+import apiClient from '../../../../utils/axios';
+
 
 const OrderHistory = () => {
     const navigate = useNavigate();
@@ -128,16 +130,8 @@ const OrderHistory = () => {
 
             // Fetch both bookings and orders
             const [bookingsResponse, ordersResponse] = await Promise.all([
-                fetch('http://localhost:8800/api/bookings', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                }),
-                fetch('http://localhost:8800/api/orders', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                })
+                apiClient.get('/api/bookings'),
+                apiClient.get('/api/orders')
             ]);
 
             console.log('Bookings response status:', bookingsResponse.status);
@@ -146,24 +140,24 @@ const OrderHistory = () => {
             let bookings = [];
             let orders = [];
 
-            if (bookingsResponse.ok) {
-                bookings = await bookingsResponse.json();
+            if (bookingsResponse.status === 200) {
+                bookings = bookingsResponse.data;
                 console.log('Bookings data:', bookings);
                 // Add type to bookings for identification
                 bookings = bookings.map(booking => ({ ...booking, type: 'booking' }));
             } else {
-                console.error('Failed to fetch bookings:', bookingsResponse.status, await bookingsResponse.text());
+                console.error('Failed to fetch bookings:', bookingsResponse.status);
             }
 
-            if (ordersResponse.ok) {
-                const ordersData = await ordersResponse.json();
+            if (ordersResponse.status === 200) {
+                const ordersData = ordersResponse.data;
                 console.log('Orders data:', ordersData);
                 // Handle both direct array and paginated response formats
                 orders = Array.isArray(ordersData) ? ordersData : ordersData.orders || [];
                 // Add type to orders for identification
                 orders = orders.map(order => ({ ...order, type: 'order' }));
             } else {
-                console.error('Failed to fetch orders:', ordersResponse.status, await ordersResponse.text());
+                console.error('Failed to fetch orders:', ordersResponse.status);
             }
 
             // Combine and sort by creation date (newest first)

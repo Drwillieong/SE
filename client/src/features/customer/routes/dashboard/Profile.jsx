@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import apiClient from '../../../../utils/axios';
 
 const calambaBarangays = [
   "Banlic", "Barandal", "Batino", "Banadero", "Bubuyan", "Bucal", "Bunggo", 
@@ -38,10 +38,7 @@ const  Profile = () => {
         // Fetch user profile on component mount
         const fetchProfile = async () => {
             try {
-                const token = localStorage.getItem("token");
-                const response = await axios.get("http://localhost:8800/auth/me", {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
+                const response = await apiClient.get('/auth/me');
                 if (response.data) {
                     console.log("Profile fetch response data:", response.data);
                     setProfile({
@@ -77,14 +74,7 @@ const  Profile = () => {
         setMessage("");
         setError("");
         try {
-            const token = localStorage.getItem("token");
-            const response = await axios.put(
-                "http://localhost:8800/auth/users/profile",
-                profile,
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                }
-            );
+            const response = await apiClient.put('/auth/users/profile', profile);
             if (response.data.success) {
                 setMessage("Profile updated successfully.");
                 setIsEditing(false);
@@ -105,17 +95,10 @@ const  Profile = () => {
             return;
         }
         try {
-            const token = localStorage.getItem("token");
-            const response = await axios.post(
-                "http://localhost:8800/auth/change-password",
-                {
-                    currentPassword: passwords.currentPassword,
-                    newPassword: passwords.newPassword,
-                },
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                }
-            );
+            const response = await apiClient.post('/auth/change-password', {
+                currentPassword: passwords.currentPassword,
+                newPassword: passwords.newPassword,
+            });
             if (response.data.message === "Password changed successfully") {
                 setMessage("Password changed successfully.");
                 setPasswords({

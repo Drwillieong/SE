@@ -24,7 +24,7 @@ apiClient.interceptors.response.use(
           
           // Retry the original request with the new token
           originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.token}`;
-          return apiClient(originalRequest);
+          return apiClient(originalRequest); // Use the imported apiClient
         }
       } catch (refreshError) {
         // If refresh fails, redirect to login
@@ -70,7 +70,7 @@ export const authUtils = {
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.href = '/login';
+    window.location.href = '/login'; // Force a redirect to login to clear state
   },
 
   // Validate token with server
@@ -79,7 +79,8 @@ export const authUtils = {
       const response = await apiClient.get('/auth/me');
       return response.data;
     } catch (error) {
-      if (error.response?.status === 401) {
+      // If token is invalid or there's a network error (e.g., calling localhost from production)
+      if (error.response?.status === 401 || error.code === 'ERR_NETWORK') {
         authUtils.logout();
       }
       throw error;
@@ -87,4 +88,4 @@ export const authUtils = {
   }
 };
 
-export default authUtils;
+export default authUtils; // This was already correct, no change needed here.

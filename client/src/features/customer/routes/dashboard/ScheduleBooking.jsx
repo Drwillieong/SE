@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../../../../utils/axios';
 import { useNavigate } from 'react-router-dom';
 import StatusIcon from '../../components/StatusIcon';
 import GcashPaymentModal from '../../components/GcashPaymentModal';
@@ -59,18 +59,13 @@ const ScheduleBooking = () => {
   // Handle GCash payment submission
   const handleGcashPaymentSubmit = async (paymentData, orderId) => {
     try {
-      const token = localStorage.getItem('token');
       const payload = {
         referenceNumber: paymentData.referenceNumber,
         proof: paymentData.proof
       };
 
-      await axios.post(`http://localhost:8800/api/orders/${orderId}/gcash-payment`, payload, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-      });
+      await apiClient.post(`/api/orders/${orderId}/gcash-payment`, payload);
 
-     
-      
       // Update the order in the local state to mark it as complete
       setOrders(prevOrders =>
         prevOrders.map(order =>
@@ -79,7 +74,7 @@ const ScheduleBooking = () => {
             : order
         )
       );
-      
+
       setShowGcashModal(false); // Close modal on success
     } catch (error) {
       console.error('Error submitting payment:', error);
@@ -153,7 +148,6 @@ const ScheduleBooking = () => {
   const fetchBookingCounts = async () => {
     setBookingCountsLoading(true);
     try {
-      const token = localStorage.getItem('token');
       // Generate dates directly without depending on the bookingCounts state
       const dates = [];
       const today = new Date();
@@ -164,10 +158,7 @@ const ScheduleBooking = () => {
         dates.push(fullDate);
       }
 
-      const response = await axios.post('http://localhost:8800/api/bookings/counts', { dates }, {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true
-      });
+      const response = await apiClient.post('/api/bookings/counts', { dates });
       setBookingCounts(response.data);
     } catch (error) {
       console.error('Error fetching booking counts:', error);
@@ -245,31 +236,19 @@ const ScheduleBooking = () => {
           navigate('/login');
           return;
         }
-        const userRes = await axios.get('http://localhost:8800/auth/me', {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
-          withCredentials: true
-        });
+        const userRes = await apiClient.get('/auth/me');
         setUserData(userRes.data);
         setUser({ id: userRes.data.id, name: `${userRes.data.firstName} ${userRes.data.lastName}` });
         if (userRes.data.barangay) {
           setDeliveryFee(calculateDeliveryFee(userRes.data.barangay, formData.loadCount));
         }
         // Fetch bookings
-        const bookingsRes = await axios.get('http://localhost:8800/api/bookings', {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
-          withCredentials: true
-        });
+        const bookingsRes = await apiClient.get('/api/bookings');
         // Handle both direct array and paginated response formats
         const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
 
         // Fetch orders to get status for completed bookings
-        const ordersRes = await axios.get('http://localhost:8800/api/orders?page=1&limit=100', {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
-          withCredentials: true
-        });
+        const ordersRes = await apiClient.get('/api/orders?page=1&limit=100');
         const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
 
         // --- DEBUGGING LOGS ---
@@ -373,11 +352,7 @@ const ScheduleBooking = () => {
       const userAddress = `${userData.street || ''}${userData.blockLot ? `, Block ${userData.blockLot}` : ''}, ${userData.barangay || ''}, Calamba City`;
 
       // Check latest booking count before submitting
-      const token = localStorage.getItem('token');
-      const countResponse = await axios.post('http://localhost:8800/api/bookings/counts', { dates: [formData.pickupDate] }, {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true
-      });
+      const countResponse = await apiClient.post('/api/bookings/counts', { dates: [formData.pickupDate] });
       const currentCount = countResponse.data[formData.pickupDate] || 0;
       if (currentCount >= 3) {
         alert('This day is now fully booked. Please select another date.');
@@ -409,17 +384,11 @@ const ScheduleBooking = () => {
 
       if (editingOrder) {
         // Update existing booking
-        await axios.put(`http://localhost:8800/api/bookings/${editingOrder.booking_id || editingOrder.id}`, bookingPayload, {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true
-        });
+        await apiClient.put(`/api/bookings/${editingOrder.booking_id || editingOrder.id}`, bookingPayload);
         alert('Booking updated successfully!');
       } else {
         // Create new booking
-        await axios.post('http://localhost:8800/api/bookings', bookingPayload, {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true
-        });
+        await apiClient.post('/api/bookings', bookingPayload);
 
         alert('Booking submitted successfully! Our team will review your request.');
       }
@@ -430,14 +399,8 @@ const ScheduleBooking = () => {
       setActiveTab('orders');
       // Refresh bookings and orders
       const [bookingsRes, ordersRes] = await Promise.all([
-        axios.get('http://localhost:8800/api/bookings', {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true
-        }),
-        axios.get('http://localhost:8800/api/orders', {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true
-        })
+        apiClient.get('/api/bookings'),
+        apiClient.get('/api/orders')
       ]);
 
       const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];

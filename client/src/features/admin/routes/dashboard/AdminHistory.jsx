@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from 'react-modal';
 import BookingDetailsModal from '../../../../shared/components/BookingDetailsModal';
+import apiClient from '../../../../utils/axios';
+
+// API URL from environment variables
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8800';
 
 // Initialize modal
 Modal.setAppElement('#root');
@@ -115,7 +119,7 @@ const AdminHistory = () => {
       }
 
       console.log('Fetching history from API...');
-      const response = await fetch('http://localhost:8800/api/admin/history', {
+      const response = await fetch(`${API_URL}/api/admin/history`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -165,7 +169,7 @@ const AdminHistory = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:8800/api/admin/history/type/${type}`, {
+      const response = await fetch(`${API_URL}/api/admin/history/type/${type}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -186,7 +190,7 @@ const AdminHistory = () => {
       setActionLoading(prev => ({ ...prev, [itemId]: 'restoring' }));
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`http://localhost:8800/api/admin/history/${itemId}/restore`, {
+      const response = await fetch(`${API_URL}/api/admin/history/${itemId}/restore`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -220,7 +224,7 @@ const AdminHistory = () => {
       setActionLoading(prev => ({ ...prev, [itemId]: 'deleting' }));
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`http://localhost:8800/api/admin/history/${itemId}`, {
+      const response = await fetch(`${API_URL}/api/admin/history/${itemId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
