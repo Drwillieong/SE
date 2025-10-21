@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import apiClient from '../../../../utils/axios';
 import { useNavigate } from "react-router-dom";
-import apiClient from "../../../../utils/auth"; // Use the centralized API client
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
