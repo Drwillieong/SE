@@ -41,11 +41,20 @@ export const signup = (db) => async (req, res) => {
       role: 'user'
     });
 
+    // Send verification email after user creation
+    try {
+      await sendVerificationEmail(newUser.email, createdUser.verificationToken);
+      console.log('Verification email sent successfully to:', newUser.email);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Don't fail the signup if email fails, but log it
+    }
+
     console.log('User created successfully:', newUser.email);
     return res.status(201).json({
-      message: "User created successfully. Please complete your account setup.",
+      message: "User created successfully. Please check your email for verification instructions.",
       token: token,
-      requiresVerification: false
+      requiresVerification: true
     });
   } catch (error) {
     console.error('Error during signup:', error);
