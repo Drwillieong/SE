@@ -14,7 +14,12 @@ export class Booking {
           // Parse dryCleaningServices JSON
           results.forEach(booking => {
             if (booking.dryCleaningServices) {
-              booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+              try {
+                booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+              } catch (error) {
+                console.warn(`Invalid JSON in dryCleaningServices for booking ${booking.id}:`, booking.dryCleaningServices);
+                booking.dryCleaningServices = [];
+              }
             } else {
               booking.dryCleaningServices = [];
             }
@@ -34,7 +39,12 @@ export class Booking {
         else if (results.length > 0) {
           const booking = results[0];
           if (booking.dryCleaningServices) {
-            booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+            try {
+              booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+            } catch (error) {
+              console.warn(`Invalid JSON in dryCleaningServices for booking ${booking.id}:`, booking.dryCleaningServices);
+              booking.dryCleaningServices = [];
+            }
           } else {
             booking.dryCleaningServices = [];
           }
@@ -166,7 +176,12 @@ export class Booking {
           // Parse dryCleaningServices JSON
           results.forEach(booking => {
             if (booking.dryCleaningServices) {
-              booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+              try {
+                booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+              } catch (error) {
+                console.warn(`Invalid JSON in dryCleaningServices for booking ${booking.id}:`, booking.dryCleaningServices);
+                booking.dryCleaningServices = [];
+              }
             } else {
               booking.dryCleaningServices = [];
             }
@@ -409,7 +424,12 @@ export class Booking {
           // Parse dryCleaningServices JSON
           results.forEach(booking => {
             if (booking.dryCleaningServices) {
-              booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+              try {
+                booking.dryCleaningServices = JSON.parse(booking.dryCleaningServices);
+              } catch (error) {
+                console.warn(`Invalid JSON in dryCleaningServices for booking ${booking.id}:`, booking.dryCleaningServices);
+                booking.dryCleaningServices = [];
+              }
             } else {
               booking.dryCleaningServices = [];
             }
