@@ -1,73 +1,71 @@
-import mysql from 'mysql';
-import bcrypt from 'bcrypt';
+import mysql from 'mysql2/promise';
+import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 
-const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'admin123',
-    database: 'wash'
-});
+// Load environment variables from .env file
+dotenv.config();
 
-const salt = 10;
+const createAdmin = async () => {
+    let connection;
+    try {
+        // Establish database connection
+        connection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME
+        });
 
-db.connect((err) => {
-    if (err) {
-        console.error('Database connection failed:', err.message);
-        return;
-    }
-    console.log('Connected to MySQL database');
+        console.log('Connected to MySQL database');
 
-    // Create admin user
-    const adminEmail = 'admin@123.com';
-    const adminPassword = 'admin123';
+        // Admin user details from environment variables
+        const adminEmail = process.env.ADMIN_EMAIL || 'admin@123.com';
+        const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+        const saltRounds = 10;
 
-    // Check if admin already exists
-    const checkAdminSql = "SELECT user_id FROM users WHERE email = ?";
-    db.query(checkAdminSql, [adminEmail], (err, results) => {
-        if (err) {
-            console.error('Error checking admin user:', err);
-            return;
-        }
+        // Check if admin already exists
+        const checkAdminSql = "SELECT user_id FROM users WHERE email = ?";
+        const [results] = await connection.execute(checkAdminSql, [adminEmail]);
 
         if (results.length > 0) {
-            console.log('Admin user already exists');
-            db.end();
+            console.log('Admin user already exists.');
             return;
         }
 
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(adminPassword, saltRounds);
+
         // Create admin user
-        bcrypt.hash(adminPassword, salt, (err, hash) => {
-            if (err) {
-                console.error('Error hashing password:', err);
-                return;
-            }
+        const insertAdminSql = `
+            INSERT INTO users (firstName, lastName, contact, email, password, role, authProvider, isVerified)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `;
 
-            const insertAdminSql = `
-                INSERT INTO users (firstName, lastName, contact, email, password, role, authProvider, isVerified)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `;
+        const values = [
+            'Admin',
+            'User',
+            '09123456789',
+            adminEmail,
+            hashedPassword,
+            'admin',
+            'email',
+            true // Automatically verify the admin user
+        ];
 
-            const values = [
-                'Admin',
-                'User',
-                '09123456789',
-                adminEmail,
-                hash,
-                'admin',
-                'email',
-                true
-            ];
+        await connection.execute(insertAdminSql, values);
 
-            db.query(insertAdminSql, values, (err, result) => {
-                if (err) {
-                    console.error('Error creating admin user:', err);
-                } else {
-                    console.log('Admin user created successfully');
-                    console.log('Email: admin@washit.com');
-                    console.log('Password: admin123');
-                }
-                db.end();
-            });
-        });
-    });
-});
+        console.log('Admin user created successfully!');
+        console.log(`Email: ${adminEmail}`);
+        console.log(`Password: ${adminPassword}`);
+
+    } catch (error) {
+        console.error('Failed to create admin user:', error.message);
+    } finally {
+        if (connection) {
+            await connection.end();
+            console.log('Database connection closed.');
+        }
+    }
+};
+
+createAdmin();
