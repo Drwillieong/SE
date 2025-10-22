@@ -104,11 +104,7 @@ export const sendVerificationEmail = async (email, token) => {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #007bff;">Email Verification</h2>
-                  <p>Jackie Chan</p>
-                    <p>kakaltukan ko tong mga nasa harap natin pag dipa tumigil</p>
-                 <p>TITIGL NAKO</p>
-                 <p>TITIGL NAKO</p>
-                 <p>TITIGL NAKO</p>
+                <p>Welcome to Wash It Izzy! Please verify your email address to complete your account setup.</p>
                 <div style="text-align: center; margin: 20px 0;">
                     <a href="${verificationLink}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
                         Verify Email
