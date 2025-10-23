@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { authUtils } from '../../../utils/auth';
+import apiClient from '../../../utils/axios';
+import { authUtils } from '../../../utils/auth';
 
 const CreateOrder = () => {
     const navigate = useNavigate();
@@ -132,7 +133,7 @@ const CreateOrder = () => {
         setLoading(true);
 
         try {
-            const response = await api.post('/api/admin/orders/admin/create-from-pickup', {
+            const response = await apiClient.post('/api/admin/orders/admin/create-from-pickup', {
                 serviceType: formData.mainService,
                 pickupDate: new Date().toISOString().split('T')[0], // Today's date
                 pickupTime: '7am-10am', // Default pickup time

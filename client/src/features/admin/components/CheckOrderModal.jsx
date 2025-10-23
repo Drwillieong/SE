@@ -17,11 +17,11 @@ const CheckOrderModal = ({
   setLaundryPhotoFile,
   setLaundryPhotoPreview,
   fetchBookings,
-  navigate
+  navigate,
+  bookingTotalPrice,
+  additionalPrice,
+  totalPrice
 }) => {
-  const bookingTotalPrice = selectedBookingForOrder?.totalPrice || 0;
-  const additionalPrice = parseFloat(orderFormData.additionalPrice) || 0;
-  const totalPrice = bookingTotalPrice + additionalPrice;
   return (
     <Modal
       isOpen={checkOrderModalIsOpen}

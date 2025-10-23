@@ -41,23 +41,10 @@ const AnalyticsDashboard = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:8800/api/admin/analytics?range=${timeRange}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiClient.get(`/api/admin/analytics?range=${timeRange}`);
 
-      if (response.ok) {
-        const data = await response.json();
-        setAnalyticsData(data);
-        setError(null);
-      } else {
-        if (response.status === 403) {
-          setError('Admin access required. Please log in as an administrator.');
-        } else {
-          setError('Failed to load analytics data. Please try again later.');
-        }
-      }
+      setAnalyticsData(response.data);
+      setError(null);
     } catch (error) {
       console.error('Error fetching analytics:', error);
       setError('Network error. Please check your connection and try again.');

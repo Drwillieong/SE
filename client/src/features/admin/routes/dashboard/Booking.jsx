@@ -333,7 +333,7 @@ const Booking = () => {
       const service = dryCleaningServices.find(s => s.id === serviceId);
       return sum + (service ? service.price : 0);
     }, 0);
-    const totalPrice = mainServicePrice + dryCleaningPrice + (data.serviceOption !== 'pickupOnly' ? deliveryFee : 0);
+    const calculatedTotalPrice = mainServicePrice + dryCleaningPrice + (data.serviceOption !== 'pickupOnly' ? deliveryFee : 0);
 
     return {
       id,
@@ -353,7 +353,7 @@ const Booking = () => {
       photos: photos,
       serviceOption: data.serviceOption || "pickupAndDelivery",
       deliveryFee: deliveryFee,
-      totalPrice: data.totalPrice || totalPrice
+      totalPrice: parseFloat(data.totalPrice) || calculatedTotalPrice
     };
   };
 
@@ -811,6 +811,11 @@ const Booking = () => {
 
 
 
+  // Calculate prices for modal display
+  const bookingTotalPrice = selectedBookingForOrder ? parseFloat(selectedBookingForOrder.totalPrice) || 0 : 0;
+  const additionalPrice = parseFloat(orderFormData.additionalPrice) || 0;
+  const totalPrice = bookingTotalPrice + additionalPrice;
+
   // Handle order form submit
   const handleOrderFormSubmit = async (e) => {
     e.preventDefault();
@@ -1238,6 +1243,9 @@ const Booking = () => {
         setLaundryPhotoPreview={setLaundryPhotoPreview}
         fetchBookings={fetchBookings}
         navigate={navigate}
+        bookingTotalPrice={bookingTotalPrice}
+        additionalPrice={additionalPrice}
+        totalPrice={totalPrice}
       />
 
       {/* Edit Booking Modal */}
