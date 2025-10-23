@@ -459,23 +459,25 @@ const ScheduleBooking = () => {
     if (window.confirm('Are you sure you want to cancel this booking?')) {
       try {
         setLoading(true);
-        const token = localStorage.getItem('token');
-        // Add content-type header for JSON
-        await axios.put(`http://localhost:8800/api/bookings/${orderId}`, { status: 'cancelled' }, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          withCredentials: true
-        });
+        // Use apiClient instead of axios
+        await apiClient.put(`/api/bookings/${orderId}`, { status: 'cancelled' });
         alert('Booking cancelled successfully!');
         // Refresh orders and filter out cancelled order
-        const ordersRes = await axios.get('http://localhost:8800/api/bookings', {
-          headers: { Authorization: `Bearer ${token}` }
+        // Use apiClient instead of axios
+        const bookingsRes = await apiClient.get('/api/bookings');
+        const ordersRes = await apiClient.get('/api/orders?page=1&limit=100'); // Fetch orders to merge
+
+        const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
+        const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
+
+        const mergedData = bookingsData.map(booking => {
+          const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
+          if (matchingOrder) {
+            return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
+          }
+          return booking;
         });
-        // Filter out cancelled orders from the list
-        const filteredOrders = ordersRes.data.filter(order => order.status !== 'cancelled');
-        setOrders(filteredOrders);
+        setOrders(mergedData);
       } catch (error) {
         console.error('Error cancelling booking:', error);
         alert('Failed to cancel booking. Please try again.');
@@ -1055,6 +1057,10 @@ const ScheduleBooking = () => {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium">
+                          {order.order_id && <span className="text-gray-500">Order #{order.order_id} - </span>}
+                          {!order.order_id && order.booking_id && <span className="text-gray-500">Booking #{order.booking_id} - </span>}
+                          {!order.order_id && !order.booking_id && order.id && <span className="text-gray-500">Booking #{order.id} - </span>}
+
                           {mainServices.find(s => s.id === order.mainService)?.name || order.mainService}
                           {order.dryCleaningServices && order.dryCleaningServices.length > 0 && (
                             <span className="text-sm text-gray-500">
@@ -1077,6 +1083,13 @@ const ScheduleBooking = () => {
                       <div className="flex space-x-2">
                         {order.status === 'pending' && (
                           <>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleEdit(order); }}
+                              className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                            >
+                              Edit
+                            </button>
+
                             <button // This button is for cancelling a booking before it becomes an order
                               onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
                               className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"

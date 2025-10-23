@@ -435,7 +435,7 @@ const OrderManagement = () => {
   };
 
   const handleEditOrder = (orderId) => {
-    navigate(`edit-order/${orderId}`);
+    navigate(`/dashboard/edit-order/${orderId}`);
   };
 
   const handleDeleteOrder = async (orderId) => {

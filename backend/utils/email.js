@@ -33,7 +33,7 @@ if (!process.env.SENDGRID_API_KEY && process.env.EMAIL_USER && process.env.EMAIL
  * otherwise falls back to Nodemailer.
  * @param {object} mailOptions - { to, subject, html }
  */
-const sendEmail = async (mailOptions) => {
+export const sendEmail = async (mailOptions) => {
   if (process.env.SENDGRID_API_KEY) {
     // --- Use SendGrid (for production on Render) ---
     const msg = {

@@ -543,7 +543,6 @@ const Booking = () => {
         ...editBooking,
         // editBooking.deliveryFee is already updated by EditBookingModal's handleEditBookingChange
         totalPrice,
-        serviceName: selectedMainService.label,
         paymentDetails: editBooking.paymentMethod === 'cash' ? null : {
           method: editBooking.paymentMethod,
           status: 'pending'
