@@ -1,13 +1,8 @@
 // Function to send GCash payment notification email to admin
-import { createTransporter } from './email.js';
+import { sendEmail } from './email.js';
 
 export const sendGcashPaymentNotificationEmail = async (order, referenceNumber, proofBase64) => {
     console.log('📤 Attempting to send GCash payment notification email to admin');
-
-    const transporter = createTransporter();
-    if (!transporter) {
-        throw new Error('Email transporter not configured');
-    }
 
     const serviceName = order.serviceType === 'washFold' ? 'Wash & Fold' :
                        order.serviceType === 'dryCleaning' ? 'Dry Cleaning' :
@@ -86,13 +81,11 @@ export const sendGcashPaymentNotificationEmail = async (order, referenceNumber, 
     };
 
     try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ GCash payment notification email sent successfully:', info.response);
-        console.log('📧 Message ID:', info.messageId);
-        return info;
+        await sendEmail(mailOptions);
+        console.log('✅ GCash payment notification email sent successfully');
+        return { success: true };
     } catch (error) {
         console.error('❌ Error sending GCash payment notification email:', error.message);
-        console.error('🔧 Error details:', error.response || error);
         throw error;
     }
 };

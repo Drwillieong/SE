@@ -95,14 +95,7 @@ const CreateBookingModal = ({
       if (!proceed) return;
     }
 
-    // Add service option and delivery fee to the booking data
-    const bookingWithServiceOption = {
-      ...newBooking,
-      serviceOption: serviceOption,
-      deliveryFee: serviceOption === 'pickupOnly' ? 0 : deliveryFee
-    };
-
-    handleCreateBooking(e, bookingWithServiceOption);
+    handleCreateBooking(e); // Parent's newBooking state is already updated
   };
 
   return (

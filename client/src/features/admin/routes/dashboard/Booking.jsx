@@ -534,25 +534,14 @@ const Booking = () => {
       const selectedMainService = mainServices.find(s => s.value === editBooking.mainService);
       const selectedDryCleaningServices = dryCleaningServices.filter(s => editBooking.dryCleaningServices.includes(s.id));
 
-      // Calculate delivery fee if not pickup only
-      let deliveryFee = 0;
-      if (editBooking.serviceOption !== 'pickupOnly' && editBooking.address) {
-        const addressParts = editBooking.address.split(',').map(part => part.trim());
-        const barangay = addressParts.find(part =>
-          part.toLowerCase().includes('brgy') ||
-          part.toLowerCase().includes('barangay') ||
-          addressParts.indexOf(part) === addressParts.length - 2
-        ) || '';
-        deliveryFee = calculateDeliveryFee(barangay, parseInt(editBooking.loadCount) || 1);
-      }
-
       const mainServicePrice = selectedMainService.price * editBooking.loadCount;
       const dryCleaningPrice = selectedDryCleaningServices.reduce((sum, s) => sum + s.price, 0);
-      const totalPrice = mainServicePrice + dryCleaningPrice + deliveryFee;
+      // Use editBooking.deliveryFee directly, which is updated by the modal
+      const totalPrice = mainServicePrice + dryCleaningPrice + (editBooking.serviceOption !== 'pickupOnly' ? editBooking.deliveryFee : 0);
 
       const updateData = {
         ...editBooking,
-        deliveryFee,
+        // editBooking.deliveryFee is already updated by EditBookingModal's handleEditBookingChange
         totalPrice,
         serviceName: selectedMainService.label,
         paymentDetails: editBooking.paymentMethod === 'cash' ? null : {
@@ -636,22 +625,11 @@ const Booking = () => {
       setLoading(true);
       const selectedMainService = mainServices.find(s => s.value === newBooking.mainService);
       const selectedDryCleaningServices = dryCleaningServices.filter(s => newBooking.dryCleaningServices.includes(s.id));
-
-      // Calculate delivery fee if not pickup only
-      let deliveryFee = 0;
-      if (newBooking.serviceOption !== 'pickupOnly' && newBooking.address) {
-        const addressParts = newBooking.address.split(',').map(part => part.trim());
-        const barangay = addressParts.find(part =>
-          part.toLowerCase().includes('brgy') ||
-          part.toLowerCase().includes('barangay') ||
-          addressParts.indexOf(part) === addressParts.length - 2
-        ) || '';
-        deliveryFee = calculateDeliveryFee(barangay, parseInt(newBooking.loadCount) || 1);
-      }
-
+      
       const mainServicePrice = selectedMainService.price * newBooking.loadCount;
       const dryCleaningPrice = selectedDryCleaningServices.reduce((sum, s) => sum + s.price, 0);
-      const totalPrice = mainServicePrice + dryCleaningPrice + deliveryFee;
+      // Use newBooking.deliveryFee directly, which is updated by the modal
+      const totalPrice = mainServicePrice + dryCleaningPrice + (newBooking.serviceOption !== 'pickupOnly' ? newBooking.deliveryFee : 0);
 
       const bookingData = {
         ...newBooking,

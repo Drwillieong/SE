@@ -54,8 +54,9 @@ const EditBookingModal = ({
 
       const fee = calculateDeliveryFee(barangay, parseInt(editBooking.loadCount) || 1);
       setDeliveryFee(fee);
+      handleEditBookingChange({ target: { name: 'deliveryFee', value: fee } });
     }
-  }, [editBooking.address, editBooking.loadCount]);
+  }, [editBooking.address, editBooking.loadCount, handleEditBookingChange]);
 
   // Set service option from editBooking
   useEffect(() => {
@@ -66,19 +67,12 @@ const EditBookingModal = ({
 
   const handleServiceOptionChange = (option) => {
     setServiceOption(option);
+    handleEditBookingChange({ target: { name: 'serviceOption', value: option } });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    // Add service option and delivery fee to the booking data
-    const bookingWithServiceOption = {
-      ...editBooking,
-      serviceOption: serviceOption,
-      deliveryFee: serviceOption === 'pickupOnly' ? 0 : deliveryFee
-    };
-
-    handleUpdateBooking(e, bookingWithServiceOption);
+    handleUpdateBooking(e); // Parent's editBooking state is already updated
   };
 
   return (

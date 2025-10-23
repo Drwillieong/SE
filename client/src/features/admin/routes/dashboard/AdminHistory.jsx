@@ -492,8 +492,8 @@ const AdminHistory = () => {
 
       {/* Booking Details Modal */}
       <BookingDetailsModal
-        selectedItem={selectedItem}
-        setSelectedItem={setSelectedItem}
+        selectedBooking={selectedItem}
+        setSelectedBooking={setSelectedItem}
         onRestore={restoreFromHistory}
         onDelete={deleteFromHistory}
         loading={actionLoading[selectedItem?.id]}

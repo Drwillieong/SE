@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import OrderDetailsModal from "../../components/OrderDetailsModal";
+import BookingDetailsModal from "../../../../shared/components/BookingDetailsModal";
 import apiClient from '../../../../utils/axios';
 
 
@@ -413,6 +414,12 @@ const OrderHistory = () => {
             <OrderDetailsModal
                 selectedOrder={selectedOrder}
                 setSelectedOrder={setSelectedOrder}
+            />
+
+            {/* Booking Details Modal */}
+            <BookingDetailsModal
+                selectedBooking={selectedBooking}
+                setSelectedBooking={setSelectedBooking}
             />
         </div>
     );

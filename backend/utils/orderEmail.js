@@ -1,13 +1,8 @@
-import { createTransporter } from './email.js';
+import { sendEmail } from './email.js';
 
 // Function to send order confirmation email
 export const sendOrderConfirmationEmail = async (email, name, orderId, kilos, totalPrice, laundryPhoto, paymentMethod, serviceType, loadCount) => {
     console.log('📤 Attempting to send order confirmation email to:', email);
-
-    const transporter = createTransporter();
-    if (!transporter) {
-        throw new Error('Email transporter not configured');
-    }
 
     // Format service type for display
     const serviceName = serviceType === 'washFold' ? 'Wash & Fold' :
@@ -81,13 +76,11 @@ export const sendOrderConfirmationEmail = async (email, name, orderId, kilos, to
     }
 
     try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Order confirmation email sent successfully:', info.response);
-        console.log('📧 Message ID:', info.messageId);
-        return info;
+        await sendEmail(mailOptions);
+        console.log('✅ Order confirmation email sent successfully');
+        return { success: true };
     } catch (error) {
         console.error('❌ Error sending order confirmation email:', error.message);
-        console.error('🔧 Error details:', error.response || error);
         throw error;
     }
 };
