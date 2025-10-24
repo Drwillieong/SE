@@ -165,9 +165,7 @@ export const createBooking = (db) => async (req, res) => {
 
     // Emit real-time update for booking counts after successful creation
     if (counts.bookingId && req.io) {
-        req.io.emit('booking-counts-updated', {
-            date: bookingData.pickupDate
-        });
+        req.io.emit('booking-counts-updated', { date: bookingData.pickupDate, change: 1 });
     }
 
       res.status(201).json({ message: 'Booking created successfully', bookingId: counts.bookingId });
@@ -198,9 +196,7 @@ export const createBooking = (db) => async (req, res) => {
 
       // Emit real-time update for booking counts
       if (bookingId && req.io) {
-        req.io.emit('booking-counts-updated', {
-            date: bookingData.pickupDate
-        });
+        req.io.emit('booking-counts-updated', { date: bookingData.pickupDate, change: 1 });
       }
 
       res.status(201).json({ message: 'Booking created successfully', bookingId });
@@ -255,14 +251,12 @@ export const updateBooking = (db) => async (req, res) => {
       }
     }
 
-    // Emit real-time update for booking counts if status changed to rejected, cancelled, or completed
-    if ((updates.status === 'rejected' || updates.status === 'cancelled' || updates.status === 'completed') && req.io) {
+    // Emit real-time update for booking counts if status changed to rejected or cancelled
+    if ((updates.status === 'rejected' || updates.status === 'cancelled') && req.io) {
       // Get the updated booking to get the pickupDate
       const updatedBooking = await bookingModel.getById(bookingId);
       if (updatedBooking) {
-        req.io.emit('booking-counts-updated', {
-            date: updatedBooking.pickupDate
-        });
+        req.io.emit('booking-counts-updated', { date: updatedBooking.pickupDate, change: -1 });
       }
     }
 
@@ -294,9 +288,7 @@ export const deleteBooking = (db) => async (req, res) => {
 
     // Emit real-time update for booking counts
     if (req.io) {
-      req.io.emit('booking-counts-updated', {
-        date: booking.pickupDate
-      });
+      req.io.emit('booking-counts-updated', { date: booking.pickupDate, change: -1 });
     }
 
     res.json({ message: 'Booking deleted successfully' });

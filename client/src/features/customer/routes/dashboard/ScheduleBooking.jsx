@@ -214,8 +214,6 @@ const ScheduleBooking = () => {
   // State for the pickup dates to be displayed
   const [pickupDates, setPickupDates] = useState([]);
 
-
-
   // Fetch user data and orders
   useEffect(() => {
     const fetchUserData = async () => {
@@ -289,8 +287,13 @@ const ScheduleBooking = () => {
     // Listen for booking count updates
     socket.on('booking-counts-updated', (data) => {
       console.log('Booking counts updated from server:', data);
-      // Re-fetch counts to ensure data is fresh
-      fetchBookingCounts();
+      // Re-fetch counts to ensure data is fresh and handle any complex logic
+      if (data && data.date) {
+        setBookingCounts(prevCounts => ({
+          ...prevCounts,
+          [data.date]: (prevCounts[data.date] || 0) + (data.change || 1) // Default to increment
+        }));
+      }
     });
 
     // Clean up the socket connection on component unmount
@@ -302,11 +305,12 @@ const ScheduleBooking = () => {
 
   // Update pickup dates when booking counts change
   useEffect(() => {
-    // Only update pickupDates if bookingCounts has data.
-    if (Object.keys(bookingCounts).length > 0) {
+    // This effect now correctly depends on bookingCounts.
+    // It will run after the initial fetch and after any socket updates.
+    if (!bookingCountsLoading) {
       setPickupDates(getPickupDates());
     }
-  }, [bookingCounts]);
+  }, [bookingCounts, bookingCountsLoading]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -407,7 +411,9 @@ const ScheduleBooking = () => {
       // Refresh bookings and orders
       const [bookingsRes, ordersRes] = await Promise.all([
         apiClient.get('/api/bookings'),
-        apiClient.get('/api/orders')
+        apiClient.get('/api/orders?page=1&limit=100'),
+        // Manually refetch booking counts to update the current user's UI
+        fetchBookingCounts()
       ]);
 
       const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
