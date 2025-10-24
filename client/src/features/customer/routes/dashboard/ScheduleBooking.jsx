@@ -1046,7 +1046,7 @@ const ScheduleBooking = () => {
                 </div>
               ) : (
                 orders.map((order, index) => (
-                  <div key={order.id || index} className="p-6 cursor-pointer" onClick={() => setEditingOrder(order)}>
+                  <div key={order.id || index} className="p-6 cursor-pointer">
                     {/* Debugging: Log order properties relevant to payment button visibility */}
                     {console.log(`Order ID: ${order.id || index}`, {
                       order_id: order.order_id,
@@ -1056,7 +1056,7 @@ const ScheduleBooking = () => {
                     })}
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-medium">
+                        <h3 className="font-medium"  onClick={() => setEditingOrder(order)}>
                           {order.order_id && <span className="text-gray-500">Order #{order.order_id} - </span>}
                           {!order.order_id && order.booking_id && <span className="text-gray-500">Booking #{order.booking_id} - </span>}
                           {!order.order_id && !order.booking_id && order.id && <span className="text-gray-500">Booking #{order.id} - </span>}
