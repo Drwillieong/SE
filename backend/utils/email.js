@@ -44,7 +44,28 @@ export const sendEmail = async (mailOptions) => {
       },
       subject: mailOptions.subject,
       html: mailOptions.html,
+      attachments: [],
     };
+
+    // Handle attachments for SendGrid
+    if (mailOptions.attachments && mailOptions.attachments.length > 0) {
+      msg.attachments = mailOptions.attachments.map(att => {
+        // If path is a data URI, extract the base64 content
+        if (att.path && att.path.startsWith('data:')) {
+          const base64Content = att.path.split(';base64,').pop();
+          return {
+            content: base64Content,
+            filename: att.filename,
+            type: att.contentType || 'application/octet-stream',
+            disposition: 'attachment',
+            contentId: att.cid
+          };
+        }
+        // Fallback for other attachment formats if needed
+        return att;
+      });
+    }
+
     try {
       await sgMail.send(msg);
       console.log(`✅ [SendGrid] Email sent successfully to ${mailOptions.to}`);
@@ -57,6 +78,7 @@ export const sendEmail = async (mailOptions) => {
     const optionsWithFrom = {
       ...mailOptions,
       from: `"Wash It Izzy" <${process.env.EMAIL_USER}>`,
+      // Nodemailer handles the attachments object as-is
     };
     try {
       const info = await nodemailerTransporter.sendMail(optionsWithFrom);

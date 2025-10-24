@@ -56,7 +56,7 @@ export const createBooking = (db) => async (req, res) => {
       const countSql = `
         SELECT COUNT(*) as count
         FROM bookings
-        WHERE pickupDate = ? AND status NOT IN ('rejected', 'cancelled', 'completed') AND is_deleted = FALSE AND moved_to_history_at IS NULL
+        WHERE pickupDate = ? AND status NOT IN ('rejected', 'cancelled') AND is_deleted = FALSE AND moved_to_history_at IS NULL
       `;
       const [countResults] = await db.promise().query(countSql, [bookingData.pickupDate]);
       const count = countResults[0].count;
@@ -74,8 +74,7 @@ export const createBooking = (db) => async (req, res) => {
           const sql = `
             SELECT COUNT(*) as count
             FROM bookings
-            WHERE pickupDate = ?
-            AND status NOT IN ('rejected', 'cancelled', 'completed')
+            WHERE pickupDate = ? AND status NOT IN ('rejected', 'cancelled')
             AND moved_to_history_at IS NULL
             AND is_deleted = FALSE
             FOR UPDATE
@@ -164,10 +163,12 @@ export const createBooking = (db) => async (req, res) => {
         return res.status(400).json({ message: 'This day is fully booked. Maximum 3 bookings per day allowed.' });
       }
 
-      // Emit real-time update for booking counts
-      if (req.io) {
-        req.io.emit('booking-counts-updated', { date: bookingData.pickupDate, change: 1 });
-      }
+    // Emit real-time update for booking counts after successful creation
+    if (counts.bookingId && req.io) {
+        req.io.emit('booking-counts-updated', {
+            date: bookingData.pickupDate
+        });
+    }
 
       res.status(201).json({ message: 'Booking created successfully', bookingId: counts.bookingId });
     } catch (error) {
@@ -179,8 +180,7 @@ export const createBooking = (db) => async (req, res) => {
     try {
       const countSql = `
         SELECT COUNT(*) as count
-        FROM bookings
-        WHERE pickupDate = ? AND status NOT IN ('rejected', 'cancelled', 'completed') AND is_deleted = FALSE AND moved_to_history_at IS NULL
+        FROM bookings WHERE pickupDate = ? AND status NOT IN ('rejected', 'cancelled') AND is_deleted = FALSE AND moved_to_history_at IS NULL
       `;
 
       const count = await new Promise((resolve, reject) => {
@@ -197,8 +197,10 @@ export const createBooking = (db) => async (req, res) => {
       const bookingId = await bookingModel.create(bookingData);
 
       // Emit real-time update for booking counts
-      if (req.io) {
-        req.io.emit('booking-counts-updated', { date: bookingData.pickupDate, change: 1 });
+      if (bookingId && req.io) {
+        req.io.emit('booking-counts-updated', {
+            date: bookingData.pickupDate
+        });
       }
 
       res.status(201).json({ message: 'Booking created successfully', bookingId });
@@ -258,7 +260,9 @@ export const updateBooking = (db) => async (req, res) => {
       // Get the updated booking to get the pickupDate
       const updatedBooking = await bookingModel.getById(bookingId);
       if (updatedBooking) {
-        req.io.emit('booking-counts-updated', { date: updatedBooking.pickupDate, change: -1 });
+        req.io.emit('booking-counts-updated', {
+            date: updatedBooking.pickupDate
+        });
       }
     }
 
@@ -290,7 +294,9 @@ export const deleteBooking = (db) => async (req, res) => {
 
     // Emit real-time update for booking counts
     if (req.io) {
-      req.io.emit('booking-counts-updated', { date: booking.pickupDate, change: -1 });
+      req.io.emit('booking-counts-updated', {
+        date: booking.pickupDate
+      });
     }
 
     res.json({ message: 'Booking deleted successfully' });

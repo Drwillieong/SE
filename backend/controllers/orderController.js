@@ -13,6 +13,11 @@ export const getOrderStats = (db) => async (req, res) => {
   }
 };
 
+// Controller to get welcome message
+export const getWelcome = (db) => async (req, res) => {
+  res.json({ message: 'Welcome to the Laundry Service API' });
+};
+
 // Auto-advance status endpoint (called by client when timer expires OR by server cron)
 export const autoAdvanceOrder = (db) => async (req, res) => {
   const orderId = req.params.id;
@@ -334,13 +339,9 @@ export const createOrderFromPickup = (db) => async (req, res) => {
   const bookingId = parseInt(req.body.bookingId || req.body.booking_id);
     if (bookingId) {
       try {
-        // Only mark the booking as 'completed' if the payment method is 'cash'.
-        // For other methods like GCash, it will remain 'approved' until payment is made.
-        if (orderData.paymentMethod === 'cash') {
-          console.log(`Updating booking status to 'completed' for cash payment booking ID: ${bookingId}`);
-          await bookingModel.update(bookingId, { status: 'completed' });
-          console.log(`✅ Booking ${bookingId} status updated to: completed.`);
-        }
+        // Mark the booking as 'completed' since it has been converted to an order.
+        console.log(`Updating booking ${bookingId} status to 'completed'.`);
+        await bookingModel.update(bookingId, { status: 'completed' });
 
         // Emit WebSocket notification for booking conversion
         if (req.io) {

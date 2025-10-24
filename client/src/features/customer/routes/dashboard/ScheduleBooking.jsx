@@ -5,6 +5,7 @@ import StatusIcon from '../../components/StatusIcon';
 import GcashPaymentModal from '../../components/GcashPaymentModal';
 import main from "../../../../assets/logo.png";
 import washing from "../../../../assets/logo.png";
+import io from 'socket.io-client';
 import OrderDetailsModal from "../../components/OrderDetailsModal";
 
 // Define free pickup barangays and their fees
@@ -168,19 +169,6 @@ const ScheduleBooking = () => {
     }
   };
 
-  // Update booking counts locally
-  const updateBookingCounts = (data) => {
-    if (data && data.date && typeof data.change === 'number') {
-      setBookingCounts(prev => ({
-        ...prev,
-        [data.date]: Math.max(0, (prev[data.date] || 0) + data.change)
-      }));
-    } else {
-      // Fallback to fetch if no data
-      fetchBookingCounts();
-    }
-  };
-
   // Calculate delivery fee based on barangay and load count
   const calculateDeliveryFee = (barangay, loadCount) => {
     if (!barangay) return 0;
@@ -292,6 +280,24 @@ const ScheduleBooking = () => {
       setDeliveryFee(calculateDeliveryFee(userData.barangay, formData.loadCount));
     }
   }, [formData.loadCount, userData]);
+
+  // WebSocket connection for real-time booking count updates
+  useEffect(() => {
+    const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001');
+
+    // Listen for booking count updates
+    socket.on('booking-counts-updated', (data) => {
+      console.log('Booking counts updated from server:', data);
+      // Re-fetch counts to ensure data is fresh
+      fetchBookingCounts();
+    });
+
+    // Clean up the socket connection on component unmount
+    return () => {
+      socket.disconnect();
+    };
+  }, []); // Empty dependency array ensures this runs only once
+
 
   // Update pickup dates when booking counts change
   useEffect(() => {
@@ -602,16 +608,22 @@ const ScheduleBooking = () => {
   return (
     <div className="min-h-fit bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-pink-600 mb-8">Laundry Booking</h1>
-        
+        <h1 className="text-3xl font-bold text-pink-600 mb-8">
+          Welcome back, {userData.firstName}! - Laundry Booking
+        </h1>
+
         {/* Hero Banner Image to Attract Customers */}
 <div className="mb-8 rounded-lg overflow-hidden shadow-lg relative">
-  <img 
+  <img
       src={main}
-    alt="Professional Laundry and Dry Cleaning Services" 
-    className="w-full h-48 object-cover" 
+    alt="Professional Laundry and Dry Cleaning Services"
+    className="w-full h-48 object-cover"
   />
-  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+  <div className="absolute top-4 left-4 text-white">
+    <h2 className="text-xl font-bold mb-1">Welcome, {userData.firstName}!</h2>
+    <p className="text-sm opacity-90">Ready for fresh, clean laundry?</p>
+  </div>
   <div className="relative p-6 bg-white">
     <h2 className="text-2xl font-bold text-pink-600 mb-2">Fresh, Clean, and Delivered to Your Door</h2>
     <p className="text-gray-600">Book your laundry pickup today and enjoy hassle-free service with a smile!</p>
@@ -786,7 +798,7 @@ const ScheduleBooking = () => {
                             <div className="text-xs">{date.day}</div>
                             <div className="font-medium">{date.date}</div>
                             <div className="text-xs font-bold">
-                           
+                           {date.count}/3
                             </div>
                             {isFullyBooked && (
                               <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 py-0.5 rounded-full font-bold">

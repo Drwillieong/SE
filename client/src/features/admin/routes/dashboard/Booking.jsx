@@ -839,19 +839,13 @@ const Booking = () => {
         console.log('Order created successfully:', responseData);
         console.log('Booking ID being converted to order:', selectedBookingForOrder.id);
         console.log('Booking details:', selectedBookingForOrder);
-        console.log('Current approved bookings count:', approvedBookings.length);
 
         alert('Order created successfully.');
-
-        // Immediately remove the booking from approvedBookings state
-        setApprovedBookings(prev => prev.filter(booking => booking.id !== selectedBookingForOrder.id));
 
         // Close modal and reset form
         setCheckOrderModalIsOpen(false);
         setSelectedBookingForOrder(null);
 
-        // Refresh from server to update UI
-        fetchBookings();
 
         // Reset form data
         setOrderFormData({
@@ -862,17 +856,19 @@ const Booking = () => {
         setLaundryPhotoFile(null);
         setLaundryPhotoPreview(null);
 
+        // Refresh from server to update UI, which will remove the completed booking
+        await fetchBookings();
+
         // Navigate to Order Management to see the newly created order
         console.log('Order created successfully, navigating to order management...');
-        console.log('About to navigate to /dashboard/order');
         navigate('/dashboard/order');
-        console.log('Navigation completed');
       } else {
         const data = response.data;
         console.error('Order creation failed:', data);
         alert(data.message || 'Failed to create order.');
       }
     } catch (error) {
+      console.error('Error creating order:', error);
       alert('Network error. Please try again.');
     } finally {
       setCreatingOrder(false);

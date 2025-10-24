@@ -6,7 +6,8 @@ import {
   updateOrder,
   deleteOrder,
   getOrdersByStatus,
-  submitGcashPayment
+  submitGcashPayment,
+  getWelcome
 } from '../controllers/orderController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 import { multerUpload } from '../controllers/uploadController.js';
@@ -41,6 +42,9 @@ export default (db) => {
 
     // Submit GCash payment proof
     router.post('/:id/gcash-payment', verifyToken, submitGcashPayment(db));
+
+    // Welcome endpoint
+    router.get('/welcome', getWelcome(db));
 
     return router;
 };
