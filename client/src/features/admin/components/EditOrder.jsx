@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import apiClient from '../../../../utils/axios';
 
 const EditOrder = () => {
     const navigate = useNavigate();
@@ -31,37 +32,28 @@ const EditOrder = () => {
 
     const fetchOrder = async () => {
         try {
-            const response = await fetch(`/api/admin/orders/${id}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
+            const response = await apiClient.get(`/api/admin/orders/${id}`);
 
-            if (response.ok) {
-                const order = await response.json();
-                setFormData({
-                    serviceType: order.serviceType || 'washFold',
-                    pickupDate: order.pickupDate || '',
-                    pickupTime: order.pickupTime || '7am-10am',
-                    loadCount: order.loadCount || 1,
-                    instructions: order.instructions || '',
-                    paymentMethod: order.paymentMethod || 'cash',
-                    name: order.name || '',
-                    contact: order.contact || '',
-                    email: order.email || '',
-                    address: order.address || '',
-                    estimatedClothes: order.estimatedClothes || 0,
-                    kilos: order.kilos || 0,
-                    pants: order.pants || 0,
-                    shorts: order.shorts || 0,
-                    tshirts: order.tshirts || 0,
-                    bedsheets: order.bedsheets || 0,
-                    status: order.status || 'pending'
-                });
-            } else {
-                alert('Error fetching order');
-                navigate('/dashboard/order');
-            }
+            const order = response.data;
+            setFormData({
+                serviceType: order.serviceType || 'washFold',
+                pickupDate: order.pickupDate || '',
+                pickupTime: order.pickupTime || '7am-10am',
+                loadCount: order.loadCount || 1,
+                instructions: order.instructions || '',
+                paymentMethod: order.paymentMethod || 'cash',
+                name: order.name || '',
+                contact: order.contact || '',
+                email: order.email || '',
+                address: order.address || '',
+                estimatedClothes: order.estimatedClothes || 0,
+                kilos: order.kilos || 0,
+                pants: order.pants || 0,
+                shorts: order.shorts || 0,
+                tshirts: order.tshirts || 0,
+                bedsheets: order.bedsheets || 0,
+                status: order.status || 'pending'
+            });
         } catch (error) {
             console.error('Error fetching order:', error);
             alert('Error fetching order');
@@ -82,20 +74,8 @@ const EditOrder = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch(`/api/admin/orders/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify(formData)
-            });
-
-            if (response.ok) {
-                navigate('/dashboard/order');
-            } else {
-                alert('Error updating order');
-            }
+            await apiClient.put(`/api/admin/orders/${id}`, formData);
+            navigate('/dashboard/order');
         } catch (error) {
             console.error('Error updating order:', error);
             alert('Error updating order');

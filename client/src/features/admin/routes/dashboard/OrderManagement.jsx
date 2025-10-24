@@ -611,22 +611,18 @@ const OrderManagement = () => {
 
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full lg:w-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full lg:w-auto">
             <div className="bg-white p-4 rounded-lg shadow-md border">
               <div className="text-2xl font-bold text-blue-600">{stats.totalOrders || 0}</div>
               <div className="text-sm text-gray-600">Total Orders</div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow-md border">
               <div className="text-2xl font-bold text-yellow-600">{stats.pendingOrders || 0}</div>
-              <div className="text-sm text-gray-600">Pending</div>
+              <div className="text-sm text-gray-600">Pending Orders</div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow-md border">
               <div className="text-2xl font-bold text-green-600">{stats.completedOrders || 0}</div>
-              <div className="text-sm text-gray-600">Completed</div>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-md border">
-              <div className="text-2xl font-bold text-purple-600">₱{stats.totalRevenue?.toLocaleString() || '0'}</div>
-              <div className="text-sm text-gray-600">Revenue</div>
+              <div className="text-sm text-gray-600">Completed Orders</div>
             </div>
           </div>
         )}

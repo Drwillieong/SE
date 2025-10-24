@@ -103,16 +103,16 @@ const HomePage = () => {
         </div>
         
         {/* Hamburger Button - Visible only on mobile */}
-        <button 
-          className="md:hidden text-pink-400 focus:outline-none" 
+        <button
+          className="md:hidden text-pink-400 text-3xl focus:outline-none"
           onClick={() => setIsOpen(!isOpen)}
         >
           ☰ {/* Hamburger icon */}
         </button>
         
         {/* Mobile Menu - Top dropdown with limited height */}
-        <div 
-          className={`md:hidden absolute top-full right-0 w-30 bg-white shadow-md transition-all duration-300 ease-in-out overflow-y-auto ${isOpen ? 'block max-h-64' : 'hidden'}`} 
+        <div
+          className={`md:hidden absolute top-full right-0 w-48 bg-white shadow-md transition-all duration-300 ease-in-out overflow-y-auto ${isOpen ? 'block max-h-64' : 'hidden'}`}
           style={{ zIndex: 30 }} // Ensure it's above other elements
         >
           <div className="p-4">
@@ -148,7 +148,7 @@ const HomePage = () => {
 
         {/* Content */}
         <div className="relative max-w-6xl z-10">
-          <h1 className="text-4xl md:text-6xl lg:text-8xl font-extrabold italic text-white">EVERY LAUNDRY MAKES A DIFFERENCE AYOKO NA BUSET
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-extrabold italic text-white">EVERY LAUNDRY MAKES A DIFFERENCE AYOKO NA BUSET
 
           </h1>
           <p className="mt-5 text-lg md:text-xl text-white"> Buset Drop-off, self-service, pickup & delivery, dry-cleaning. Make laundry day easier!</p>
@@ -201,7 +201,7 @@ const HomePage = () => {
             <img
               src={basket}
               alt="Laundry Basket"
-              className="w-80 md:max-w-[400px] h-auto object-contain my-2 md:my-0 md:-translate-y-28 overflow-hidden"
+              className="w-64 sm:w-80 md:max-w-[400px] h-auto object-contain my-2 md:my-0 md:-translate-y-28 overflow-hidden"
             />
 
             {/* Right Text Section */}

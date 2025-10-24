@@ -494,6 +494,12 @@ const ScheduleBooking = () => {
     }
   };
 
+  const handleArchive = (orderId) => {
+    if (window.confirm('Are you sure you want to archive this booking? It will be removed from your bookings list.')) {
+      setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       mainService: 'washDryFold',
@@ -1110,6 +1116,14 @@ const ScheduleBooking = () => {
                               Cancel
                             </button>
                           </>
+                        )}
+                        {(order.status === 'completed' || order.status === 'cancelled') && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleArchive(order.id); }}
+                            className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
+                          >
+                            Archive
+                          </button>
                         )}
                         {order.paymentMethod === 'gcash' &&
                           ((order.order_id && (order.paymentStatus === 'unpaid' || order.paymentStatus === 'gcash_pending')) ||

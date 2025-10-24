@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import axios from "axios";
+import apiClient from "../utils/axios";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowRight, faArrowLeft, faStar, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons'; // Added faEye and faEyeSlash
 
@@ -49,7 +49,7 @@ const ResetPassword = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8800/auth/reset-password', {
+      const response = await apiClient.post('/auth/reset-password', {
         token,
         password
       });
