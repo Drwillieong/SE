@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Modal from "react-modal";
-import axios from "axios";
+import apiClient from "../../../utils/axios";
 import { calculateDeliveryFee, getDeliveryFeeInfo } from "../../../utils/deliveryFeeCalculator";
 
 const customStyles = {
@@ -25,6 +25,26 @@ const customStyles = {
   },
 };
 
+// Define free pickup barangays and their fees
+const freePickupBarangays = [
+  "Brgy. 1", "Brgy. 2", "Brgy. 3", "Brgy. 4", "Brgy. 5", "Brgy. 6", "Brgy. 7",
+  "Lecheria (Up to City Cemetery)", "San Juan", "San Jose",
+  "Looc (Bukana, Mahogany, Vermont)", "Bañadero (Bukana, Bria Homes)",
+  "Palingon", "Lingga", "Sampiruhan", "Parian (Bantayan/Villa Carpio)"
+];
+
+const calambaBarangays = [
+  "Banlic", "Barandal", "Batino", "Bubuyan", "Bucal", "Bunggo",
+  "Burol", "Camaligan", "Canlubang", "Halang", "Hornalan",
+  "Kay-Anlog", "La Mesa", "Laguerta", "Lawa", "Lecheria",
+  "Lingga", "Looc", "Mabato", "Majada Labas", "Makiling",
+  "Mapagong", "Masili", "Maunong", "Mayapa", "Paciano Rizal",
+  "Palingon", "Palo-Alto", "Pansol", "Parian", "Prinza",
+  "Punta", "Puting Lupa", "Real", "Saimsim", "Sampiruhan",
+  "San Cristobal", "San Jose", "San Juan", "Sirang Lupa",
+  "Sucol", "Turbina", "Ulango", "Uwisan"
+];
+
 const CreateBookingModal = ({
   modalIsOpen,
   closeModal,
@@ -43,6 +63,9 @@ const CreateBookingModal = ({
   const [serviceOption, setServiceOption] = useState('pickupAndDelivery');
   const [showServiceOption, setShowServiceOption] = useState(true);
   const [bookingCount, setBookingCount] = useState(0);
+  const [barangay, setBarangay] = useState('');
+  const [street, setStreet] = useState('');
+  const [blockLot, setBlockLot] = useState('');
 
   // Calculate delivery fee when address or load count changes
   useEffect(() => {
@@ -65,12 +88,8 @@ const CreateBookingModal = ({
     const fetchBookingCount = async () => {
       if (newBooking.pickupDate) {
         try {
-          const token = localStorage.getItem('token');
-          const response = await axios.post('http://localhost:8800/api/bookings/counts', {
+          const response = await apiClient.post('/api/bookings/counts', {
             dates: [newBooking.pickupDate]
-          }, {
-            headers: { Authorization: `Bearer ${token}` },
-            withCredentials: true
           });
           setBookingCount(response.data[newBooking.pickupDate] || 0);
         } catch (error) {
@@ -147,6 +166,59 @@ const CreateBookingModal = ({
                 value={newBooking.email}
                 onChange={handleNewBookingChange}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Barangay *</label>
+              <select
+                name="barangay"
+                value={barangay}
+                onChange={(e) => {
+                  setBarangay(e.target.value);
+                  // Update the address in newBooking
+                  const address = `${street || ''}${blockLot ? `, Block ${blockLot}` : ''}, ${e.target.value || ''}, Calamba City`;
+                  handleNewBookingChange({ target: { name: 'address', value: address } });
+                }}
+                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                required
+              >
+                <option value="">Select Barangay</option>
+                {calambaBarangays.map(brgy => (
+                  <option key={brgy} value={brgy}>{brgy}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Street *</label>
+              <input
+                type="text"
+                name="street"
+                value={street}
+                onChange={(e) => {
+                  setStreet(e.target.value);
+                  // Update the address in newBooking
+                  const address = `${e.target.value || ''}${blockLot ? `, Block ${blockLot}` : ''}, ${barangay || ''}, Calamba City`;
+                  handleNewBookingChange({ target: { name: 'address', value: address } });
+                }}
+                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                placeholder="e.g. Rizal Street"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Block/Lot Number (Optional)</label>
+              <input
+                type="text"
+                name="blockLot"
+                value={blockLot}
+                onChange={(e) => {
+                  setBlockLot(e.target.value);
+                  // Update the address in newBooking
+                  const address = `${street || ''}${e.target.value ? `, Block ${e.target.value}` : ''}, ${barangay || ''}, Calamba City`;
+                  handleNewBookingChange({ target: { name: 'address', value: address } });
+                }}
+                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                placeholder="e.g. Block 5 Lot 12"
               />
             </div>
             <div>
@@ -251,7 +323,10 @@ const CreateBookingModal = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => handleServiceOptionChange('pickupOnly')}
+                onClick={() => {
+                  handleServiceOptionChange('pickupOnly');
+                  handleNewBookingChange({ target: { name: 'serviceOption', value: 'pickupOnly' } });
+                }}
                 className={`p-4 border rounded-lg text-center ${serviceOption === 'pickupOnly' ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}`}
               >
                 <h3 className="font-medium">Pickup Only</h3>
@@ -260,7 +335,10 @@ const CreateBookingModal = ({
 
               <button
                 type="button"
-                onClick={() => handleServiceOptionChange('pickupAndDelivery')}
+                onClick={() => {
+                  handleServiceOptionChange('pickupAndDelivery');
+                  handleNewBookingChange({ target: { name: 'serviceOption', value: 'pickupAndDelivery' } });
+                }}
                 className={`p-4 border rounded-lg text-center ${serviceOption === 'pickupAndDelivery' ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}`}
               >
                 <h3 className="font-medium">Pickup & Delivery</h3>

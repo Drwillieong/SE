@@ -110,7 +110,8 @@ export const getOrderById = (db) => async (req, res) => {
   const orderModel = new Order(db);
   try {
     // Get user ID from authenticated user
-    const userId = req.user ? req.user.user_id : null;
+    const user = req.user;
+    const userId = user && user.role !== 'admin' ? user.user_id : null;
 
     const order = await orderModel.getById(orderId, userId);
     if (!order) {

@@ -543,10 +543,6 @@ const Booking = () => {
         ...editBooking,
         // editBooking.deliveryFee is already updated by EditBookingModal's handleEditBookingChange
         totalPrice,
-        paymentDetails: editBooking.paymentMethod === 'cash' ? null : {
-          method: editBooking.paymentMethod,
-          status: 'pending'
-        }
       };
 
       const response = await apiClient.put(`/api/admin/bookings/${bookingToEdit.id}`, updateData);
@@ -635,10 +631,6 @@ const Booking = () => {
         deliveryFee,
         totalPrice,
         serviceName: selectedMainService.label,
-        paymentDetails: newBooking.paymentMethod === 'cash' ? null : {
-          method: newBooking.paymentMethod,
-          status: 'pending'
-        }
       };
 
       const response = await apiClient.post('/api/admin/bookings', bookingData);

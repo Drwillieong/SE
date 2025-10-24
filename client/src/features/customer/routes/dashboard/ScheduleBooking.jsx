@@ -34,6 +34,7 @@ const ScheduleBooking = () => {
   const [activeTab, setActiveTab] = useState('pickup');
   const [orders, setOrders] = useState([]);
   const [editingOrder, setEditingOrder] = useState(null);
+  const [selectedOrderForDetails, setSelectedOrderForDetails] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showPaymentDetailsModal, setShowPaymentDetailsModal] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
@@ -446,7 +447,7 @@ const ScheduleBooking = () => {
   };
 
   const handleEdit = (order) => {
-    setEditingOrder(order);
+    setEditingOrder(order); // This will be used to know we are in "edit mode"
     setFormData({
       mainService: order.mainService || 'washDryFold',
       dryCleaningServices: order.dryCleaningServices || [],
@@ -1068,7 +1069,7 @@ const ScheduleBooking = () => {
                     })}
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-medium"  onClick={() => setEditingOrder(order)}>
+                        <h3 className="font-medium" onClick={() => setSelectedOrderForDetails(order)}>
                           {order.order_id && <span className="text-gray-500">Order #{order.order_id} - </span>}
                           {!order.order_id && order.booking_id && <span className="text-gray-500">Booking #{order.booking_id} - </span>}
                           {!order.order_id && !order.booking_id && order.id && <span className="text-gray-500">Booking #{order.id} - </span>}
@@ -1137,10 +1138,10 @@ const ScheduleBooking = () => {
       </div>
 
       {/* Order Details Modal */}
-      {editingOrder && (
+      {selectedOrderForDetails && (
         <OrderDetailsModal
-          selectedOrder={editingOrder}
-          setSelectedOrder={setEditingOrder}
+          selectedOrder={selectedOrderForDetails}
+          setSelectedOrder={setSelectedOrderForDetails}
         />
       )}
 

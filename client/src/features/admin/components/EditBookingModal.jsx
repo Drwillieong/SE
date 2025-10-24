@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { calculateDeliveryFee } from "../../../utils/deliveryFeeCalculator";
+import { calculateDeliveryFee, getDeliveryFeeInfo } from "../../../utils/deliveryFeeCalculator";
+
+// Define free pickup barangays and their fees
+const freePickupBarangays = [
+  "Brgy. 1", "Brgy. 2", "Brgy. 3", "Brgy. 4", "Brgy. 5", "Brgy. 6", "Brgy. 7",
+  "Lecheria (Up to City Cemetery)", "San Juan", "San Jose",
+  "Looc (Bukana, Mahogany, Vermont)", "Bañadero (Bukana, Bria Homes)",
+  "Palingon", "Lingga", "Sampiruhan", "Parian (Bantayan/Villa Carpio)"
+];
+const calambaBarangays = [
+  "Banlic", "Barandal", "Batino", "Bubuyan", "Bunggo", "Burol", "Camaligan", "Canlubang", "Halang", "Hornalan", "Kay-Anlog",
+  "La Mesa", "Laguerta", "Lawa", "Lecheria", "Lingga", "Looc", "Mabato", "Majada Labas", "Makiling", "Mapagong", "Masili",
+  "Maunong", "Mayapa", "Paciano Rizal", "Palingon", "Palo-Alto", "Pansol", "Parian", "Prinza", "Punta", "Puting Lupa",
+  "Real", "Saimsim", "Sampiruhan", "San Cristobal", "San Jose", "San Juan", "Sirang Lupa", "Sucol", "Turbina", "Ulango",
+  "Uwisan"
+];
 
 const customStyles = {
   content: {
@@ -41,22 +56,19 @@ const EditBookingModal = ({
 }) => {
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [serviceOption, setServiceOption] = useState('pickupAndDelivery');
+  const [barangay, setBarangay] = useState('');
+  const [street, setStreet] = useState('');
+  const [blockLot, setBlockLot] = useState('');
 
   // Calculate delivery fee when address or load count changes
-  useEffect(() => {
-    if (editBooking.address && editBooking.loadCount) {
-      const addressParts = editBooking.address.split(',').map(part => part.trim());
-      const barangay = addressParts.find(part =>
-        part.toLowerCase().includes('brgy') ||
-        part.toLowerCase().includes('barangay') ||
-        addressParts.indexOf(part) === addressParts.length - 2
-      ) || '';
-
-      const fee = calculateDeliveryFee(barangay, parseInt(editBooking.loadCount) || 1);
-      setDeliveryFee(fee);
-      handleEditBookingChange({ target: { name: 'deliveryFee', value: fee } });
-    }
-  }, [editBooking.address, editBooking.loadCount, handleEditBookingChange]);
+useEffect(() => {
+  if (editBooking.address && editBooking.loadCount) {
+    const { fee } = getDeliveryFeeInfo(editBooking.address, parseInt(editBooking.loadCount) || 1);
+    setDeliveryFee(fee);
+    // Update the deliveryFee in the parent component's state
+    handleEditBookingChange({ target: { name: 'deliveryFee', value: fee } });
+  }
+}, [editBooking.address, editBooking.loadCount, handleEditBookingChange]);
 
   // Set service option from editBooking
   useEffect(() => {
@@ -64,6 +76,36 @@ const EditBookingModal = ({
       setServiceOption(editBooking.serviceOption);
     }
   }, [editBooking.serviceOption]);
+
+  // Parse address into components when modal opens
+  useEffect(() => {
+    if (modalIsOpen && editBooking.address) {
+      const addressParts = editBooking.address.split(',').map(part => part.trim());
+      // Remove "Calamba City" if present
+      if (addressParts[addressParts.length - 1].toLowerCase().includes('calamba')) {
+        addressParts.pop();
+      }
+
+      if (addressParts.length >= 2) {
+        const barangayPart = addressParts[addressParts.length - 1];
+        const streetPart = addressParts[0];
+        let blockLotPart = '';
+
+        // Check if there's a block part in the address
+        if (addressParts.length > 2) {
+          const possibleBlockPart = addressParts[1];
+          const blockMatch = possibleBlockPart.match(/^Block\s+(.+)/i);
+          if (blockMatch) {
+            blockLotPart = blockMatch[1];
+          }
+        }
+
+        setStreet(streetPart);
+        setBlockLot(blockLotPart);
+        setBarangay(barangayPart);
+      }
+    }
+  }, [modalIsOpen, editBooking.address]);
 
   const handleServiceOptionChange = (option) => {
     setServiceOption(option);
@@ -220,6 +262,75 @@ const EditBookingModal = ({
                 <option value="card">Credit/Debit Card</option>
               </select>
             </div>
+          </div>
+
+          {/* Address Fields */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Address *</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Block/Lot (Optional)</label>
+                <input
+                  type="text"
+                  value={blockLot}
+                  onChange={(e) => {
+                    setBlockLot(e.target.value);
+                    // Update the full address
+                    const fullAddress = `${e.target.value ? `Block ${e.target.value}` : ''}${street ? `, ${street}` : ''}${barangay ? `, ${barangay}` : ''}`.replace(/^,/, '').trim();
+                    handleEditBookingChange({ target: { name: 'address', value: fullAddress } });
+                  }}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="e.g., 123"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Street *</label>
+                <input
+                  type="text"
+                  value={street}
+                  onChange={(e) => {
+                    setStreet(e.target.value);
+                    // Update the full address
+                    const fullAddress = `${blockLot ? `Block ${blockLot}` : ''}${e.target.value ? `, ${e.target.value}` : ''}${barangay ? `, ${barangay}` : ''}`.replace(/^,/, '').trim();
+                    handleEditBookingChange({ target: { name: 'address', value: fullAddress } });
+                  }}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="e.g., Rizal Street"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Barangay *</label>
+                <select
+                  value={barangay}
+                  onChange={(e) => {
+                    setBarangay(e.target.value);
+                    // Update the full address
+                    const fullAddress = `${blockLot ? `Block ${blockLot}` : ''}${street ? `, ${street}` : ''}${e.target.value ? `, ${e.target.value}` : ''}`.replace(/^,/, '').trim();
+                    handleEditBookingChange({ target: { name: 'address', value: fullAddress } });
+                  }}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  required
+                >
+                  <option value="">Select Barangay</option>
+                  {freePickupBarangays.map(brgy => (
+                    <option key={brgy} value={brgy}>{brgy} (Free Pickup)</option>
+                  ))} 
+                  {calambaBarangays.map(brgy => (
+                    <option key={brgy} value={brgy}>{brgy}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {barangay && (
+              <div className="mt-2 text-sm text-gray-600">
+                {freePickupBarangays.includes(barangay) ? (
+                  <span className="text-green-600">✓ Free pickup available in this barangay</span>
+                ) : (
+                  <span className="text-orange-600">ℹ Delivery fee will apply based on load count</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Service Option Selection */}
