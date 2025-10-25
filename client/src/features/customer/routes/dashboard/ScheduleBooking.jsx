@@ -282,7 +282,7 @@ const ScheduleBooking = () => {
 
   // WebSocket connection for real-time booking count updates
   useEffect(() => {
-    const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001');
+    const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001', { transports: ['websocket', 'polling'] });
 
     // Listen for booking count updates
     socket.on('booking-counts-updated', (data) => {
@@ -758,8 +758,8 @@ const ScheduleBooking = () => {
 
               {/* Service Option Selection */}
               <div className="mb-6">
-                <h2 className="text-xl font-bold mb-4">Service Option</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <h3 className="text-lg font-semibold mb-3">Service Option</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => handleServiceOptionChange('pickupOnly')}
@@ -781,11 +781,11 @@ const ScheduleBooking = () => {
               </div>
 
               <div className="mb-6">
-                <h2 className="text-xl font-bold mb-4">Pickup Details</h2>
+                <h3 className="text-lg font-semibold mb-3">Pickup Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date *</label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                       {!bookingCountsLoading && pickupDates.map((date) => {
                         const isFullyBooked = date.count >= 3;
                         return (
@@ -860,7 +860,7 @@ const ScheduleBooking = () => {
               </div>
 
               <div className="mb-6">
-                <h2 className="text-xl font-bold mb-4">Order Details</h2>
+                <h3 className="text-lg font-semibold mb-3">Order Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
@@ -1042,6 +1042,13 @@ const ScheduleBooking = () => {
                     <span>₱{totalPrice}</span>
                   </div>
                 </div>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                <h3 className="font-bold text-lg mb-3">Booking Confirmation</h3>
+                <p className="text-blue-800">
+                  Please check your email for confirmation of your booking. If your booking is approved, your laundry will be ready in approximately 24-48 hours.
+                </p>
               </div>
 
               <div className="flex justify-between space-x-4">

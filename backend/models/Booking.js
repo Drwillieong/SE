@@ -123,7 +123,8 @@ export class Booking {
         updates.dryCleaningServices = JSON.stringify(updates.dryCleaningServices);
       }
 
-      const fields = Object.keys(updates);
+      // Exclude 'id' as it's an alias, not a column
+      const fields = Object.keys(updates).filter(field => field !== 'id');
       if (fields.length === 0) {
         reject(new Error('No fields to update'));
         return;

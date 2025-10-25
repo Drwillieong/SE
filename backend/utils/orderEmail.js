@@ -35,10 +35,11 @@ export const sendOrderConfirmationEmail = async (email, name, orderId, kilos, to
 
                 <p><strong>What happens next?</strong></p>
                 <ul>
-                    <li>📞 Our team will contact you to schedule pickup</li>
-                    <li>🚚 We'll collect your laundry at the scheduled time</li>
+                    
                     <li>🧺 Your clothes will be professionally cleaned</li>
                     <li>📱 You'll receive updates throughout the process</li>
+                    <li>🚚 You'll receive updates when your laundry is done</li>
+                    
                 </ul>
 
                 <p>If you have any questions or need to make changes to your order, please don't hesitate to contact us:</p>

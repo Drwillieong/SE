@@ -80,7 +80,7 @@ const OrderHistory = () => {
         if (!token) return;
 
         // Initialize WebSocket connection
-        socketRef.current = window.io('http://localhost:8800', {
+        socketRef.current = window.io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001', {
             transports: ['websocket', 'polling'],
             auth: { token }
         });

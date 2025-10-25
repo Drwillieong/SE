@@ -16,6 +16,7 @@ const HomePage = () => {
   const [showSignUpModal, setShowSignUpModal] = useState(false);
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false); // State for navbar mobile menu
+  const [showStickyButton, setShowStickyButton] = useState(false);
   const navigate = useNavigate();
 
   const reviews = [
@@ -84,8 +85,24 @@ const HomePage = () => {
     navigate('/login'); // Navigate to the Log in component
   };
 
+  useEffect(() => {
+    const handleScroll = () => {
+      // Show sticky button after scrolling past 500px
+      if (window.scrollY > 500) {
+        setShowStickyButton(true);
+      } else {
+        setShowStickyButton(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
   return (
-    <div className="bg-white-100 min-h-screen">
+    <div className="bg-white-100 min-h-screen overflow-x-hidden">
       {/* Navbar */}
       <nav className="bg-white p-5 flex justify-between items-center text-pink-400 sticky top-0 z-20 relative">
         <h1 className="text-3xl font-extrabold">Wash It Izzy</h1>
@@ -142,7 +159,7 @@ const HomePage = () => {
       </nav>
       
       {/* Hero Section */}
-      <div className="relative text-left h-[85vh] max-w-[95vw] mx-auto px-4 md:px-10 bg-cover bg-center flex items-center" style={{ backgroundImage: `url(${backgroundImage})` }}>
+      <div className="relative text-left h-[85vh] px-4 md:px-10 bg-cover bg-center flex items-center" style={{ backgroundImage: `url(${backgroundImage})` }}>
         {/* Overlay */}
         <div className="absolute inset-0 bg-[#d8acd7] opacity-60 mix-blend-multiply z-0"></div>
 
@@ -154,16 +171,16 @@ const HomePage = () => {
           <p className="mt-5 text-lg md:text-xl text-white"> Buset Drop-off, self-service, pickup & delivery, dry-cleaning. Make laundry day easier!</p>
           <div
             onClick={() => setShowSignUpModal(true)}
-            className="mt-6 flex items-center rounded-full cursor-pointer bg-white w-full max-w-[25rem] hover:bg-pink-100 transition duration-300"
+            className="mt-6 flex items-center rounded-full cursor-pointer bg-white w-full max-w-[20rem] md:max-w-[25rem] hover:bg-pink-100 transition duration-300"
           >
-            <div className="px-4 md:px-8 py-3 border-r text-black font-medium text-sm md:text-base">
+            <div className="px-3 md:px-8 py-2 md:py-3 border-r text-black font-medium text-xs md:text-base">
               Pickup <br /> Now?
             </div>
-            <div className="flex items-center justify-between flex-grow px-4 md:px-6 py-3">
-              <div className="text-black font-semibold text-sm md:text-base">
+            <div className="flex items-center justify-between flex-grow px-3 md:px-6 py-2 md:py-3">
+              <div className="text-black font-semibold text-xs md:text-base">
                 Where? <br /> Add address
               </div>
-              <span className="ml-4 w-12 h-12 bg-pink-400 text-white flex items-center justify-center rounded-full transition-transform duration-300 transform hover:scale-110">
+              <span className="ml-2 md:ml-4 w-10 h-10 md:w-12 md:h-12 bg-pink-400 text-white flex items-center justify-center rounded-full transition-transform duration-300 transform hover:scale-110">
                 <FontAwesomeIcon icon={faArrowRight} />
               </span>
             </div>
@@ -176,6 +193,27 @@ const HomePage = () => {
         showSignUpModal={showSignUpModal} 
         setShowSignUpModal={setShowSignUpModal} 
       />
+
+      {/* Sticky Pickup Button */}
+      {showStickyButton && (
+        <div
+          onClick={() => setShowSignUpModal(true)}
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center rounded-full cursor-pointer bg-white w-auto max-w-xs md:max-w-sm shadow-lg hover:bg-pink-100 transition-all duration-300"
+        >
+          <div className="px-4 py-2 md:px-6 md:py-3 border-r text-black font-medium text-sm md:text-base">
+            Pickup Now?
+          </div>
+          <div className="flex items-center justify-between flex-grow px-4 py-2 md:px-6 md:py-3">
+            <div className="text-black font-semibold text-sm md:text-base">
+              Add address
+            </div>
+            <span className="ml-3 md:ml-4 w-8 h-8 md:w-10 md:h-10 bg-pink-400 text-white flex items-center justify-center rounded-full transition-transform duration-300 transform hover:scale-110">
+              <FontAwesomeIcon icon={faArrowRight} />
+            </span>
+          </div>
+        </div>
+      )}
+
 
       {/* Laundry Service and Sections */}
       <LaundryService />

@@ -628,7 +628,6 @@ const Booking = () => {
 
       const bookingData = {
         ...newBooking,
-        deliveryFee,
         totalPrice,
         serviceName: selectedMainService.label,
       };

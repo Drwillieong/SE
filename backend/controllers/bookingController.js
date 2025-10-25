@@ -508,6 +508,14 @@ export const approveBooking = (db) => async (req, res) => {
 
     const orderId = await orderModel.create(orderData);
 
+    // Mark booking as completed since it's now converted to order
+    await bookingModel.update(bookingId, { status: 'completed' });
+
+    // Emit real-time update for booking counts (decrement since booking is completed)
+    if (req.io) {
+      req.io.emit('booking-counts-updated', { date: booking.pickupDate, change: -1 });
+    }
+
     // Send approval email with payment reminder
     if (booking.email) {
 

@@ -8,8 +8,6 @@ const EditOrder = () => {
     const { id } = useParams();
     const [formData, setFormData] = useState({
         serviceType: 'washFold',
-        pickupDate: '',
-        pickupTime: '7am-10am',
         loadCount: 1,
         instructions: '',
         paymentMethod: 'cash',
@@ -19,10 +17,6 @@ const EditOrder = () => {
         address: '',
         estimatedClothes: 0,
         kilos: 0,
-        pants: 0,
-        shorts: 0,
-        tshirts: 0,
-        bedsheets: 0,
         status: 'pending'
     });
     const [loading, setLoading] = useState(true);
@@ -38,8 +32,6 @@ const EditOrder = () => {
             const order = response.data;
             setFormData({
                 serviceType: order.serviceType || 'washFold',
-                pickupDate: order.pickupDate || '',
-                pickupTime: order.pickupTime || '7am-10am',
                 loadCount: order.loadCount || 1,
                 instructions: order.instructions || '',
                 paymentMethod: order.paymentMethod || 'cash',
@@ -49,10 +41,6 @@ const EditOrder = () => {
                 address: order.address || '',
                 estimatedClothes: order.estimatedClothes || 0,
                 kilos: order.kilos || 0,
-                pants: order.pants || 0,
-                shorts: order.shorts || 0,
-                tshirts: order.tshirts || 0,
-                bedsheets: order.bedsheets || 0,
                 status: order.status || 'pending'
             });
         } catch (error) {
@@ -114,34 +102,11 @@ const EditOrder = () => {
                             </select>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Pickup Date
-                            </label>
-                            <input
-                                type="date"
-                                name="pickupDate"
-                                value={formData.pickupDate}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Pickup Time
-                            </label>
-                            <select
-                                name="pickupTime"
-                                value={formData.pickupTime}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="7am-10am">7am-10am</option>
-                                <option value="5pm-7pm">5pm-7pm</option>
-                            </select>
-                        </div>
+
+
+
+
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
