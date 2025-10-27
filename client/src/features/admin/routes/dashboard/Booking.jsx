@@ -591,16 +591,17 @@ const Booking = () => {
     setNewBooking(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleCreateBooking = async (e) => {
+  const handleCreateBooking = async (e, bookingDetails) => {
     e.preventDefault();
+    const bookingToCreate = bookingDetails || newBooking;
 
     // Check booking count before creating
     try {
-      const countResponse = await apiClient.post('/api/bookings/counts', { dates: [newBooking.pickupDate] });
+      const countResponse = await apiClient.post('/api/bookings/counts', { dates: [bookingToCreate.pickupDate] });
 
       if (countResponse.status >= 200 && countResponse.status < 300) {
         const countData = countResponse.data;
-        const currentCount = countData[newBooking.pickupDate] || 0;
+        const currentCount = countData[bookingToCreate.pickupDate] || 0;
         if (currentCount >= 3) {
           alert('This day is fully booked. Maximum 3 bookings per day allowed.');
           setLoading(false); // Also set loading false here
@@ -618,16 +619,16 @@ const Booking = () => {
 
     try {
       setLoading(true);
-      const selectedMainService = mainServices.find(s => s.value === newBooking.mainService);
-      const selectedDryCleaningServices = dryCleaningServices.filter(s => newBooking.dryCleaningServices.includes(s.id));
+      const selectedMainService = mainServices.find(s => s.value === bookingToCreate.mainService);
+      const selectedDryCleaningServices = dryCleaningServices.filter(s => bookingToCreate.dryCleaningServices.includes(s.id));
       
-      const mainServicePrice = selectedMainService.price * newBooking.loadCount;
+      const mainServicePrice = selectedMainService.price * bookingToCreate.loadCount;
       const dryCleaningPrice = selectedDryCleaningServices.reduce((sum, s) => sum + s.price, 0);
-      // Use newBooking.deliveryFee directly, which is updated by the modal
-      const totalPrice = mainServicePrice + dryCleaningPrice + (newBooking.serviceOption !== 'pickupOnly' ? newBooking.deliveryFee : 0);
+      // Use deliveryFee from the modal
+      const totalPrice = mainServicePrice + dryCleaningPrice + (bookingToCreate.serviceOption !== 'pickupOnly' ? bookingToCreate.deliveryFee : 0);
 
       const bookingData = {
-        ...newBooking,
+        ...bookingToCreate,
         totalPrice,
         serviceName: selectedMainService.label,
       };

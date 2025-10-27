@@ -28,3 +28,10 @@ export const requireAdmin = (req, res, next) => {
   }
   next();
 };
+
+export const requireCustomer = (req, res, next) => {
+  if (!req.user || (req.user.role !== 'customer' && req.user.role !== 'user')) {
+    return res.status(403).json({ message: 'Customer access required' });
+  }
+  next();
+};

@@ -83,7 +83,7 @@ export const login = (db) => async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      role: user.role || 'user'
+      role: user.role || 'customer'
     });
 
     console.log("Login successful for:", user.email);
@@ -249,7 +249,8 @@ export const changePassword = (db) => async (req, res) => {
       return res.status(400).json({ message: "Current password is incorrect" });
     }
 
-    await userModel.update(userId, { password: newPassword });
+    const hashedPassword = await userModel.hashPassword(newPassword);
+    await userModel.updatePassword(userId, hashedPassword);
 
     console.log(`Password changed successfully for user ID: ${userId}`);
     res.json({ message: "Password changed successfully" });

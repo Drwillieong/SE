@@ -11,6 +11,13 @@ const StatusIcon = ({ status, size = 24, className = '' }) => {
           bgColor: 'bg-yellow-100',
           label: 'Pending'
         };
+      case 'pending_booking':
+        return {
+          icon: Clock,
+          color: 'text-orange-500',
+          bgColor: 'bg-orange-100',
+          label: 'Booking Pending'
+        };
       case 'approved':
         return {
           icon: CheckCircle,

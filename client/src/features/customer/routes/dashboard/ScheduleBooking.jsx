@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import StatusIcon from '../../components/StatusIcon';
 import GcashPaymentModal from '../../components/GcashPaymentModal';
 import main from "../../../../assets/logo.png";
-import washing from "../../../../assets/logo.png";
 import io from 'socket.io-client';
 import OrderDetailsModal from "../../components/OrderDetailsModal";
 
@@ -66,7 +65,7 @@ const ScheduleBooking = () => {
         proof: paymentData.proof
       };
 
-      await apiClient.post(`/api/orders/${orderId}/gcash-payment`, payload);
+      await apiClient.post(`/api/customer/orders/${orderId}/gcash-payment`, payload);
 
       // Update the order in the local state to mark it as complete
       setOrders(prevOrders =>
@@ -160,7 +159,9 @@ const ScheduleBooking = () => {
         dates.push(fullDate);
       }
 
-      const response = await apiClient.post('/api/bookings/counts', { dates });
+      const response = await apiClient.get('/api/customer/orders/counts', {
+        params: { dates }
+      });
       setBookingCounts(response.data);
     } catch (error) {
       console.error('Error fetching booking counts:', error);
@@ -212,7 +213,7 @@ const ScheduleBooking = () => {
   };
 
   // State for the pickup dates to be displayed
-  const [pickupDates, setPickupDates] = useState([]);
+  const [pickupDates, setPickupDates] = useState(getPickupDates());
 
   // Fetch user data and orders
   useEffect(() => {
@@ -224,55 +225,28 @@ const ScheduleBooking = () => {
           return;
         }
         const userRes = await apiClient.get('/auth/me');
+        console.log('ScheduleBooking: Fetched user data:', userRes.data);
         setUserData(userRes.data);
-        setUser({ id: userRes.data.id, name: `${userRes.data.firstName} ${userRes.data.lastName}` });
-        if (userRes.data.barangay) {
-          setDeliveryFee(calculateDeliveryFee(userRes.data.barangay, formData.loadCount));
-        }
-        // Fetch bookings
-        const bookingsRes = await apiClient.get('/api/bookings');
-        // Handle both direct array and paginated response formats
-        const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
+        setUser({ id: userRes.data.user_id, name: `${userRes.data.firstName} ${userRes.data.lastName}` });
 
-        // Fetch orders to get status for completed bookings
-        const ordersRes = await apiClient.get('/api/orders?page=1&limit=100');
-        const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
-
-        // --- DEBUGGING LOGS ---
-        console.log("--- Raw Bookings Data From API ---", bookingsData);
-        console.log("--- Raw Orders Data From API ---", ordersData);
-
-        // Merge bookings with order statuses
-        const mergedData = bookingsData.map(booking => {
-          const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
-          if (matchingOrder) {
-            // Prioritize order data, but keep the original booking's unique ID and creation date.
-            return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
+        // Only proceed if user data is successfully fetched
+        if (userRes.data && userRes.data.user_id) {
+          if (userRes.data.barangay) {
+            setDeliveryFee(calculateDeliveryFee(userRes.data.barangay, formData.loadCount));
           }
-          return booking;
-        });
-
-        // Add direct orders that don't have matching bookings
-        const directOrders = ordersData.filter(order => !order.bookingId || !bookingsData.find(booking => Number(booking.booking_id || booking.id) === Number(order.bookingId)));
-        const allOrders = [...mergedData, ...directOrders.map(order => ({ ...order, id: order.id, order_id: order.id }))];
-
-        // --- DEBUGGING LOG ---
-        console.log("--- Final Merged Data (Bookings + Orders) ---", allOrders);
-
-        setOrders(allOrders);
-
-        // Fetch booking counts for dates
-        await fetchBookingCounts();
+        }
       } catch (error) {
         console.error('Error fetching user data or orders:', error);
         navigate('/login');
       } finally {
+        console.log('ScheduleBooking: User data loading finished.');
         setUserDataLoading(false);
       }
     };
     fetchUserData();
   }, [navigate]);
 
+  console.log('ScheduleBooking: Current userData state:', userData);
   // Recalculate delivery fee when loadCount changes
   useEffect(() => {
     if (userData && userData.barangay) {
@@ -280,9 +254,62 @@ const ScheduleBooking = () => {
     }
   }, [formData.loadCount, userData]);
 
+  // Fetch orders and booking counts once userData is available
+  useEffect(() => {
+    const fetchOrdersAndCounts = async () => {
+      console.log('ScheduleBooking: fetchOrdersAndCounts triggered. userData:', userData);
+      if (userData && userData.user_id) {
+        try {
+          // Fetch unified orders from customer orders endpoint
+          const ordersRes = await apiClient.get('/api/customer/orders?page=1&limit=100');
+          const ordersData = ordersRes.data.orders || [];
+          console.log('ScheduleBooking: Orders API response data:', ordersRes.data);
+
+      // Transform data to match frontend expectations
+      const transformedOrders = ordersData.map(order => ({
+        ...order,
+        id: order.service_orders_id || order.id,
+        order_id: order.service_orders_id || order.id,
+        booking_id: order.service_orders_id || order.id, // Unified ID
+        mainService: order.service_type,
+        dryCleaningServices: order.dry_cleaning_services || [], // Simplified, backend already parses
+        pickupDate: order.pickup_date,
+        pickupTime: order.pickup_time,
+        loadCount: order.load_count || 1,
+        instructions: order.instructions || '',
+        status: order.status || 'pending_booking',
+        paymentMethod: order.payment_method || 'cash',
+        paymentStatus: order.payment_status || 'unpaid',
+        totalPrice: parseFloat(order.totalPrice) || 0, // Explicit parseFloat
+        photos: order.photos || [], // Simplified, backend already parses
+        laundryPhoto: order.laundry_photos || [], // Simplified, backend already parses
+        createdAt: order.created_at || order.createdAt,
+        serviceOption: order.service_option || 'pickupAndDelivery',
+        deliveryFee: order.delivery_fee || 0
+      }));
+
+          console.log('ScheduleBooking: Transformed orders:', transformedOrders);
+          setOrders(transformedOrders);
+          console.log('ScheduleBooking: Orders state updated. Current orders:', transformedOrders); // New log
+          await fetchBookingCounts();
+        } catch (error) {
+          console.error('Error fetching orders:', error);
+          // If API fails, you might want to show an error message.
+          // For now, it will just show an empty list.
+        }
+      }
+    };
+
+    fetchOrdersAndCounts();
+  }, [userData]); // This effect now correctly depends on the userData state
+
   // WebSocket connection for real-time booking count updates
   useEffect(() => {
-    const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001', { transports: ['websocket', 'polling'] });
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:8800', 
+    { transports: ['websocket', 'polling'], auth: { token } }); // Standardized URL
 
     // Listen for booking count updates
     socket.on('booking-counts-updated', (data) => {
@@ -357,13 +384,13 @@ const ScheduleBooking = () => {
   const confirmOrder = async () => {
     try {
       setLoading(true);
-      const selectedMainService = mainServices.find(s => s.id === formData.mainService);
-      const selectedDryCleaningServices = dryCleaningServices.filter(s => formData.dryCleaningServices.includes(s.id));
 
       const userAddress = `${userData.street || ''}${userData.blockLot ? `, Block ${userData.blockLot}` : ''}, ${userData.barangay || ''}, Calamba City`;
 
       // Check latest booking count before submitting
-      const countResponse = await apiClient.post('/api/bookings/counts', { dates: [formData.pickupDate] });
+      const countResponse = await apiClient.get('/api/customer/orders/counts', {
+        params: { dates: [formData.pickupDate] }
+      });
       const currentCount = countResponse.data[formData.pickupDate] || 0;
       if (currentCount >= 3) {
         alert('This day is now fully booked. Please select another date.');
@@ -374,33 +401,32 @@ const ScheduleBooking = () => {
       }
 
       const bookingPayload = {
-        mainService: formData.mainService,
-        dryCleaningServices: formData.dryCleaningServices,
-        pickupDate: formData.pickupDate,
-        pickupTime: formData.pickupTime,
-        loadCount: formData.loadCount,
+        service_type: formData.mainService,
+        dry_cleaning_services: formData.dryCleaningServices,
+        pickup_date: formData.pickupDate,
+        pickup_time: formData.pickupTime,
+        load_count: formData.loadCount,
         instructions: formData.instructions,
-        status: 'pending',
-        paymentMethod: formData.paymentMethod,
+        status: 'pending_booking', // New initial status for a booking request
+        payment_method: formData.paymentMethod,
         name: userData.firstName + ' ' + userData.lastName,
         contact: userData.contact,
         email: userData.email,
         address: userAddress,
         photos: [],
-        totalPrice: (selectedMainService.price * formData.loadCount) + selectedDryCleaningServices.reduce((sum, s) => sum + s.price, 0) + (formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee),
-        serviceOption: formData.serviceOption,
-        deliveryFee: formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee,
-        user_id: user.id,
+        total_price: (selectedMainService.price * formData.loadCount) + (formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee), // This is for the payload to backend
+        service_option: formData.serviceOption,
+        delivery_fee: formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee,
+        user_id: user.id, // This should be correct as `user` state is set with user_id
       };
 
       if (editingOrder) {
-        // Update existing booking
-        await apiClient.put(`/api/bookings/${editingOrder.booking_id || editingOrder.id}`, bookingPayload);
-        alert('Booking updated successfully!');
+        // Update existing service order
+        await apiClient.put(`/api/customer/orders/${editingOrder.id}`, bookingPayload);
+        alert('Order updated successfully!');
       } else {
-        // Create new booking
-        await apiClient.post('/api/bookings', bookingPayload);
-
+        // Create new service order (as a booking request)
+        await apiClient.post('/api/customer/orders', bookingPayload);
         alert('Booking submitted successfully! Our team will review your request.');
       }
 
@@ -408,35 +434,38 @@ const ScheduleBooking = () => {
       setEditingOrder(null);
       resetForm();
       setActiveTab('orders');
-      // Refresh bookings and orders
-      const [bookingsRes, ordersRes] = await Promise.all([
-        apiClient.get('/api/bookings'),
-        apiClient.get('/api/orders?page=1&limit=100'),
-        // Manually refetch booking counts to update the current user's UI
-        fetchBookingCounts()
-      ]);
+      
+      // Refresh orders and booking counts
+      await fetchBookingCounts();
+      const ordersRes = await apiClient.get('/api/customer/orders?page=1&limit=100'); // This is for refreshing after booking
+      const ordersData = ordersRes.data.orders || []; // Correctly extracts from nested object
 
-      const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
-      const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
-
-      // --- DEBUGGING LOGS ---
-      console.log("--- Refresh: Raw Bookings Data ---", bookingsData);
-      console.log("--- Refresh: Raw Orders Data ---", ordersData);
-
-      // Merge bookings with order statuses
-      const mergedData = bookingsData.map(booking => {
-        const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
-        if (matchingOrder) {
-          // Prioritize order data, but keep the original booking's unique ID and creation date.
-          return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
-        }
-        return booking;
+      // Transform data to match frontend expectations
+      const transformedOrders = ordersData.map(order => { 
+        return {
+          ...order,
+          id: order.service_orders_id || order.id,
+          order_id: order.service_orders_id || order.id,
+          booking_id: order.service_orders_id || order.id, // Unified ID
+          mainService: order.service_type,
+          dryCleaningServices: order.dry_cleaning_services || [], // Simplified
+          pickupDate: order.pickup_date,
+          pickupTime: order.pickup_time,
+          loadCount: order.load_count || 1,
+          instructions: order.instructions || '',
+          status: order.status || 'pending_booking',
+          paymentMethod: order.payment_method || 'cash',
+          paymentStatus: order.payment_status || 'unpaid',
+          totalPrice: parseFloat(order.totalPrice) || 0, // Explicit parseFloat
+          photos: order.photos || [], // Simplified
+          laundryPhoto: order.laundry_photos || [], // Simplified
+          createdAt: order.created_at || order.createdAt,
+          serviceOption: order.service_option || 'pickupAndDelivery',
+          deliveryFee: order.delivery_fee || 0
+        };
       });
+      setOrders(transformedOrders);
 
-      // --- DEBUGGING LOG ---
-      console.log("--- Refresh: Final Merged Data ---", mergedData);
-
-      setOrders(mergedData);
     } catch (error) {
       console.error('Error saving order:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to save order. Please try again.';
@@ -462,38 +491,51 @@ const ScheduleBooking = () => {
       loadCount: order.loadCount || 1,
       instructions: order.instructions,
       paymentMethod: order.paymentMethod,
-      status: order.status,
+      status: order.status, // This will be 'pending_booking' for an editable order
       serviceOption: order.serviceOption || 'pickupAndDelivery'
     });
     setActiveTab('pickup');
   };
 
   const handleCancel = async (orderId) => {
-    if (window.confirm('Are you sure you want to cancel this booking?')) {
+    if (window.confirm('Are you sure you want to cancel this order?')) {
       try {
         setLoading(true);
-        // Use apiClient instead of axios
-        await apiClient.put(`/api/bookings/${orderId}`, { status: 'cancelled' });
-        alert('Booking cancelled successfully!');
-        // Refresh orders and filter out cancelled order
-        // Use apiClient instead of axios
-        const bookingsRes = await apiClient.get('/api/bookings');
-        const ordersRes = await apiClient.get('/api/orders?page=1&limit=100'); // Fetch orders to merge
+        // To cancel a 'pending_booking', we use the customer-specific endpoint.
+        await apiClient.put(`/api/customer/orders/${orderId}/cancel`);
+        alert('Order cancelled successfully!');
 
-        const bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : bookingsRes.data.bookings || [];
+        // Refresh orders using unified endpoint
+        const ordersRes = await apiClient.get('/api/customer/orders?page=1&limit=100');
         const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data.orders || [];
 
-        const mergedData = bookingsData.map(booking => {
-          const matchingOrder = ordersData.find(order => Number(order.bookingId) === Number(booking.booking_id || booking.id));
-          if (matchingOrder) {
-            return { ...booking, ...matchingOrder, id: booking.id, booking_id: booking.booking_id, createdAt: booking.createdAt, order_id: matchingOrder.order_id };
-          }
-          return booking;
-        });
-        setOrders(mergedData);
+        // Transform data to match frontend expectations
+        const transformedOrders = ordersData.map(order => ({
+          ...order,
+          id: order.service_orders_id || order.id,
+          order_id: order.service_orders_id || order.id,
+          booking_id: order.service_orders_id || order.id, // Unified ID
+          mainService: order.service_type,
+          dryCleaningServices: order.dry_cleaning_services || [], // Simplified
+          pickupDate: order.pickup_date,
+          pickupTime: order.pickup_time,
+          loadCount: order.load_count || 1,
+          instructions: order.instructions || '',
+          status: order.status || 'pending_booking',
+          paymentMethod: order.payment_method || 'cash',
+          paymentStatus: order.payment_status || 'unpaid',
+          totalPrice: parseFloat(order.totalPrice) || 0, // Explicit parseFloat
+          photos: order.photos || [],
+          laundryPhoto: order.laundry_photos || [],
+          createdAt: order.created_at || order.createdAt,
+          serviceOption: order.service_option || 'pickupAndDelivery',
+          deliveryFee: order.delivery_fee || 0
+        }));
+
+        setOrders(transformedOrders);
       } catch (error) {
-        console.error('Error cancelling booking:', error);
-        alert('Failed to cancel booking. Please try again.');
+        console.error('Error cancelling order:', error);
+        alert('Failed to cancel order. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -514,7 +556,7 @@ const ScheduleBooking = () => {
       pickupTime: '7am-10am',
       loadCount: 1,
       instructions: '',
-      status: 'pending',
+      status: 'pending_booking',
       paymentMethod: 'cash',
       serviceOption: 'pickupAndDelivery'
     });
@@ -616,7 +658,7 @@ const ScheduleBooking = () => {
   const selectedDryCleaningServices = dryCleaningServices.filter(s => formData.dryCleaningServices.includes(s.id));
   const mainServicePrice = selectedMainService ? selectedMainService.price * formData.loadCount : 0;
   const dryCleaningPrice = selectedDryCleaningServices.reduce((sum, s) => sum + s.price, 0);
-  const totalPrice = mainServicePrice + dryCleaningPrice + (formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee);
+  const totalPrice = mainServicePrice + (formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee);
 
   return (
     <div className="min-h-fit bg-gray-50">
@@ -786,7 +828,7 @@ const ScheduleBooking = () => {
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date *</label>
                     <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                      {!bookingCountsLoading && pickupDates.map((date) => {
+                      {pickupDates.map((date) => {
                         const isFullyBooked = date.count >= 3;
                         return (
                           <button
@@ -1079,13 +1121,6 @@ const ScheduleBooking = () => {
               ) : (
                 orders.map((order, index) => (
                   <div key={order.id || index} className="p-6 cursor-pointer">
-                    {/* Debugging: Log order properties relevant to payment button visibility */}
-                    {console.log(`Order ID: ${order.id || index}`, {
-                      order_id: order.order_id,
-                      paymentMethod: order.paymentMethod,
-                      paymentStatus: order.paymentStatus,
-                      status: order.status
-                    })}
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium" onClick={() => setSelectedOrderForDetails(order)}>
@@ -1113,7 +1148,7 @@ const ScheduleBooking = () => {
                         <p className="text-sm text-gray-600">Total: ₱{order.totalPrice}</p>
                       </div>
                       <div className="flex space-x-2">
-                        {order.status === 'pending' && (
+                        {order.status === 'pending_booking' && (
                           <>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleEdit(order); }}

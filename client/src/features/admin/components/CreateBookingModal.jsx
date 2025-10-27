@@ -114,7 +114,10 @@ const CreateBookingModal = ({
       if (!proceed) return;
     }
 
-    handleCreateBooking(e); // Parent's newBooking state is already updated
+    handleCreateBooking(e, {
+      ...newBooking,
+      deliveryFee: serviceOption === 'pickupAndDelivery' ? deliveryFee : 0,
+    });
   };
 
   return (

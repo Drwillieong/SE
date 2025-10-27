@@ -1,7 +1,13 @@
-# TODO: Fix Homepage Responsiveness for Mobile
+# Fix Orders Visibility After Refresh/Login
 
-## Steps to Complete
-- [x] Edit `client/src/pages/HomePage.jsx` to add `overflow-x-hidden` to the root div
-- [x] Edit `client/src/pages/HomePage.jsx` to remove `max-w-[95vw]` and `mx-auto` from the hero section div for full width
-- [ ] Test the changes on mobile to ensure no white space and proper responsiveness
-mar
+## Status: In Progress
+
+### Issues Identified
+- [x] Frontend incorrectly maps `order.id` instead of `order.service_orders_id` from backend
+- [x] This breaks order identification and display after page refresh or login/logout
+
+### Fixes Needed
+- [ ] Update order transformation in `fetchOrdersAndCounts` useEffect
+- [ ] Update order transformation in `confirmOrder` function
+- [ ] Update order transformation in `handleCancel` function
+- [ ] Test orders display after refresh and login/logout cycles

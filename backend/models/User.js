@@ -31,7 +31,7 @@ export class User {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      role: user.role || 'user'
+      role: user.role || 'customer'
     }, process.env.JWT_SECRET || 'your_jwt_secret', { expiresIn: '1h' });
   }
 

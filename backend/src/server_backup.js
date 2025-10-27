@@ -6,11 +6,10 @@ import passport from 'passport';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import authRoutes from '../routes/auth.js';
-import adminOrderRoutes from '../routes/adminOrderRoutes.js';
-import adminBookingRoutes from '../routes/adminBookingRoutes.js';
-import adminHistoryRoutes from '../routes/adminHistoryRoutes.js';
-import adminAnalyticsRoutes from '../routes/adminAnalyticsRoutes.js';
-import customerRoutes from '../routes/customerRoutes.js';
+import adminRoutes from '../routes/admin.js';
+import bookingRoutes from '../routes/bookings.js';
+import orderRoutes from '../routes/orders.js';
+import analyticsRoutes from '../routes/analytics.js';
 import { initializeGoogleStrategy } from '../config/googleOAuth.js';
 import db from "../config/db.js";
 
@@ -98,54 +97,14 @@ const verifyToken = (req, res, next) => {
 app.use('/auth', authRoutes(db));
 
 // Use admin routes with JWT authentication
-const adminOrderRouter = express.Router();
-adminOrderRouter.use(verifyToken);
-adminOrderRouter.use((req, res, next) => {
+const adminRouter = express.Router();
+adminRouter.use(verifyToken);
+adminRouter.use((req, res, next) => {
   req.db = db;
   next();
 });
-adminOrderRouter.use('/orders', adminOrderRoutes(db));
-app.use('/api/admin', adminOrderRouter);
-
-// Admin booking routes
-const adminBookingRouter = express.Router();
-adminBookingRouter.use(verifyToken);
-adminBookingRouter.use((req, res, next) => {
-  req.db = db;
-  next();
-});
-adminBookingRouter.use('/bookings', adminBookingRoutes(db));
-app.use('/api/admin', adminBookingRouter);
-
-// Admin history routes
-const adminHistoryRouter = express.Router();
-adminHistoryRouter.use(verifyToken);
-adminHistoryRouter.use((req, res, next) => {
-  req.db = db;
-  next();
-});
-adminHistoryRouter.use('/history', adminHistoryRoutes(db));
-app.use('/api/admin', adminHistoryRouter);
-
-// Admin analytics routes
-const adminAnalyticsRouter = express.Router();
-adminAnalyticsRouter.use(verifyToken);
-adminAnalyticsRouter.use((req, res, next) => {
-  req.db = db;
-  next();
-});
-adminAnalyticsRouter.use('/analytics', adminAnalyticsRoutes(db));
-app.use('/api/admin', adminAnalyticsRouter);
-
-// Customer routes
-const customerRouter = express.Router();
-customerRouter.use(verifyToken);
-customerRouter.use((req, res, next) => {
-  req.db = db;
-  next();
-});
-customerRouter.use(customerRoutes(db));
-app.use('/api/customer', customerRouter);
+adminRouter.use(adminRoutes);
+app.use('/api/admin', adminRouter);
 
 // Use booking routes with JWT authentication
 const bookingRouter = express.Router();
@@ -154,7 +113,7 @@ bookingRouter.use((req, res, next) => {
   req.db = db;
   next();
 });
-bookingRouter.use(adminBookingRoutes(db));
+bookingRouter.use(bookingRoutes(db));
 app.use('/api/bookings', bookingRouter);
 
 // Use order routes with JWT authentication
@@ -164,7 +123,7 @@ orderRouter.use((req, res, next) => {
   req.db = db;
   next();
 });
-orderRouter.use(adminOrderRoutes(db));
+orderRouter.use(orderRoutes(db));
 app.use('/api/orders', orderRouter);
 
 // Use analytics routes with JWT authentication
@@ -174,7 +133,7 @@ analyticsRouter.use((req, res, next) => {
   req.db = db;
   next();
 });
-analyticsRouter.use(adminAnalyticsRoutes(db));
+analyticsRouter.use(analyticsRoutes(db));
 app.use('/api/analytics', analyticsRouter);
 
 app.get('/', (req, res) => {

@@ -96,26 +96,26 @@ const BookingDetailsModal = ({ selectedBooking, setSelectedBooking }) => {
     {
       id: 'dryCleanBarong',
       name: 'Dry Cleaning - Barong',
-      price: 350,
-      priceText: '₱350 per item'
+      price: 0, // Pricing varies, no fixed price
+      priceText: 'Starting from ₱350 - Visit shop for inspection'
     },
     {
       id: 'dryCleanCoat',
       name: 'Dry Cleaning - Coat',
-      price: 400,
-      priceText: '₱400 per item'
+      price: 0, // Pricing varies, no fixed price
+      priceText: 'Starting from ₱400 - Visit shop for inspection'
     },
     {
       id: 'dryCleanGown',
       name: 'Dry Cleaning - Gown',
-      price: 650,
-      priceText: '₱650 per item'
+      price: 0, // Pricing varies, no fixed price
+      priceText: 'Starting from ₱650 - Visit shop for inspection'
     },
     {
       id: 'dryCleanWeddingGown',
       name: 'Dry Cleaning - Wedding Gown',
-      price: 1500,
-      priceText: '₱1,500 per item'
+      price: 0, // Pricing varies, no fixed price
+      priceText: 'Starting from ₱1,500 - Visit shop for inspection'
     },
   ];
 
@@ -145,7 +145,8 @@ const BookingDetailsModal = ({ selectedBooking, setSelectedBooking }) => {
             name: service.name,
             quantity: 1,
             price: service.price,
-            total: service.price
+            total: service.price,
+            isVariablePricing: service.price === 0 // Flag for variable pricing
           });
         }
       });
@@ -188,7 +189,7 @@ const BookingDetailsModal = ({ selectedBooking, setSelectedBooking }) => {
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-pink-600">
-                ₱{selectedBooking.totalPrice?.toLocaleString()}
+                {selectedBooking.totalPrice === 0 ? 'Pricing varies' : `₱${selectedBooking.totalPrice?.toLocaleString()}`}
               </div>
               <div className="text-sm text-gray-600">Total Price</div>
             </div>
@@ -273,8 +274,12 @@ const BookingDetailsModal = ({ selectedBooking, setSelectedBooking }) => {
                   <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium text-gray-900">₱{item.total.toLocaleString()}</p>
-                  <p className="text-sm text-gray-600">₱{item.price} each</p>
+                  <p className="font-medium text-gray-900">
+                    {item.isVariablePricing ? 'Pricing varies' : `₱${item.total.toLocaleString()}`}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {item.isVariablePricing ? 'Visit shop for inspection' : `₱${item.price} each`}
+                  </p>
                 </div>
               </div>
             ))}
@@ -295,7 +300,9 @@ const BookingDetailsModal = ({ selectedBooking, setSelectedBooking }) => {
             {/* Total */}
             <div className="flex justify-between items-center py-3 border-t-2 border-gray-300">
               <p className="text-lg font-bold text-gray-900">Total Amount</p>
-              <p className="text-lg font-bold text-pink-600">₱{selectedBooking.totalPrice?.toLocaleString()}</p>
+              <p className="text-lg font-bold text-pink-600">
+                {selectedBooking.totalPrice === 0 ? 'Pricing varies' : `₱${selectedBooking.totalPrice?.toLocaleString()}`}
+              </p>
             </div>
           </div>
         </div>

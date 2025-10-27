@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import apiClient from '../../../../utils/axios';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
 const calambaBarangays = [
   "Banlic", "Barandal", "Batino", "Banadero", "Bubuyan", "Bucal", "Bunggo", 
@@ -33,6 +35,11 @@ const  Profile = () => {
     const [error, setError] = useState("");
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [passwordVisibility, setPasswordVisibility] = useState({
+        current: false,
+        new: false,
+        confirm: false,
+    });
 
     useEffect(() => {
         // Fetch user profile on component mount
@@ -40,7 +47,6 @@ const  Profile = () => {
             try {
                 const response = await apiClient.get('/auth/me');
                 if (response.data) {
-                    console.log("Profile fetch response data:", response.data);
                     setProfile({
                         firstName: response.data.firstName || "",
                         lastName: response.data.lastName || "",
@@ -110,7 +116,8 @@ const  Profile = () => {
                 setError(response.data.message || "Failed to change password.");
             }
         } catch (err) {
-            setError("Error changing password.");
+            const errorMessage = err.response?.data?.message || err.response?.data?.error || "Error changing password. Please try again.";
+            setError(errorMessage);
         }
     };
 
@@ -319,40 +326,61 @@ const  Profile = () => {
                 <div className="mt-12">
                     <h2 className="text-lg font-semibold text-gray-800 mb-4">Change Password</h2>
                     <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-md">
-                        <div>
+                        <div className="relative">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
                             <input
-                                type="password"
+                                type={passwordVisibility.current ? "text" : "password"}
                                 name="currentPassword"
                                 value={passwords.currentPassword}
                                 onChange={handlePasswordChange}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500"
                                 required
                             />
+                            <button
+                                type="button"
+                                onClick={() => setPasswordVisibility(prev => ({ ...prev, current: !prev.current }))}
+                                className="absolute right-3 top-9 text-gray-500 hover:text-pink-500"
+                            >
+                                <FontAwesomeIcon icon={passwordVisibility.current ? faEyeSlash : faEye} />
+                            </button>
                         </div>
-                        <div>
+                        <div className="relative">
                             <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
                             <input
-                                type="password"
+                                type={passwordVisibility.new ? "text" : "password"}
                                 name="newPassword"
                                 value={passwords.newPassword}
                                 onChange={handlePasswordChange}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500"
                                 required
-                                minLength="6"
+                                minLength="8"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setPasswordVisibility(prev => ({ ...prev, new: !prev.new }))}
+                                className="absolute right-3 top-9 text-gray-500 hover:text-pink-500"
+                            >
+                                <FontAwesomeIcon icon={passwordVisibility.new ? faEyeSlash : faEye} />
+                            </button>
                         </div>
-                        <div>
+                        <div className="relative">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
                             <input
-                                type="password"
+                                type={passwordVisibility.confirm ? "text" : "password"}
                                 name="confirmPassword"
                                 value={passwords.confirmPassword}
                                 onChange={handlePasswordChange}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500"
                                 required
-                                minLength="6"
+                                minLength="8"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setPasswordVisibility(prev => ({ ...prev, confirm: !prev.confirm }))}
+                                className="absolute right-3 top-9 text-gray-500 hover:text-pink-500"
+                            >
+                                <FontAwesomeIcon icon={passwordVisibility.confirm ? faEyeSlash : faEye} />
+                            </button>
                         </div>
                         <button
                             type="submit"

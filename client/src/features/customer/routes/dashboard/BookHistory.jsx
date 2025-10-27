@@ -80,7 +80,7 @@ const OrderHistory = () => {
         if (!token) return;
 
         // Initialize WebSocket connection
-        socketRef.current = window.io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001', {
+        socketRef.current = window.io(import.meta.env.VITE_API_URL || 'http://localhost:8800', {
             transports: ['websocket', 'polling'],
             auth: { token }
         });
@@ -130,39 +130,27 @@ const OrderHistory = () => {
             console.log('Fetching items with token:', token);
 
             // Fetch both bookings and orders
-            const [bookingsResponse, ordersResponse] = await Promise.all([
-                apiClient.get('/api/bookings'),
-                apiClient.get('/api/orders')
-            ]);
+            const ordersResponse = await apiClient.get('/api/customer/orders');
 
-            console.log('Bookings response status:', bookingsResponse.status);
             console.log('Orders response status:', ordersResponse.status);
 
-            let bookings = [];
             let orders = [];
-
-            if (bookingsResponse.status === 200) {
-                bookings = bookingsResponse.data;
-                console.log('Bookings data:', bookings);
-                // Add type to bookings for identification
-                bookings = bookings.map(booking => ({ ...booking, type: 'booking' }));
-            } else {
-                console.error('Failed to fetch bookings:', bookingsResponse.status);
-            }
 
             if (ordersResponse.status === 200) {
                 const ordersData = ordersResponse.data;
                 console.log('Orders data:', ordersData);
                 // Handle both direct array and paginated response formats
                 orders = Array.isArray(ordersData) ? ordersData : ordersData.orders || [];
-                // Add type to orders for identification
-                orders = orders.map(order => ({ ...order, type: 'order' }));
             } else {
                 console.error('Failed to fetch orders:', ordersResponse.status);
             }
 
             // Combine and sort by creation date (newest first)
-            const allItems = [...bookings, ...orders].sort((a, b) => {
+            const allItems = [...orders].map(item => {
+                // Determine if it's a booking or an order based on status
+                const type = item.status === 'pending_booking' ? 'booking' : 'order';
+                return { ...item, type };
+            }).sort((a, b) => {
                 const dateA = new Date(a.createdAt || a.created_at);
                 const dateB = new Date(b.createdAt || b.created_at);
                 return dateB - dateA;

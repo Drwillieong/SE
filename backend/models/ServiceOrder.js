@@ -1,9 +1,9 @@
-export class Order {
+export class ServiceOrder {
   constructor(db) {
     this.db = db;
   }
 
-  // Get all orders with pagination (optimized to avoid sort memory issues)
+  // Get all service orders with pagination (optimized to avoid sort memory issues)
   async getAll(page = 1, limit = 50, userId = null) {
     const offset = (page - 1) * limit;
 
@@ -17,8 +17,8 @@ export class Order {
     if (userId) {
       // Filter by user_id for customer requests
       sql = `
-        SELECT * FROM orders
-        WHERE user_id = ? AND order_id > 0
+        SELECT * FROM service_orders
+        WHERE user_id = ? AND service_orders_id > 0
         AND moved_to_history_at IS NULL
         AND is_deleted = FALSE
         LIMIT ? OFFSET ?
@@ -27,8 +27,8 @@ export class Order {
     } else {
       // Admin request - get all active orders (not deleted, not in history)
       sql = `
-        SELECT * FROM orders
-        WHERE order_id > 0
+        SELECT * FROM service_orders
+        WHERE service_orders_id > 0
         AND moved_to_history_at IS NULL
         AND is_deleted = FALSE
         LIMIT ? OFFSET ?
@@ -48,8 +48,8 @@ export class Order {
           return;
         }
 
-        // Sort the results in memory by createdAt (JavaScript sort)
-        results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        // Sort the results in memory by created_at (JavaScript sort)
+        results.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         // Take only the number we need
         const paginatedResults = results.slice(0, limit);
@@ -59,9 +59,9 @@ export class Order {
     });
   }
 
-  // Get total count of orders for pagination
+  // Get total count of service orders for pagination
   async getTotalCount() {
-    const sql = 'SELECT COUNT(*) as total FROM orders';
+    const sql = 'SELECT COUNT(*) as total FROM service_orders';
     return new Promise((resolve, reject) => {
       this.db.query(sql, (err, results) => {
         if (err) {
@@ -73,9 +73,9 @@ export class Order {
     });
   }
 
-  // Get total count of orders for a specific user
+  // Get total count of service orders for a specific user
   async getTotalCountByUser(userId) {
-    const sql = 'SELECT COUNT(*) as total FROM orders WHERE user_id = ?';
+    const sql = 'SELECT COUNT(*) as total FROM service_orders WHERE user_id = ?';
     return new Promise((resolve, reject) => {
       this.db.query(sql, [userId], (err, results) => {
         if (err) {
@@ -87,18 +87,18 @@ export class Order {
     });
   }
 
-  // Get order by ID
+  // Get service order by ID
   async getById(orderId, userId = null) {
     let sql;
     let params;
 
     if (userId) {
       // Filter by user_id for customer requests
-      sql = 'SELECT * FROM orders WHERE order_id = ? AND user_id = ?';
+      sql = 'SELECT * FROM service_orders WHERE service_orders_id = ? AND user_id = ?';
       params = [orderId, userId];
     } else {
       // Admin request - get any order
-      sql = 'SELECT * FROM orders WHERE order_id = ?';
+      sql = 'SELECT * FROM service_orders WHERE service_orders_id = ?';
       params = [orderId];
     }
 
@@ -113,14 +113,14 @@ export class Order {
     });
   }
 
-  // Get orders by status
+  // Get service orders by status
   async getByStatus(status) {
     const sql = `
-      SELECT * FROM orders
+      SELECT * FROM service_orders
       WHERE status = ?
       AND moved_to_history_at IS NULL
       AND is_deleted = FALSE
-      ORDER BY createdAt DESC
+      ORDER BY created_at DESC
     `;
     return new Promise((resolve, reject) => {
       this.db.query(sql, [status], (err, results) => {
@@ -133,38 +133,53 @@ export class Order {
     });
   }
 
-  // Create new order
+  // Create new service order
   async create(orderData) {
     const sql = `
-      INSERT INTO orders (
-        serviceType, pickupDate, pickupTime, loadCount, instructions, status, paymentMethod, name, contact, email, address, photos, totalPrice, paymentStatus, user_id, kilos, laundryPhoto, bookingId
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO service_orders (
+        user_id, name, contact, email, address, service_type, dry_cleaning_services,
+        pickup_date, pickup_time, load_count, instructions, estimated_clothes,
+        kilos, laundry_photos, status, rejection_reason, payment_method, service_option, delivery_fee,
+        total_price, payment_status, payment_proof, reference_id, payment_review_status,
+        photos, timer_start, timer_end, auto_advance_enabled, current_timer_status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     // Validate and cap totalPrice to prevent database range errors
     // DECIMAL(10,2) max is 99999999.99
     const maxTotalPrice = 99999999.99;
-    const validatedTotalPrice = Math.min(Math.max(orderData.totalPrice || 0, 0), maxTotalPrice);
+    const validatedTotalPrice = Math.min(Math.max(orderData.total_price || 0, 0), maxTotalPrice);
 
     const values = [
-      orderData.serviceType,
-      orderData.pickupDate,
-      orderData.pickupTime,
-      orderData.loadCount || 1,
-      orderData.instructions || '',
-      orderData.status || 'pending',
-      orderData.paymentMethod || 'cash',
+      orderData.user_id || null,
       orderData.name,
       orderData.contact,
       orderData.email || '',
       orderData.address,
-      JSON.stringify(orderData.photos || []),
+      orderData.service_type || orderData.serviceType,
+      JSON.stringify(orderData.dry_cleaning_services || orderData.dryCleaningServices || []),
+      orderData.pickup_date || orderData.pickupDate,
+      orderData.pickup_time || orderData.pickupTime,
+      orderData.load_count || orderData.loadCount || 1,
+      orderData.instructions || '',
+      orderData.estimated_clothes || orderData.estimatedClothes || null,
+      orderData.kilos || null,
+      JSON.stringify(orderData.laundry_photos || orderData.laundryPhoto || []),
+      orderData.status || 'pending',
+      orderData.rejection_reason || orderData.rejectionReason || null,
+      orderData.payment_method || orderData.paymentMethod || 'cash',
+      orderData.service_option || 'pickupAndDelivery',
+      orderData.delivery_fee || 0,
       validatedTotalPrice,
-      orderData.paymentStatus || 'unpaid',
-      orderData.user_id || null,
-      orderData.kilos || 0,
-      JSON.stringify(orderData.laundryPhoto || []),
-      orderData.bookingId || null
+      orderData.payment_status || orderData.paymentStatus || 'unpaid',
+      orderData.payment_proof || null,
+      orderData.reference_id || orderData.referenceNumber || null,
+      orderData.payment_review_status || 'pending',
+      JSON.stringify(orderData.photos || []),
+      orderData.timer_start || null,
+      orderData.timer_end || null,
+      orderData.auto_advance_enabled || false,
+      orderData.current_timer_status || null
     ];
 
     return new Promise((resolve, reject) => {
@@ -178,24 +193,32 @@ export class Order {
     });
   }
 
-  // Update order
+  // Update service order
   async update(orderId, updates) {
     if (Object.keys(updates).length === 0) {
       throw new Error('No fields to update');
     }
 
+    // Handle JSON fields
+    const jsonFields = ['dry_cleaning_services', 'laundry_photos', 'photos'];
+    jsonFields.forEach(field => {
+      if (updates[field]) {
+        updates[field] = JSON.stringify(updates[field]);
+      }
+    });
+
     const fields = Object.keys(updates);
     const values = Object.values(updates);
 
     const setClause = fields.map(field => `${field} = ?`).join(', ');
-    const sql = `UPDATE orders SET ${setClause} WHERE order_id = ?`;
+    const sql = `UPDATE service_orders SET ${setClause} WHERE service_orders_id = ?`;
 
     return new Promise((resolve, reject) => {
       this.db.query(sql, [...values, orderId], (err, result) => {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found'));
+          reject(new Error('Service order not found'));
         } else {
           resolve(result.affectedRows);
         }
@@ -203,15 +226,15 @@ export class Order {
     });
   }
 
-  // Delete order
+  // Delete service order
   async delete(orderId) {
-    const sql = 'DELETE FROM orders WHERE order_id = ?';
+    const sql = 'DELETE FROM service_orders WHERE service_orders_id = ?';
     return new Promise((resolve, reject) => {
       this.db.query(sql, [orderId], (err, result) => {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found'));
+          reject(new Error('Service order not found'));
         } else {
           resolve(result.affectedRows);
         }
@@ -225,13 +248,14 @@ export class Order {
       SELECT
         COUNT(*) as totalOrders,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingOrders,
+        SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approvedOrders,
         SUM(CASE WHEN status = 'washing' THEN 1 ELSE 0 END) as washingOrders,
         SUM(CASE WHEN status = 'drying' THEN 1 ELSE 0 END) as dryingOrders,
         SUM(CASE WHEN status = 'folding' THEN 1 ELSE 0 END) as foldingOrders,
         SUM(CASE WHEN status = 'ready' THEN 1 ELSE 0 END) as readyOrders,
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedOrders,
-        SUM(totalPrice) as totalRevenue
-      FROM orders
+        SUM(total_price) as totalRevenue
+      FROM service_orders
     `;
 
     return new Promise((resolve, reject) => {
@@ -245,15 +269,15 @@ export class Order {
     });
   }
 
-  // Get orders created today
+  // Get service orders created today
   async getTodaysOrders() {
     const today = new Date().toISOString().split('T')[0];
     const sql = `
-      SELECT * FROM orders
-      WHERE DATE(createdAt) = ?
+      SELECT * FROM service_orders
+      WHERE DATE(created_at) = ?
       AND moved_to_history_at IS NULL
       AND is_deleted = FALSE
-      ORDER BY createdAt DESC
+      ORDER BY created_at DESC
     `;
     return new Promise((resolve, reject) => {
       this.db.query(sql, [today], (err, results) => {
@@ -266,14 +290,14 @@ export class Order {
     });
   }
 
-  // Get orders by date range
+  // Get service orders by date range
   async getOrdersByDateRange(startDate, endDate) {
     const sql = `
-      SELECT * FROM orders
-      WHERE DATE(createdAt) BETWEEN ? AND ?
+      SELECT * FROM service_orders
+      WHERE DATE(created_at) BETWEEN ? AND ?
       AND moved_to_history_at IS NULL
       AND is_deleted = FALSE
-      ORDER BY createdAt DESC
+      ORDER BY created_at DESC
     `;
     return new Promise((resolve, reject) => {
       this.db.query(sql, [startDate, endDate], (err, results) => {
@@ -288,15 +312,15 @@ export class Order {
 
   // Timer Management Methods
 
-  // Start timer for an order
+  // Start timer for a service order
   async startTimer(orderId, status) {
     const startTime = new Date();
     const endTime = new Date(startTime.getTime() + (60 * 60 * 1000)); // 1 hour from now
 
     const sql = `
-      UPDATE orders
+      UPDATE service_orders
       SET timer_start = ?, timer_end = ?, current_timer_status = ?
-      WHERE order_id = ?
+      WHERE service_orders_id = ?
     `;
 
     return new Promise((resolve, reject) => {
@@ -304,7 +328,7 @@ export class Order {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found'));
+          reject(new Error('Service order not found'));
         } else {
           resolve({ startTime, endTime, status });
         }
@@ -312,12 +336,12 @@ export class Order {
     });
   }
 
-  // Stop timer for an order
+  // Stop timer for a service order
   async stopTimer(orderId) {
     const sql = `
-      UPDATE orders
+      UPDATE service_orders
       SET timer_start = NULL, timer_end = NULL, current_timer_status = NULL
-      WHERE order_id = ?
+      WHERE service_orders_id = ?
     `;
 
     return new Promise((resolve, reject) => {
@@ -325,7 +349,7 @@ export class Order {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found'));
+          reject(new Error('Service order not found'));
         } else {
           resolve(result.affectedRows);
         }
@@ -333,9 +357,9 @@ export class Order {
     });
   }
 
-  // Get timer status for an order
+  // Get timer status for a service order
   async getTimerStatus(orderId) {
-    const sql = 'SELECT timer_start, timer_end, current_timer_status, auto_advance_enabled FROM orders WHERE order_id = ?';
+    const sql = 'SELECT timer_start, timer_end, current_timer_status, auto_advance_enabled FROM service_orders WHERE service_orders_id = ?';
     return new Promise((resolve, reject) => {
       this.db.query(sql, [orderId], (err, results) => {
         if (err) {
@@ -364,16 +388,16 @@ export class Order {
     });
   }
 
-  // Toggle auto-advance for an order
+  // Toggle auto-advance for a service order
   async toggleAutoAdvance(orderId, enabled) {
-    const sql = 'UPDATE orders SET auto_advance_enabled = ? WHERE order_id = ?';
+    const sql = 'UPDATE service_orders SET auto_advance_enabled = ? WHERE service_orders_id = ?';
 
     return new Promise((resolve, reject) => {
       this.db.query(sql, [enabled, orderId], (err, result) => {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found'));
+          reject(new Error('Service order not found'));
         } else {
           resolve(result.affectedRows);
         }
@@ -384,7 +408,8 @@ export class Order {
   // Get next status in the workflow
   getNextStatus(currentStatus) {
     const statusFlow = {
-      'pending': 'washing',
+      'pending': 'approved',
+      'approved': 'washing',
       'washing': 'drying',
       'drying': 'folding',
       'folding': 'ready',
@@ -394,11 +419,11 @@ export class Order {
     return statusFlow[currentStatus] || currentStatus;
   }
 
-  // Advance order to next status
+  // Advance service order to next status
   async advanceToNextStatus(orderId, userId = null) {
     const order = await this.getById(orderId, userId);
     if (!order) {
-      throw new Error('Order not found');
+      throw new Error('Service order not found');
     }
 
     const nextStatus = this.getNextStatus(order.status);
@@ -421,10 +446,10 @@ export class Order {
     return await this.update(orderId, updates);
   }
 
-  // Get all orders with active timers
+  // Get all service orders with active timers
   async getOrdersWithActiveTimers() {
     const sql = `
-      SELECT * FROM orders
+      SELECT * FROM service_orders
       WHERE timer_end IS NOT NULL
       AND timer_end > NOW()
       ORDER BY timer_end ASC
@@ -441,10 +466,10 @@ export class Order {
     });
   }
 
-  // Get orders with expired timers
+  // Get service orders with expired timers
   async getOrdersWithExpiredTimers() {
     const sql = `
-      SELECT * FROM orders
+      SELECT * FROM service_orders
       WHERE timer_end IS NOT NULL
       AND timer_end <= NOW()
       ORDER BY timer_end ASC
@@ -463,12 +488,12 @@ export class Order {
 
   // History Management Methods
 
-  // Move order to history when completed
+  // Move service order to history when completed
   async moveToHistory(orderId) {
     const sql = `
-      UPDATE orders
+      UPDATE service_orders
       SET moved_to_history_at = NOW(), status = 'completed'
-      WHERE order_id = ? AND status = 'completed' AND moved_to_history_at IS NULL
+      WHERE service_orders_id = ? AND status = 'completed' AND moved_to_history_at IS NULL
     `;
 
     return new Promise((resolve, reject) => {
@@ -476,7 +501,7 @@ export class Order {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found or not eligible for history'));
+          reject(new Error('Service order not found or not eligible for history'));
         } else {
           resolve(result.affectedRows);
         }
@@ -484,29 +509,29 @@ export class Order {
     });
   }
 
-  // Get all history items (completed orders and deleted items)
+  // Get all history items (completed service orders and deleted items)
   async getHistory() {
     const sql = `
       SELECT
-        order_id as id,
-        'order' as type,
-        serviceType,
-        pickupDate,
-        pickupTime,
-        loadCount,
+        service_orders_id as id,
+        'service_order' as type,
+        service_type,
+        pickup_date,
+        pickup_time,
+        load_count,
         status,
-        paymentMethod,
+        payment_method,
         name,
         contact,
         email,
         address,
-        totalPrice,
+        total_price,
         moved_to_history_at,
         is_deleted,
         deleted_at,
-        createdAt,
-        updatedAt
-      FROM orders
+        created_at,
+        updated_at
+      FROM service_orders
       WHERE moved_to_history_at IS NOT NULL OR is_deleted = TRUE
       ORDER BY moved_to_history_at DESC, deleted_at DESC
     `;
@@ -528,50 +553,50 @@ export class Order {
     if (type === 'completed') {
       sql = `
         SELECT
-          order_id as id,
-          'order' as type,
-          serviceType,
-          pickupDate,
-          pickupTime,
-          loadCount,
+          service_orders_id as id,
+          'service_order' as type,
+          service_type,
+          pickup_date,
+          pickup_time,
+          load_count,
           status,
-          paymentMethod,
+          payment_method,
           name,
           contact,
           email,
           address,
-          totalPrice,
+          total_price,
           moved_to_history_at,
           is_deleted,
           deleted_at,
-          createdAt,
-          updatedAt
-        FROM orders
+          created_at,
+          updated_at
+        FROM service_orders
         WHERE moved_to_history_at IS NOT NULL AND is_deleted = FALSE
         ORDER BY moved_to_history_at DESC
       `;
     } else if (type === 'deleted') {
       sql = `
         SELECT
-          order_id as id,
-          'order' as type,
-          serviceType,
-          pickupDate,
-          pickupTime,
-          loadCount,
+          service_orders_id as id,
+          'service_order' as type,
+          service_type,
+          pickup_date,
+          pickup_time,
+          load_count,
           status,
-          paymentMethod,
+          payment_method,
           name,
           contact,
           email,
           address,
-          totalPrice,
+          total_price,
           moved_to_history_at,
           is_deleted,
           deleted_at,
-          createdAt,
-          updatedAt
-        FROM orders
+          created_at,
+          updated_at
+        FROM service_orders
         WHERE is_deleted = TRUE
         ORDER BY deleted_at DESC
       `;
@@ -588,12 +613,12 @@ export class Order {
     });
   }
 
-  // Restore order from history
+  // Restore service order from history
   async restoreFromHistory(orderId) {
     const sql = `
-      UPDATE orders
+      UPDATE service_orders
       SET moved_to_history_at = NULL, is_deleted = FALSE, deleted_at = NULL
-      WHERE order_id = ? AND (moved_to_history_at IS NOT NULL OR is_deleted = TRUE)
+      WHERE service_orders_id = ? AND (moved_to_history_at IS NOT NULL OR is_deleted = TRUE)
     `;
 
     return new Promise((resolve, reject) => {
@@ -601,7 +626,7 @@ export class Order {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found in history'));
+          reject(new Error('Service order not found in history'));
         } else {
           resolve(result.affectedRows);
         }
@@ -611,14 +636,14 @@ export class Order {
 
   // Permanently delete from history
   async deleteFromHistory(orderId) {
-    const sql = 'DELETE FROM orders WHERE order_id = ? AND (moved_to_history_at IS NOT NULL OR is_deleted = TRUE)';
+    const sql = 'DELETE FROM service_orders WHERE service_orders_id = ? AND (moved_to_history_at IS NOT NULL OR is_deleted = TRUE)';
 
     return new Promise((resolve, reject) => {
       this.db.query(sql, [orderId], (err, result) => {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found in history'));
+          reject(new Error('Service order not found in history'));
         } else {
           resolve(result.affectedRows);
         }
@@ -626,12 +651,12 @@ export class Order {
     });
   }
 
-  // Soft delete order (mark as deleted)
+  // Soft delete service order (mark as deleted)
   async softDelete(orderId) {
     const sql = `
-      UPDATE orders
+      UPDATE service_orders
       SET is_deleted = TRUE, deleted_at = NOW()
-      WHERE order_id = ? AND is_deleted = FALSE
+      WHERE service_orders_id = ? AND is_deleted = FALSE
     `;
 
     return new Promise((resolve, reject) => {
@@ -639,7 +664,7 @@ export class Order {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found or already deleted'));
+          reject(new Error('Service order not found or already deleted'));
         } else {
           resolve(result.affectedRows);
         }
@@ -649,14 +674,14 @@ export class Order {
 
   // Update payment status
   async updatePaymentStatus(orderId, paymentStatus) {
-    const sql = 'UPDATE orders SET paymentStatus = ? WHERE order_id = ?';
+    const sql = 'UPDATE service_orders SET payment_status = ? WHERE service_orders_id = ?';
 
     return new Promise((resolve, reject) => {
       this.db.query(sql, [paymentStatus, orderId], (err, result) => {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found'));
+          reject(new Error('Service order not found'));
         } else {
           resolve(result.affectedRows);
         }
@@ -666,14 +691,14 @@ export class Order {
 
   // Submit GCash payment proof
   async submitPaymentProof(orderId, paymentProof, referenceNumber) {
-    const sql = 'UPDATE orders SET payment_proof = ?, reference_id = ?, payment_status = ? WHERE order_id = ? AND paymentMethod = ?';
+    const sql = 'UPDATE service_orders SET payment_proof = ?, reference_id = ?, payment_review_status = ? WHERE service_orders_id = ? AND payment_method = ?';
 
     return new Promise((resolve, reject) => {
       this.db.query(sql, [paymentProof, referenceNumber, 'pending', orderId, 'gcash'], (err, result) => {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found or not a GCash payment'));
+          reject(new Error('Service order not found or not a GCash payment'));
         } else {
           resolve(result.affectedRows);
         }
@@ -688,14 +713,14 @@ export class Order {
       throw new Error('Invalid payment status');
     }
 
-    const sql = 'UPDATE orders SET payment_status = ? WHERE order_id = ? AND paymentMethod = ?';
+    const sql = 'UPDATE service_orders SET payment_review_status = ? WHERE service_orders_id = ? AND payment_method = ?';
 
     return new Promise((resolve, reject) => {
       this.db.query(sql, [status, orderId, 'gcash'], (err, result) => {
         if (err) {
           reject(err);
         } else if (result.affectedRows === 0) {
-          reject(new Error('Order not found or not a GCash payment'));
+          reject(new Error('Service order not found or not a GCash payment'));
         } else {
           resolve(result.affectedRows);
         }
@@ -703,7 +728,7 @@ export class Order {
     });
   }
 
-  // Get orders by GCash payment status
+  // Get service orders by GCash payment status
   async getOrdersByGcashPaymentStatus(status) {
     const validStatuses = ['pending', 'approved', 'rejected'];
     if (!validStatuses.includes(status)) {
@@ -711,11 +736,11 @@ export class Order {
     }
 
     const sql = `
-      SELECT * FROM orders
-      WHERE paymentMethod = 'gcash' AND payment_status = ?
+      SELECT * FROM service_orders
+      WHERE payment_method = 'gcash' AND payment_review_status = ?
       AND moved_to_history_at IS NULL
       AND is_deleted = FALSE
-      ORDER BY createdAt DESC
+      ORDER BY created_at DESC
     `;
 
     return new Promise((resolve, reject) => {
@@ -729,15 +754,15 @@ export class Order {
     });
   }
 
-  // Get active orders (not in history and not deleted)
+  // Get active service orders (not in history and not deleted)
   async getActiveOrders(page = 1, limit = 50) {
     const offset = (page - 1) * limit;
 
     const batchSize = limit * 2;
 
     const sql = `
-      SELECT * FROM orders
-      WHERE order_id > 0
+      SELECT * FROM service_orders
+      WHERE service_orders_id > 0
       AND moved_to_history_at IS NULL
       AND is_deleted = FALSE
       LIMIT ? OFFSET ?
@@ -755,8 +780,8 @@ export class Order {
           return;
         }
 
-        // Sort the results in memory by createdAt (JavaScript sort)
-        results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        // Sort the results in memory by created_at (JavaScript sort)
+        results.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         // Take only the number we need
         const paginatedResults = results.slice(0, limit);
@@ -765,5 +790,44 @@ export class Order {
       });
     });
   }
-}
 
+  // Get service order counts for specific dates (active orders only)
+  getOrderCountsForDates(dates) {
+    return new Promise((resolve, reject) => {
+      if (!dates || dates.length === 0) {
+        resolve({});
+        return;
+      }
+
+      // Create placeholders for IN clause
+      const placeholders = dates.map(() => '?').join(',');
+      const sql = `
+        SELECT pickup_date, COUNT(*) as count
+        FROM service_orders
+        WHERE pickup_date IN (${placeholders})
+        AND status NOT IN ('rejected', 'cancelled', 'completed')
+        AND moved_to_history_at IS NULL
+        AND is_deleted = FALSE
+        GROUP BY pickup_date
+      `;
+
+      this.db.query(sql, dates, (err, results) => {
+        if (err) reject(err);
+        else {
+          // Convert to object {date: count}
+          const counts = {};
+          results.forEach(row => {
+            counts[row.pickup_date] = row.count;
+          });
+          // Ensure all dates have a count (0 if none)
+          dates.forEach(date => {
+            if (!(date in counts)) {
+              counts[date] = 0;
+            }
+          });
+          resolve(counts);
+        }
+      });
+    });
+  }
+}
