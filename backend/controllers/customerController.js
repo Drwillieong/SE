@@ -408,9 +408,12 @@ export const updateCustomerOrder = (db) => async (req, res) => {
     }
 
     // Only allow updates for pending orders
-    if (order.status !== 'pending') {
-      return res.status(400).json({ message: 'Only pending orders can be updated' });
+    if (order.status !== 'pending_booking') {
+      return res.status(400).json({ message: 'Only pending booking orders can be updated' });
     }
+
+    // Remove status from updateData to prevent accidental status changes
+    delete updateData.status;
 
     // Validate service_type if provided
     if (updateData.service_type && !['fullService', 'washDryFold', 'washFold', 'dryCleaning', 'hangDry'].includes(updateData.service_type)) {
@@ -435,7 +438,10 @@ export const updateCustomerOrder = (db) => async (req, res) => {
       }
     }
 
-    const updatedOrder = await serviceOrderModel.update(orderId, updateData);
+    const updatedOrder = await serviceOrderModel.update(orderId, {
+      ...updateData,
+      total_price: updateData.total_price, // Ensure total_price is passed correctly
+    });
 
     // Emit real-time update
     if (req.io) {
@@ -462,9 +468,9 @@ export const cancelCustomerOrder = (db) => async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    // Only allow cancellation for pending orders
-    if (order.status !== 'pending') {
-      return res.status(400).json({ message: 'Only pending orders can be cancelled' });
+    // Only allow cancellation for pending bookings
+    if (order.status !== 'pending_booking') {
+      return res.status(400).json({ message: 'Only pending bookings can be cancelled. Please contact support if you need to cancel an approved order.' });
     }
 
     await serviceOrderModel.update(orderId, { status: 'cancelled' });
