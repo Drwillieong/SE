@@ -242,10 +242,10 @@ const Booking = () => {
       // With axios, a non-2xx status will throw an error and be caught in the catch block.
       // So we can assume the response is successful here.
       if (response.status >= 200 && response.status < 300) {
-        const orders = response.data;
+        const orders = response.data.bookings;
         console.log('Orders received:', orders.length);
-        const pendingData = orders.filter((order) => order.status === 'pending');
-        const approvedData = orders.filter((order) => order.status === 'approved');
+        const pendingData = orders.filter((order) => order.status === 'pending' || order.status === 'pending_booking');
+        const approvedData = orders.filter((order) => order.status === 'approved' || order.status === 'confirmed' || order.status === 'scheduled');
         const completedData = orders.filter((order) => order.status === 'completed');
 
         // Separate today's bookings and others
@@ -261,7 +261,6 @@ const Booking = () => {
         console.log('All bookings statuses:', orders.map(o => ({ id: o.id, status: o.status })));
 
         setPendingBookings(pendingData.map((order) => formatBookingData(order.id, order)));
-        setApprovedBookings(sortedApproved.map((order) => formatBookingData(order.id, order)));
         setError(null); // Clear any previous errors
 
         // Sort approved bookings based on sortBy
@@ -314,9 +313,23 @@ const Booking = () => {
       }
     }
 
+    // Parse dry_cleaning_services from JSON string to array if it's a string
+    let dryCleaningServicesData = [];
+    if (data.dry_cleaning_services) {
+      if (typeof data.dry_cleaning_services === 'string') {
+        try {
+          dryCleaningServicesData = JSON.parse(data.dry_cleaning_services);
+        } catch (e) {
+          dryCleaningServicesData = [];
+        }
+      } else if (Array.isArray(data.dry_cleaning_services)) {
+        dryCleaningServicesData = data.dry_cleaning_services;
+      }
+    }
+
     // Calculate delivery fee if not provided
-    let deliveryFee = data.deliveryFee || 0;
-    if (!deliveryFee && data.address && data.loadCount) {
+    let deliveryFee = data.delivery_fee || 0;
+    if (!deliveryFee && data.address && data.load_count) {
       // Extract barangay from address for delivery fee calculation
       const addressParts = data.address.split(',').map(part => part.trim());
       const barangay = addressParts.find(part =>
@@ -324,16 +337,16 @@ const Booking = () => {
         part.toLowerCase().includes('barangay') ||
         addressParts.indexOf(part) === addressParts.length - 2
       ) || '';
-      deliveryFee = calculateDeliveryFee(barangay, parseInt(data.loadCount) || 1);
+      deliveryFee = calculateDeliveryFee(barangay, parseInt(data.load_count) || 1);
     }
 
     // Calculate total price including delivery fee
-    const mainServicePrice = (mainServices.find(s => s.value === (data.mainService || "washDryFold"))?.price || 0) * (data.loadCount || 1);
-    const dryCleaningPrice = (data.dryCleaningServices || []).reduce((sum, serviceId) => {
+    const mainServicePrice = (mainServices.find(s => s.value === (data.service_type || "washDryFold"))?.price || 0) * (data.load_count || 1);
+    const dryCleaningPrice = (dryCleaningServicesData || []).reduce((sum, serviceId) => {
       const service = dryCleaningServices.find(s => s.id === serviceId);
       return sum + (service ? service.price : 0);
     }, 0);
-    const calculatedTotalPrice = mainServicePrice + dryCleaningPrice + (data.serviceOption !== 'pickupOnly' ? deliveryFee : 0);
+    const calculatedTotalPrice = mainServicePrice + dryCleaningPrice + (data.service_option !== 'pickupOnly' ? deliveryFee : 0);
 
     return {
       id,
@@ -341,19 +354,19 @@ const Booking = () => {
       contact: data.contact || "No Contact",
       email: data.email || "No Email",
       address: data.address || "No Address",
-      pickupDate: data.pickupDate,
-      pickupTime: data.pickupTime,
-      loadCount: data.loadCount || 1,
+      pickupDate: data.pickup_date,
+      pickupTime: data.pickup_time,
+      loadCount: data.load_count || 1,
       instructions: data.instructions || "No Instructions",
-      mainService: data.mainService || "washDryFold",
-      dryCleaningServices: data.dryCleaningServices || [],
+      mainService: data.service_type || "washDryFold",
+      dryCleaningServices: dryCleaningServicesData || [],
       status: data.status,
-      createdAt: data.createdAt,
-      paymentMethod: data.paymentMethod || "cash",
+      createdAt: data.created_at,
+      paymentMethod: data.payment_method || "cash",
       photos: photos,
-      serviceOption: data.serviceOption || "pickupAndDelivery",
+      serviceOption: data.service_option || "pickupAndDelivery",
       deliveryFee: deliveryFee,
-      totalPrice: parseFloat(data.totalPrice) || calculatedTotalPrice
+      totalPrice: parseFloat(data.total_price) || calculatedTotalPrice
     };
   };
 
@@ -1133,6 +1146,23 @@ const Booking = () => {
                         className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md disabled:opacity-50"
                       >
                         {deletingBooking ? 'Deleting...' : 'Delete'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedBookingForOrder(booking);
+                          setCheckOrderModalIsOpen(true);
+                          setOrderFormData({
+                            estimatedClothes: '',
+                            kilos: '',
+                            additionalPrice: '',
+                            laundryPhoto: null
+                          });
+                          setLaundryPhotoFile(null);
+                          setLaundryPhotoPreview(null);
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
+                      >
+                        Check Order
                       </button>
                       <button
                         onClick={() => setSelectedBooking(booking)}

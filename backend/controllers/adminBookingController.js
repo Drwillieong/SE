@@ -20,12 +20,10 @@ export const getAllBookings = (db) => async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
 
-    // Get all active bookings (pending, approved, etc.)
+    // Get all active bookings (including customer bookings)
     const sql = `
       SELECT * FROM service_orders
-      WHERE status IN ('pending', 'approved')
-      AND moved_to_history_at IS NULL
-      AND is_deleted = FALSE
+      WHERE is_deleted = FALSE
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
     `;
@@ -39,7 +37,7 @@ export const getAllBookings = (db) => async (req, res) => {
     });
 
     const totalCount = await new Promise((resolve, reject) => {
-      db.query('SELECT COUNT(*) as total FROM service_orders WHERE status IN ("pending", "approved") AND moved_to_history_at IS NULL AND is_deleted = FALSE', (err, results) => {
+      db.query('SELECT COUNT(*) as total FROM service_orders WHERE is_deleted = FALSE', (err, results) => {
         if (err) reject(err);
         else resolve(results[0].total);
       });
