@@ -1,7 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import apiClient from '../../../utils/axios';
 
+const mainServices = [
+    {
+        id: 'washDryFold',
+        name: 'Wash, Dry & Fold',
+        price: 179,
+        priceText: '₱179/load'
+    },
+    {
+        id: 'fullService',
+        name: 'Full Service (Wash, Dry & Fold)',
+        price: 199,
+        priceText: '₱199/load (Detergent, Fabcon, Colorsafe Bleach INCLUDED)'
+    }
+];
+
+const dryCleaningServices = [
+    {
+        id: 'dryCleanBarong',
+        name: 'Dry Cleaning - Barong',
+        price: 0, // Price will be set by admin
+        priceText: 'Price set upon inspection'
+    },
+    {
+        id: 'dryCleanCoat',
+        name: 'Dry Cleaning - Coat',
+        price: 0,
+        priceText: 'Price set upon inspection'
+    },
+    {
+        id: 'dryCleanGown',
+        name: 'Dry Cleaning - Gown',
+        price: 0,
+        priceText: 'Price set upon inspection'
+    },
+    {
+        id: 'dryCleanWeddingGown',
+        name: 'Dry Cleaning - Wedding Gown',
+        price: 0,
+        priceText: 'Price set upon inspection'
+    }
+];
 
 const EditOrder = () => {
     const navigate = useNavigate();
@@ -17,7 +58,10 @@ const EditOrder = () => {
         address: '',
         estimatedClothes: 0,
         kilos: 0,
-        status: 'pending'
+        status: 'pending',
+        dryCleaningServices: [],
+        dryCleaningPrices: {},
+        totalPrice: 0
     });
     const [loading, setLoading] = useState(true);
 
@@ -41,7 +85,10 @@ const EditOrder = () => {
                 address: order.address || '',
                 estimatedClothes: order.estimatedClothes || 0,
                 kilos: order.kilos || 0,
-                status: order.status || 'pending'
+                status: order.status || 'pending',
+                dryCleaningServices: order.dryCleaningServices || [],
+                dryCleaningPrices: order.dryCleaningPrices || {},
+                totalPrice: order.totalPrice || order.total_price || 0
             });
         } catch (error) {
             console.error('Error fetching order:', error);
@@ -60,10 +107,52 @@ const EditOrder = () => {
         }));
     };
 
+    const handleDryCleaningChange = (serviceId) => {
+        setFormData(prev => ({
+            ...prev,
+            dryCleaningServices: prev.dryCleaningServices.includes(serviceId)
+                ? prev.dryCleaningServices.filter(id => id !== serviceId)
+                : [...prev.dryCleaningServices, serviceId]
+        }));
+    };
+
+    const handleDryCleaningPriceChange = (serviceId, price) => {
+        const newPrice = parseFloat(price) || 0;
+        setFormData(prev => ({
+            ...prev,
+            dryCleaningPrices: {
+                ...prev.dryCleaningPrices,
+                [serviceId]: newPrice
+            }
+        }));
+    };
+
+    const totalPrice = useMemo(() => {
+        let total = 0;
+
+        // Calculate main service price
+        const selectedMainService = mainServices.find(service => service.id === formData.serviceType);
+        if (selectedMainService) {
+            total += selectedMainService.price * formData.loadCount;
+        }
+
+        // Calculate dry cleaning prices
+        formData.dryCleaningServices.forEach(serviceId => {
+            const price = formData.dryCleaningPrices[serviceId] || 0;
+            total += price;
+        });
+
+        return total;
+    }, [formData.serviceType, formData.loadCount, formData.dryCleaningServices, formData.dryCleaningPrices]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await apiClient.put(`/api/admin/orders/${id}`, formData);
+            const updateData = {
+                ...formData,
+                totalPrice: totalPrice // Include the calculated total price
+            };
+            await apiClient.put(`/api/admin/orders/${id}`, updateData);
             navigate('/dashboard/order');
         } catch (error) {
             console.error('Error updating order:', error);
@@ -88,25 +177,81 @@ const EditOrder = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Service Type
+                                Main Service *
                             </label>
-                            <select
-                                name="serviceType"
-                                value={formData.serviceType}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="washFold">Wash & Fold</option>
-                                <option value="dryCleaning">Dry Cleaning</option>
-                                <option value="hangDry">Hang Dry</option>
-                            </select>
+                            <div className="space-y-3">
+                                {mainServices.map(service => (
+                                    <div
+                                        key={service.id}
+                                        className={`p-4 border rounded-lg cursor-pointer ${formData.serviceType === service.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
+                                        onClick={() => setFormData(prev => ({ ...prev, serviceType: service.id }))}
+                                    >
+                                        <div className="flex items-start">
+                                            <input
+                                                type="radio"
+                                                name="serviceType"
+                                                checked={formData.serviceType === service.id}
+                                                onChange={() => {}}
+                                                className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                            <div className="ml-3">
+                                                <label className="font-medium block">{service.name}</label>
+                                                <p className="text-sm text-gray-600">{service.priceText}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                             {/* Dry Cleaning Services */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Dry Cleaning Services (Optional)
+                        </label>
+                        <div className="space-y-3">
+                            {dryCleaningServices.map(service => (
+                                <div
+                                    key={service.id}
+                                    className={`p-4 border rounded-lg cursor-pointer ${formData.dryCleaningServices.includes(service.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
+                                    onClick={() => handleDryCleaningChange(service.id)}
+                                >
+                                    <div className="flex items-start">
+                                        <input
+                                            type="checkbox"
+                                            name="dryCleaningServices"
+                                            checked={formData.dryCleaningServices.includes(service.id)}
+                                            onChange={() => {}}
+                                            className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        />
+                                        <div className="ml-3">
+                                            <label className="font-medium block">{service.name}</label>
+                                            <p className="text-sm text-gray-600">{service.priceText}</p>
+                                        </div>
+                                    </div>
+                                    {/* Price input for selected services */}
+                                    {formData.dryCleaningServices.includes(service.id) && (
+                                        <div className="mt-2 pl-7">
+                                            <label className="block text-sm font-medium text-gray-700">Set Price:</label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <span className="text-gray-500 sm:text-sm">₱</span>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    value={formData.dryCleaningPrices[service.id] || ''}
+                                                    onChange={(e) => handleDryCleaningPriceChange(service.id, e.target.value)}
+                                                    className="w-full pl-7 pr-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    placeholder="0.00"
+                                                    onClick={(e) => e.stopPropagation()} // Prevent card click when interacting with input
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
-
-
-
-
-
-
+                    </div>
+                        </div>
+                        
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -216,6 +361,22 @@ const EditOrder = () => {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Kilos of Laundry (Optional)
+                        </label>
+                        <input
+                            type="number"
+                            name="kilos"
+                            value={formData.kilos}
+                            onChange={handleChange}
+                            step="0.1"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                   
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                             Special Instructions (Optional)
                         </label>
                         <textarea
@@ -225,6 +386,14 @@ const EditOrder = () => {
                             rows={3}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
+                    </div>
+
+                    {/* Total Price Display */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="flex justify-between items-center">
+                            <span className="text-lg font-semibold text-gray-900">Total Price:</span>
+                            <span className="text-2xl font-bold text-green-600">₱{totalPrice.toFixed(2)}</span>
+                        </div>
                     </div>
 
                     <div className="flex justify-end space-x-4">

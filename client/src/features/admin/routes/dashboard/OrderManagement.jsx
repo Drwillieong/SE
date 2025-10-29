@@ -49,6 +49,36 @@ const OrderManagement = () => {
   const [userId, setUserId] = useState(null);
   const [paymentReviewModalOpen, setPaymentReviewModalOpen] = useState(false);
 
+  // Load timer statuses from localStorage on mount
+  useEffect(() => {
+    const savedTimerStatuses = localStorage.getItem('orderTimerStatuses');
+    if (savedTimerStatuses) {
+      try {
+        const parsed = JSON.parse(savedTimerStatuses);
+        // Clean up expired timers
+        const now = Date.now();
+        const cleanedTimers = {};
+        Object.entries(parsed).forEach(([orderId, timer]) => {
+          if (timer.isActive && (now - timer.startTime) < timer.duration) {
+            cleanedTimers[orderId] = timer;
+          }
+        });
+        setTimerStatuses(cleanedTimers);
+      } catch (error) {
+        console.error('Error loading timer statuses from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save timer statuses to localStorage whenever they change
+  useEffect(() => {
+    if (Object.keys(timerStatuses).length > 0) {
+      localStorage.setItem('orderTimerStatuses', JSON.stringify(timerStatuses));
+    } else {
+      localStorage.removeItem('orderTimerStatuses');
+    }
+  }, [timerStatuses]);
+
   useEffect(() => {
     console.log('OrderManagement component mounted/updated');
     fetchOrders();

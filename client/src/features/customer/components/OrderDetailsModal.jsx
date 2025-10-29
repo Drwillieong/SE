@@ -206,7 +206,12 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
                 </p>
               </div>
               <div>
-              
+                <label className="block text-sm font-medium text-gray-700">Payment Status</label>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  selectedOrder.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {selectedOrder.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                </span>
               </div>
             </div>
           </div>
@@ -235,40 +240,35 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
 
         {/* Laundry Details */}
         {selectedOrder.estimatedClothes || selectedOrder.kilos || selectedOrder.pants || selectedOrder.shorts || selectedOrder.tshirts || selectedOrder.bedsheets ? (
-          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6" data-testid="laundry-details">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Laundry Details</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {selectedOrder.estimatedClothes > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Estimated Clothes</label>
-                  <p className="text-gray-900">{selectedOrder.estimatedClothes} items</p>
-                </div>
-              )}
-              {selectedOrder.kilos > 0 && (
+
+              {selectedOrder.kilos && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Weight</label>
                   <p className="text-gray-900">{selectedOrder.kilos} kg</p>
                 </div>
               )}
-              {selectedOrder.pants > 0 && (
+              {selectedOrder.pants && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Pants</label>
                   <p className="text-gray-900">{selectedOrder.pants}</p>
                 </div>
               )}
-              {selectedOrder.shorts > 0 && (
+              {selectedOrder.shorts && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Shorts</label>
                   <p className="text-gray-900">{selectedOrder.shorts}</p>
                 </div>
               )}
-              {selectedOrder.tshirts > 0 && (
+              {selectedOrder.tshirts && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">T-Shirts</label>
                   <p className="text-gray-900">{selectedOrder.tshirts}</p>
                 </div>
               )}
-              {selectedOrder.bedsheets > 0 && (
+              {selectedOrder.bedsheets && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Bedsheets</label>
                   <p className="text-gray-900">{selectedOrder.bedsheets}</p>
@@ -279,12 +279,18 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
         ) : null}
 
         {/* Photos */}
-        {selectedOrder.photos && Array.isArray(selectedOrder.photos) && selectedOrder.photos.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6" data-testid="item-photos">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4">Photos</h4>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {selectedOrder.photos && selectedOrder.photos.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">Item Photos</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {selectedOrder.photos.map((photo, index) => (
-                <img key={index} src={photo.url || photo} alt={`Order photo ${index + 1}`} className="w-full h-32 object-cover rounded" />
+                <div key={index} className="relative">
+                  <img
+                    src={photo}
+                    alt={`Item ${index + 1}`}
+                    className="w-full h-24 object-cover rounded border"
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -309,6 +315,45 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
         )}
 
       
+
+        {/* Status Management */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">Status Management</h4>
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Current Status</label>
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedOrder.status)}`}>
+                <span className="mr-2">{getStatusIcon(selectedOrder.status)}</span>
+                {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
+              </div>
+            </div>
+
+            {/* Status Progress Indicator */}
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Progress</label>
+              <div className="flex items-center space-x-2">
+                {['pending', 'washing', 'drying', 'folding', 'ready', 'completed'].map((status, index) => (
+                  <React.Fragment key={status}>
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium ${
+                      ['pending', 'washing', 'drying', 'folding', 'ready', 'completed'].indexOf(selectedOrder.status) >= index
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {getStatusIcon(status)}
+                    </div>
+                    {index < 5 && (
+                      <div className={`h-0.5 w-8 ${
+                        ['pending', 'washing', 'drying', 'folding', 'ready', 'completed'].indexOf(selectedOrder.status) > index
+                          ? 'bg-blue-500'
+                          : 'bg-gray-200'
+                      }`} />
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Rejection Reason */}
         {selectedOrder.status === 'rejected' && selectedOrder.rejectionReason && (

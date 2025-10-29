@@ -5,6 +5,8 @@ import session from 'express-session';
 import passport from 'passport';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import authRoutes from '../routes/auth.js';
 import adminOrderRoutes from '../routes/adminOrderRoutes.js';
 import adminBookingRoutes from '../routes/adminBookingRoutes.js';
@@ -182,7 +184,63 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 8800;
-app.listen(PORT, () => {
+
+// Create HTTP server
+const server = createServer(app);
+
+// Initialize Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Socket.IO middleware for authentication
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error'));
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    socket.user = decoded;
+    next();
+  } catch (error) {
+    next(new Error('Authentication error'));
+  }
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.user.user_id);
+
+  // Join user-specific room
+  socket.join(`user_${socket.user.user_id}`);
+
+  // Handle booking count updates
+  socket.on('update-booking-counts', (data) => {
+    // Broadcast to all connected clients
+    io.emit('booking-counts-updated', data);
+  });
+
+  // Handle order updates
+  socket.on('order-updated', (data) => {
+    // Broadcast to all connected clients
+    io.emit('order-updated', data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.user.user_id);
+  });
+});
+
+// Make io available globally for routes
+global.io = io;
+
+server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
    

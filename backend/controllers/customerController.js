@@ -270,11 +270,11 @@ export const getCustomerHistory = (db) => async (req, res) => {
   const serviceOrderModel = new ServiceOrder(db);
   try {
     const userId = req.user.user_id;
-    // Get completed orders for this user
+    // Get completed, rejected, or cancelled orders for this user
     const sql = `
       SELECT * FROM service_orders
-      WHERE user_id = ? AND (moved_to_history_at IS NOT NULL OR status = 'completed')
-      ORDER BY moved_to_history_at DESC, updated_at DESC
+      WHERE user_id = ? AND status IN ('completed', 'rejected', 'cancelled')
+      ORDER BY updated_at DESC
     `;
     const history = await new Promise((resolve, reject) => {
       db.query(sql, [userId], (err, results) => {

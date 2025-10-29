@@ -76,15 +76,15 @@ export const createOrder = (db) => async (req, res) => {
     const orderId = await serviceOrderModel.create(orderData);
 
     // Emit WebSocket notification
-    if (req.io) {
-      req.io.emit('order-created', {
+    if (global.io) {
+      global.io.emit('order-created', {
         order_id: orderId,
         message: 'New order created',
         timestamp: new Date().toISOString()
       });
 
       if (req.body.user_id) {
-        req.io.to(`user_${req.body.user_id}`).emit('your-order-created', {
+        global.io.to(`user_${req.body.user_id}`).emit('your-order-created', {
           order_id: orderId,
           message: 'Your order has been created',
           timestamp: new Date().toISOString()
@@ -105,13 +105,86 @@ export const updateOrder = (db) => async (req, res) => {
   const updates = req.body;
   const serviceOrderModel = new ServiceOrder(db);
 
+  // Handle dry cleaning services with custom prices
+  if (updates.dryCleaningServices && updates.dryCleaningPrices) {
+    updates.dry_cleaning_services = updates.dryCleaningServices.map(id => ({
+      id,
+      price: updates.dryCleaningPrices[id] || 0
+    }));
+  }
+
+  // Transform camelCase field names to snake_case for database compatibility
+  // Only include fields that are actually provided (not undefined)
+  const transformedUpdates = {};
+
+  // Helper function to add field if provided
+  const addIfProvided = (snakeKey, value) => {
+    if (value !== undefined) {
+      transformedUpdates[snakeKey] = value;
+    }
+  };
+
+  // Add provided fields
+  addIfProvided('service_type', updates.service_type || updates.serviceType);
+  addIfProvided('load_count', updates.load_count || updates.loadCount);
+  addIfProvided('payment_method', updates.payment_method || updates.paymentMethod);
+  addIfProvided('payment_status', updates.payment_status || updates.paymentStatus);
+  addIfProvided('estimated_clothes', updates.estimated_clothes || updates.estimatedClothes);
+  addIfProvided('dry_cleaning_services', updates.dry_cleaning_services || updates.dryCleaningServices);
+  addIfProvided('pickup_date', updates.pickup_date || updates.pickupDate);
+  addIfProvided('pickup_time', updates.pickup_time || updates.pickupTime);
+  addIfProvided('laundry_photos', updates.laundry_photos || updates.laundryPhoto);
+  addIfProvided('rejection_reason', updates.rejection_reason || updates.rejectionReason);
+  addIfProvided('service_option', updates.service_option || updates.serviceOption);
+  addIfProvided('delivery_fee', updates.delivery_fee || updates.deliveryFee);
+  addIfProvided('total_price', updates.total_price || updates.totalPrice);
+  addIfProvided('payment_proof', updates.payment_proof || updates.paymentProof);
+  addIfProvided('reference_id', updates.reference_id || updates.referenceId);
+  addIfProvided('payment_review_status', updates.payment_review_status || updates.paymentReviewStatus);
+  addIfProvided('timer_start', updates.timer_start || updates.timerStart);
+  addIfProvided('timer_end', updates.timer_end || updates.timerEnd);
+  addIfProvided('auto_advance_enabled', updates.auto_advance_enabled || updates.autoAdvanceEnabled);
+  addIfProvided('current_timer_status', updates.current_timer_status || updates.currentTimerStatus);
+  addIfProvided('moved_to_history_at', updates.moved_to_history_at || updates.movedToHistoryAt);
+  addIfProvided('is_deleted', updates.is_deleted || updates.isDeleted);
+  addIfProvided('deleted_at', updates.deleted_at || updates.deletedAt);
+
+  // Add direct fields if provided
+  Object.keys(updates).forEach(key => {
+    if (!transformedUpdates[key] && updates[key] !== undefined) {
+      transformedUpdates[key] = updates[key];
+    }
+  });
+
+  // Remove dryCleaningPrices from updates to avoid database errors
+  delete transformedUpdates.dryCleaningPrices;
+  delete transformedUpdates.dry_cleaning_prices;
+
+  // Remove the original camelCase keys to avoid conflicts
+  Object.keys(transformedUpdates).forEach(key => {
+    if (key.includes('_')) {
+      const camelKey = key.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase());
+      if (transformedUpdates[camelKey] !== undefined) {
+        delete transformedUpdates[camelKey];
+      }
+    }
+  });
+
+  // Filter out undefined values to prevent setting NOT NULL columns to NULL
+  const filteredUpdates = {};
+  Object.keys(transformedUpdates).forEach(key => {
+    if (transformedUpdates[key] !== undefined) {
+      filteredUpdates[key] = transformedUpdates[key];
+    }
+  });
+
   try {
     const orderBefore = await serviceOrderModel.getById(orderId);
     if (!orderBefore) {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    await serviceOrderModel.update(orderId, updates);
+    await serviceOrderModel.update(orderId, filteredUpdates);
 
     const orderAfter = await serviceOrderModel.getById(orderId);
 

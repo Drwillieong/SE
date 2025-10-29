@@ -50,7 +50,11 @@ const ScheduleBooking = () => {
   const [realTimeOrders, setRealTimeOrders] = useState([]);
 
   // Booking counts state
-  const [bookingCounts, setBookingCounts] = useState({});
+  const [bookingCounts, setBookingCounts] = useState(() => {
+    // Load from localStorage on initial render
+    const saved = localStorage.getItem('bookingCounts');
+    return saved ? JSON.parse(saved) : {};
+  });
   const [bookingCountsLoading, setBookingCountsLoading] = useState(true);
 
       // GCash Payment Modal state
@@ -339,6 +343,13 @@ const ScheduleBooking = () => {
     }
   }, [bookingCounts, bookingCountsLoading]);
 
+  // Persist booking counts to localStorage whenever they change
+  useEffect(() => {
+    if (Object.keys(bookingCounts).length > 0) {
+      localStorage.setItem('bookingCounts', JSON.stringify(bookingCounts));
+    }
+  }, [bookingCounts]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -400,18 +411,10 @@ const ScheduleBooking = () => {
         return;
       }
 
-      // Prepare dry cleaning services with prices
-      const dryCleaningServicesWithPrices = formData.dryCleaningServices.map(id => {
-        const service = dryCleaningServices.find(s => s.id === id);
-        return {
-          id,
-          price: service ? service.price : 0
-        };
-      });
-
       const bookingPayload = {
-        service_type: formData.mainService,
-        dry_cleaning_services: dryCleaningServicesWithPrices,
+        service_type: formData.mainService,        
+        // The backend expects a JSON string of IDs, not an array of objects for updates.
+        dry_cleaning_services: JSON.stringify(formData.dryCleaningServices || []),
         pickup_date: formData.pickupDate,
         pickup_time: formData.pickupTime,
         load_count: formData.loadCount,
