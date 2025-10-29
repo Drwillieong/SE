@@ -236,7 +236,7 @@ const Booking = () => {
       // Token is now handled by the apiClient interceptor
 
       console.log('Making fetch request to /api/admin/bookings');
-      const response = await apiClient.get('/api/admin/bookings');
+      const response = await apiClient.get('/api/admin/bookings?sortBy=id');
       console.log('Response received, status:', response.status);
 
       // With axios, a non-2xx status will throw an error and be caught in the catch block.
@@ -244,8 +244,8 @@ const Booking = () => {
       if (response.status >= 200 && response.status < 300) {
         const orders = response.data.bookings;
         console.log('Orders received:', orders.length);
-        const pendingData = orders.filter((order) => order.status === 'pending' || order.status === 'pending_booking');
-        const approvedData = orders.filter((order) => order.status === 'approved' || order.status === 'confirmed' || order.status === 'scheduled');
+        const pendingData = orders.filter((order) => order.status === 'pending_booking' && order.status !== 'approved');
+        const approvedData = orders.filter((order) => order.status === 'approved' && order.status !== 'pending_booking');
         const completedData = orders.filter((order) => order.status === 'completed');
 
         // Separate today's bookings and others
@@ -260,11 +260,11 @@ const Booking = () => {
         console.log('Completed bookings found:', completedData.length);
         console.log('All bookings statuses:', orders.map(o => ({ id: o.id, status: o.status })));
 
-        setPendingBookings(pendingData.map((order) => formatBookingData(order.id, order)));
+        setPendingBookings(pendingData.map((order) => formatBookingData(order.service_orders_id, order)));
         setError(null); // Clear any previous errors
 
         // Sort approved bookings based on sortBy
-        const formattedApproved = sortedApproved.map((order) => formatBookingData(order.id, order));
+        const formattedApproved = sortedApproved.map((order) => formatBookingData(order.service_orders_id, order));
         sortApprovedBookings(formattedApproved);
       } else {
         console.error('Failed to fetch bookings, status:', response.status);
@@ -408,6 +408,13 @@ const Booking = () => {
 
       if (response.status >= 200 && response.status < 300) {
         alert("Booking approved successfully!");
+        // Ensure the 'Ready for Pickup' button is shown for the newly approved booking
+        setPickupSuccess(prev => {
+          const newSuccess = { ...prev };
+          delete newSuccess[bookingId];
+          localStorage.setItem('pickupSuccess', JSON.stringify(newSuccess)); // Update localStorage
+          return newSuccess;
+        });
         fetchBookings(); // Refresh the bookings
       } else {
         const errorData = response.data || {};
@@ -465,6 +472,13 @@ const Booking = () => {
 
       if (response.status >= 200 && response.status < 300) {
         alert('Booking deleted successfully!');
+        // Also remove the pickup success state for this booking to reset the button
+        setPickupSuccess(prev => {
+          const newSuccess = { ...prev };
+          delete newSuccess[bookingId];
+          localStorage.setItem('pickupSuccess', JSON.stringify(newSuccess)); // Update localStorage
+          return newSuccess;
+        });
         fetchBookings(); // Refresh the bookings
       } else {
         alert('Failed to delete booking: ' + (response.data.message || 'Unknown error'));
@@ -550,12 +564,24 @@ const Booking = () => {
       const mainServicePrice = selectedMainService.price * editBooking.loadCount;
       const dryCleaningPrice = selectedDryCleaningServices.reduce((sum, s) => sum + s.price, 0);
       // Use editBooking.deliveryFee directly, which is updated by the modal
-      const totalPrice = mainServicePrice + dryCleaningPrice + (editBooking.serviceOption !== 'pickupOnly' ? editBooking.deliveryFee : 0);
+      const totalPrice = mainServicePrice + dryCleaningPrice + (editBooking.serviceOption !== 'pickupOnly' ? (editBooking.deliveryFee || 0) : 0);
 
       const updateData = {
-        ...editBooking,
-        // editBooking.deliveryFee is already updated by EditBookingModal's handleEditBookingChange
-        totalPrice,
+        service_type: editBooking.mainService,
+        dry_cleaning_services: JSON.stringify(editBooking.dryCleaningServices || []),
+        pickup_date: editBooking.pickupDate,
+        pickup_time: editBooking.pickupTime,
+        load_count: editBooking.loadCount,
+        instructions: editBooking.instructions || '',
+        status: editBooking.status || 'approved',
+        payment_method: editBooking.paymentMethod || 'cash',
+        name: editBooking.name,
+        contact: editBooking.contact,
+        email: editBooking.email || '',
+        address: editBooking.address,
+        service_option: editBooking.serviceOption || 'pickupAndDelivery',
+        delivery_fee: editBooking.deliveryFee || 0,
+        total_price: totalPrice,
       };
 
       const response = await apiClient.put(`/api/admin/bookings/${bookingToEdit.id}`, updateData);
@@ -641,9 +667,22 @@ const Booking = () => {
       const totalPrice = mainServicePrice + dryCleaningPrice + (bookingToCreate.serviceOption !== 'pickupOnly' ? bookingToCreate.deliveryFee : 0);
 
       const bookingData = {
-        ...bookingToCreate,
-        totalPrice,
-        serviceName: selectedMainService.label,
+        service_type: bookingToCreate.mainService,
+        dry_cleaning_services: bookingToCreate.dryCleaningServices || [],
+        name: bookingToCreate.name,
+        contact: bookingToCreate.contact,
+        email: bookingToCreate.email || '',
+        address: bookingToCreate.address,
+        pickup_date: bookingToCreate.pickupDate,
+        pickup_time: bookingToCreate.pickupTime,
+        load_count: bookingToCreate.loadCount,
+        instructions: bookingToCreate.instructions || '',
+        status: bookingToCreate.status || 'approved',
+        payment_method: bookingToCreate.paymentMethod || 'cash',
+        service_option: bookingToCreate.serviceOption || 'pickupAndDelivery',
+        delivery_fee: bookingToCreate.deliveryFee || 0,
+        total_price: totalPrice,
+        photos: [],
       };
 
       const response = await apiClient.post('/api/admin/bookings', bookingData);
@@ -729,11 +768,11 @@ const Booking = () => {
     setPickupLoading(true);
     setPickupError(null);
     try {
-      const response = await apiClient.post(`/api/admin/bookings/${bookingId}/pickup-email`);
+      const response = await apiClient.post(`/api/admin/bookings/${bookingId}/pickup-notification`);
 
       if (response.status >= 200 && response.status < 300) {
         setPickupSuccess(prev => ({ ...prev, [bookingId]: true }));
-        alert('Pickup notification email sent successfully.');
+        alert(response.data.message || 'Pickup notification sent successfully.');
       } else {
         const data = response.data;
         setPickupError(data.message || 'Failed to send pickup notification email.');
@@ -809,71 +848,54 @@ const Booking = () => {
       const additionalPrice = parseFloat(orderFormData.additionalPrice) || 0;
       const totalPrice = bookingTotalPrice + additionalPrice;
 
-      const orderPayload = {
-        serviceType: selectedBookingForOrder.mainService || 'washFold',
-        pickupDate: formatDateForDB(selectedBookingForOrder.pickupDate),
-        pickupTime: selectedBookingForOrder.pickupTime,
-        loadCount: selectedBookingForOrder.loadCount || 1,
-        instructions: selectedBookingForOrder.instructions || '',
+      const updatePayload = {
         status: 'pending',
-        paymentMethod: selectedBookingForOrder.paymentMethod || 'cash',
-        name: selectedBookingForOrder.name,
-        contact: selectedBookingForOrder.contact,
-        email: selectedBookingForOrder.email || '',
-        address: selectedBookingForOrder.address,
-        photos: selectedBookingForOrder.photos || [],
-        totalPrice: totalPrice,
-        user_id: selectedBookingForOrder.userId || null,
-        booking_id: selectedBookingForOrder.id,
-        estimatedClothes: parseInt(orderFormData.estimatedClothes) || 1,
+        estimated_clothes: parseInt(orderFormData.estimatedClothes) || 1,
         kilos: parseFloat(orderFormData.kilos) || 1.0,
-        additionalPrice: additionalPrice,
-        laundryPhoto: orderFormData.laundryPhoto ? [orderFormData.laundryPhoto] : []
+        total_price: totalPrice,
+        laundry_photos: orderFormData.laundryPhoto ? [orderFormData.laundryPhoto] : []
       };
 
-      console.log('Order payload being sent:', orderPayload);
+      console.log('Update payload being sent:', updatePayload);
 
-      console.log('Creating order with payload:', orderPayload);
-      const response = await apiClient.post('/api/admin/orders/admin/create-from-pickup', orderPayload);
+      const response = await apiClient.put(`/api/admin/orders/${selectedBookingForOrder.id}`, updatePayload);
 
-      console.log('Order creation response status:', response.status);
-      console.log('Order creation response headers:', response.headers);
+      console.log('Order update response status:', response.status);
 
       if (response.status >= 200 && response.status < 300) {
         const responseData = response.data;
-        console.log('Order created successfully:', responseData);
+        console.log('Order updated successfully:', responseData);
         console.log('Booking ID being converted to order:', selectedBookingForOrder.id);
-        console.log('Booking details:', selectedBookingForOrder);
 
-        alert('Order created successfully.');
+        alert('Order updated successfully.');
 
         // Close modal and reset form
         setCheckOrderModalIsOpen(false);
         setSelectedBookingForOrder(null);
 
-
         // Reset form data
         setOrderFormData({
           estimatedClothes: '',
           kilos: '',
+          additionalPrice: '',
           laundryPhoto: null
         });
         setLaundryPhotoFile(null);
         setLaundryPhotoPreview(null);
 
-        // Refresh from server to update UI, which will remove the completed booking
+        // Refresh from server to update UI
         await fetchBookings();
 
-        // Navigate to Order Management to see the newly created order
-        console.log('Order created successfully, navigating to order management...');
+        // Navigate to Order Management to see the updated order
+        console.log('Order updated successfully, navigating to order management...');
         navigate('/dashboard/order');
       } else {
         const data = response.data;
-        console.error('Order creation failed:', data);
-        alert(data.message || 'Failed to create order.');
+        console.error('Order update failed:', data);
+        alert(data.message || 'Failed to update order.');
       }
     } catch (error) {
-      console.error('Error creating order:', error);
+      console.error('Error updating order:', error);
       alert('Network error. Please try again.');
     } finally {
       setCreatingOrder(false);

@@ -53,7 +53,7 @@ export default (db) => {
     router.post('/:id/send-sms', verifyToken, requireAdmin, sendPickupSMS(db));
 
     // Send both pickup notification email and SMS
-    router.post('/:id/send-notification', verifyToken, requireAdmin, sendPickupNotification(db));
+    router.post('/:id/pickup-notification', verifyToken, requireAdmin, sendPickupNotification(db));
 
     return router;
 };

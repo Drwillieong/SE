@@ -91,7 +91,12 @@ const OrderManagement = () => {
   useEffect(() => {
     const fetchAllTimerStatuses = async () => {
       if (orders.length > 0) {
-        const timerPromises = orders.map(order => fetchTimerStatus(order.order_id));
+        const timerPromises = orders.map(order => {
+          // If a timer is active, we just need to set it up locally
+          if (['washing', 'drying', 'folding'].includes(order.status)) {
+            startLocalTimer(order.order_id, order.status);
+          }
+        });
         await Promise.all(timerPromises);
       }
     };
@@ -162,15 +167,31 @@ const OrderManagement = () => {
         // Handle both old format (direct array) and new format (object with orders array)
         const ordersData = Array.isArray(responseData) ? responseData : responseData.orders || [];
 
+        // Filter out 'pending_booking' and 'approved' statuses as they are handled in the Booking section
+        const processedOrdersData = ordersData.filter(
+          order => order.status !== 'pending_booking' && order.status !== 'approved'
+        );
+
         // Transform the data to match frontend expectations
-        const transformedOrders = ordersData.map(order => ({
+        const transformedOrders = processedOrdersData.map(order => ({
           ...order,
           // Parse JSON fields
           photos: typeof order.photos === 'string' ? JSON.parse(order.photos) : order.photos || [],
-          laundryPhoto: typeof order.laundryPhoto === 'string' ? JSON.parse(order.laundryPhoto) : order.laundryPhoto || [],
+          laundryPhoto: typeof order.laundry_photos === 'string' ? JSON.parse(order.laundry_photos) : order.laundry_photos || [],
           // Format dates
-          createdAt: new Date(order.createdAt),
-          pickupDate: order.pickupDate
+          createdAt: new Date(order.created_at),
+          pickupDate: order.pickup_date,
+          pickupTime: order.pickup_time,
+          // Map service_orders_id to order_id for frontend compatibility
+          order_id: order.service_orders_id,
+          // Map other fields to match frontend expectations
+          serviceType: order.service_type,
+          loadCount: order.load_count,
+          paymentStatus: order.payment_status,
+          paymentMethod: order.payment_method,
+          totalPrice: order.total_price || 0,
+          estimatedClothes: order.estimated_clothes,
+          kilos: order.kilos
         }));
         console.log('Transformed orders:', transformedOrders);
         setOrders(transformedOrders);
@@ -241,6 +262,21 @@ const OrderManagement = () => {
     }
   };
 
+  // Starts a timer locally without a backend call
+  const startLocalTimer = (orderId, status) => {
+    // Define duration for each status in seconds (e.g., 1 hour)
+    const duration = 3600;
+
+    setTimerStatuses(prev => ({
+      ...prev,
+      [orderId]: {
+        isActive: true,
+        startTime: Date.now(),
+        duration: duration * 1000, // duration in milliseconds
+        autoAdvanceEnabled: prev[orderId]?.autoAdvanceEnabled || false,
+      }
+    }));
+  };
   const autoAdvanceOrder = async (orderId) => {
     try {
       const token = localStorage.getItem('token');
@@ -268,112 +304,55 @@ const OrderManagement = () => {
   };
 
   // Timer management functions
-  const fetchTimerStatus = async (orderId) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/timer/status`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const timerStatus = await response.json();
-        setTimerStatuses(prev => ({
-          ...prev,
-          [orderId]: timerStatus
-        }));
-        return timerStatus;
-      }
-    } catch (error) {
-      console.error('Error fetching timer status:', error);
-    }
-    return null;
-  };
-
-  const startOrderTimer = async (orderId, status) => {
-    try {
-      setLoadingStatus(prev => ({ ...prev, [orderId]: true }));
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/timer/start`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
-
-      if (response.ok) {
-        await fetchTimerStatus(orderId);
-        // Update order status if starting timer for a new status
-        if (status !== 'pending') {
-          setOrders(prev => prev.map(order =>
-            order.order_id === orderId ? { ...order, status } : order
-          ));
-        }
-      } else {
-        alert('Failed to start timer');
-      }
-    } catch (error) {
-      console.error('Error starting timer:', error);
-      alert('Failed to start timer');
-    } finally {
-      setLoadingStatus(prev => ({ ...prev, [orderId]: false }));
-    }
-  };
 
   const toggleAutoAdvance = async (orderId, enabled) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/auto-advance/toggle`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ enabled })
-      });
-
-      if (response.ok) {
-        setTimerStatuses(prev => ({
-          ...prev,
-          [orderId]: {
-            ...prev[orderId],
-            autoAdvanceEnabled: enabled
-          }
-        }));
-      } else {
-        alert('Failed to toggle auto-advance');
+    // This now only updates the local state
+    setTimerStatuses(prev => ({
+      ...prev,
+      [orderId]: {
+        ...prev[orderId],
+        autoAdvanceEnabled: enabled
       }
-    } catch (error) {
-      console.error('Error toggling auto-advance:', error);
-      alert('Failed to toggle auto-advance');
-    }
+    }));
   };
+
+  // Defines the order of status progression
+  const statusProgression = ['pending', 'washing', 'drying', 'folding', 'ready'];
 
   const advanceToNextStatus = async (orderId) => {
     try {
       setLoadingStatus(prev => ({ ...prev, [orderId]: true }));
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/status/next`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        // Update local state
-        setOrders(prev => prev.map(order =>
-          order.order_id === orderId ? { ...order, status: data.order.status } : order
-        ));
-        // Refresh timer status
-        await fetchTimerStatus(orderId);
-      } else {
-        alert('Failed to advance order status');
+      // Find the current order to determine the next status
+      const currentOrder = orders.find(o => o.order_id === orderId);
+      if (!currentOrder) {
+        throw new Error('Order not found');
       }
+
+      const currentIndex = statusProgression.indexOf(currentOrder.status);
+      if (currentIndex === -1 || currentIndex >= statusProgression.length - 1) {
+        // If status is not in progression or is the last one ('ready'), do nothing or handle completion
+        console.log(`Order ${orderId} is at the final status or status not in progression.`);
+        // Optionally, you could call handleOrderCompletion(orderId) if the status is 'ready'
+        if (currentOrder.status === 'ready') {
+          await handleOrderCompletion(orderId);
+        }
+        return;
+      }
+
+      const nextStatus = statusProgression[currentIndex + 1];
+
+      // Call the existing updateOrderStatus function
+      await updateOrderStatus(orderId, nextStatus);
+
+      // Start a local timer for the new status if it's a processing step
+      if (['washing', 'drying', 'folding'].includes(nextStatus)) {
+        startLocalTimer(orderId, nextStatus);
+      } else {
+        // If moving to 'ready' or another status, deactivate the timer
+        setTimerStatuses(prev => ({ ...prev, [orderId]: { ...prev[orderId], isActive: false } }));
+      }
+
     } catch (error) {
       console.error('Error advancing order status:', error);
       alert('Failed to advance order status');
@@ -472,31 +451,33 @@ const OrderManagement = () => {
     setSelectedOrder(order);
   };
 
-  const handleMarkAsPaid = async (orderId) => {
-    if (window.confirm('Are you sure you want to mark this order as paid?')) {
+  const handleUpdatePaymentStatus = async (orderId, newStatus) => {
+    if (window.confirm(`Are you sure you want to mark this order as ${newStatus}?`)) {
       try {
         const token = localStorage.getItem('token');
         const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/payment-status`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({ paymentStatus: 'paid' })
+          body: JSON.stringify({ payment_status: newStatus }),
         });
 
         if (response.ok) {
           // Update local state
-          setOrders(prev => prev.map(order =>
-            order.order_id === orderId ? { ...order, paymentStatus: 'paid' } : order
-          ));
-          alert('Order marked as paid successfully!');
+          setOrders((prev) =>
+            prev.map((order) =>
+              order.order_id === orderId ? { ...order, paymentStatus: newStatus } : order
+            )
+          );
+          alert(`Order marked as ${newStatus} successfully!`);
         } else {
           alert('Failed to update payment status');
         }
       } catch (error) {
         console.error('Error updating payment status:', error);
-        alert('Failed to update payment status');
+        alert('Failed to update payment status.');
       }
     }
   };
@@ -808,12 +789,20 @@ const OrderManagement = () => {
                             Review Payment
                           </button>
                         )}
-                        {order.paymentStatus !== 'paid' && order.paymentStatus !== 'gcash_pending' && (
+                        {order.paymentStatus === 'unpaid' && (
                           <button
-                            onClick={() => handleMarkAsPaid(order.order_id)}
+                            onClick={() => handleUpdatePaymentStatus(order.order_id, 'paid')}
                             className="text-green-600 hover:text-green-900 text-xs"
                           >
                             Mark as Paid
+                          </button>
+                        )}
+                        {order.paymentStatus === 'paid' && (
+                          <button
+                            onClick={() => handleUpdatePaymentStatus(order.order_id, 'unpaid')}
+                            className="text-yellow-600 hover:text-yellow-900 text-xs"
+                          >
+                            Mark as Unpaid
                           </button>
                         )}
                       </div>
@@ -849,7 +838,7 @@ const OrderManagement = () => {
         updateOrderStatus={updateOrderStatus}
         serviceOptions={serviceOptions}
         onCompleteOrder={handleOrderCompletion}
-        onMarkAsPaid={handleMarkAsPaid}
+        onMarkAsPaid={(orderId) => handleUpdatePaymentStatus(orderId, 'paid')}
       />
 
       {/* Payment Review Modal */}
@@ -863,14 +852,6 @@ const OrderManagement = () => {
         onDecision={handlePaymentDecision}
       />
 
-      {/* Socket Client for real-time updates */}
-      {userId && (
-        <SocketClient
-          userId={userId}
-          userRole="admin"
-          onOrderUpdate={handleOrderUpdate}
-        />
-      )}
     </div>
   );
 };

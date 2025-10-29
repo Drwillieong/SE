@@ -6,19 +6,20 @@ const TimerDisplay = ({ orderId, timerStatus, onTimerExpired }) => {
 
   useEffect(() => {
     if (timerStatus && timerStatus.isActive) {
-      setIsActive(true);
-      setRemainingTime(timerStatus.remainingTime);
-
-      const interval = setInterval(() => {
-        const newRemaining = Math.max(0, timerStatus.remainingTime - 1000);
+      const calculateRemaining = () => {
+        const elapsed = Date.now() - timerStatus.startTime;
+        const newRemaining = Math.max(0, timerStatus.duration - elapsed);
         setRemainingTime(newRemaining);
+        setIsActive(newRemaining > 0);
 
-        if (newRemaining <= 0) {
-          setIsActive(false);
-          if (onTimerExpired) {
-            onTimerExpired(orderId);
-          }
+        if (newRemaining <= 0 && onTimerExpired) {
+          onTimerExpired(orderId);
         }
+      };
+
+      calculateRemaining(); // Initial calculation
+      const interval = setInterval(() => {
+        calculateRemaining();
       }, 1000);
 
       return () => clearInterval(interval);
@@ -26,7 +27,7 @@ const TimerDisplay = ({ orderId, timerStatus, onTimerExpired }) => {
       setIsActive(false);
       setRemainingTime(0);
     }
-  }, [timerStatus, orderId, onTimerExpired]);
+  }, [timerStatus, orderId]);
 
   const formatTime = (milliseconds) => {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -36,14 +37,13 @@ const TimerDisplay = ({ orderId, timerStatus, onTimerExpired }) => {
   };
 
   const getProgressPercentage = () => {
-    if (!timerStatus || !timerStatus.startTime || !timerStatus.endTime) return 0;
-    const totalDuration = 60 * 60 * 1000; // 1 hour in milliseconds
-    const elapsed = totalDuration - remainingTime;
-    return Math.min(100, (elapsed / totalDuration) * 100);
+    if (!timerStatus || !timerStatus.duration || remainingTime === 0) return 100;
+    const elapsed = timerStatus.duration - remainingTime;
+    return Math.min(100, (elapsed / timerStatus.duration) * 100);
   };
 
-  if (!timerStatus || !timerStatus.isActive) {
-    return null;
+  if (!isActive) {
+    return null; // Don't render if timer is not active or has expired
   }
 
   return (

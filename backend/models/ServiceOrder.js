@@ -145,10 +145,28 @@ export class ServiceOrder {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
+    // Calculate total price from services
+    let calculatedTotalPrice = 0;
+
+    // Main service price
+    if (orderData.service_type === 'washDryFold') {
+      calculatedTotalPrice += 179 * (orderData.load_count || 1);
+    } else if (orderData.service_type === 'fullService') {
+      calculatedTotalPrice += 199 * (orderData.load_count || 1);
+    }
+
+    // Dry cleaning price
+    if (orderData.dry_cleaning_services && Array.isArray(orderData.dry_cleaning_services)) {
+      calculatedTotalPrice += orderData.dry_cleaning_services.reduce((sum, service) => sum + (service.price || 0), 0);
+    }
+
+    // Delivery fee
+    calculatedTotalPrice += orderData.delivery_fee || 0;
+
     // Validate and cap totalPrice to prevent database range errors
     // DECIMAL(10,2) max is 99999999.99
     const maxTotalPrice = 99999999.99;
-    const validatedTotalPrice = Math.min(Math.max(orderData.total_price || 0, 0), maxTotalPrice);
+    const validatedTotalPrice = Math.min(Math.max(calculatedTotalPrice, 0), maxTotalPrice);
 
     const values = [
       orderData.user_id || null,

@@ -30,6 +30,9 @@ export default (db) => {
     // Create order for admin
     router.post('/', verifyToken, requireAdmin, createOrder(db));
 
+    // Create order from pickup (admin)
+    router.post('/admin/create-from-pickup', verifyToken, requireAdmin, createOrder(db));
+
     // Get order by ID
     router.get('/:id', verifyToken, requireAdmin, getOrderById(db));
 

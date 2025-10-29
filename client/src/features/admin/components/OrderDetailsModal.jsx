@@ -180,7 +180,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus,
           <div className="flex justify-between items-start mb-3">
             <div>
               <h3 className="text-lg font-bold text-gray-800">Order #{selectedOrder.order_id}</h3>
-              <p className="text-sm text-gray-600">Created: {formatDate(selectedOrder.createdAt)}</p>
+              <p className="text-sm text-gray-600">Created: {selectedOrder.createdAt ? formatDate(selectedOrder.createdAt) : 'Invalid Date'}</p>
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-blue-600">
@@ -197,7 +197,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus,
               {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
             </div>
             <div className="text-sm text-gray-600">
-              Pickup: {selectedOrder.pickupDate} at {selectedOrder.pickupTime}
+              Pickup: {selectedOrder.pickupDate ? selectedOrder.pickupDate : 'Not set'} at {selectedOrder.pickupTime ? selectedOrder.pickupTime : 'Not set'}
             </div>
           </div>
         </div>
@@ -241,7 +241,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus,
                   </span>
                   {selectedOrder.paymentStatus !== 'paid' && (selectedOrder.status === 'ready' || selectedOrder.status === 'completed') && (
                     <button
-                      onClick={() => handleMarkAsPaid(selectedOrder.order_id)}
+                      onClick={() => onMarkAsPaid(selectedOrder.order_id)}
                       className="text-green-600 hover:text-green-900 text-xs underline"
                     >
                       Mark as Paid
@@ -279,12 +279,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus,
           <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Laundry Details</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {selectedOrder.estimatedClothes && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Estimated Clothes</label>
-                  <p className="text-gray-900">{selectedOrder.estimatedClothes} items</p>
-                </div>
-              )}
+             
               {selectedOrder.kilos && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Weight</label>

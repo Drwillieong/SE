@@ -20,7 +20,6 @@ export const sendGcashPaymentNotificationEmail = async (order, referenceNumber, 
     }
 
     const mailOptions = {
-        from: process.env.EMAIL_USER,
         to: 'kevincorpuz321@gmail.com',
         subject: `New GCash Payment Submitted - Ref #${order.order_id}`,
         html: `

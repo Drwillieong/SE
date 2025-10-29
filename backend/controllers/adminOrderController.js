@@ -65,6 +65,14 @@ export const createOrder = (db) => async (req, res) => {
       service_type: req.body.service_type || req.body.serviceType
     };
 
+    // Handle dry cleaning services with custom prices
+    if (req.body.dryCleaningServices && req.body.dryCleaningPrices) {
+      orderData.dry_cleaning_services = req.body.dryCleaningServices.map(id => ({
+        id,
+        price: req.body.dryCleaningPrices[id] || 0
+      }));
+    }
+
     const orderId = await serviceOrderModel.create(orderData);
 
     // Emit WebSocket notification

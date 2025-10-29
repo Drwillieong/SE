@@ -400,9 +400,18 @@ const ScheduleBooking = () => {
         return;
       }
 
+      // Prepare dry cleaning services with prices
+      const dryCleaningServicesWithPrices = formData.dryCleaningServices.map(id => {
+        const service = dryCleaningServices.find(s => s.id === id);
+        return {
+          id,
+          price: service ? service.price : 0
+        };
+      });
+
       const bookingPayload = {
         service_type: formData.mainService,
-        dry_cleaning_services: formData.dryCleaningServices,
+        dry_cleaning_services: dryCleaningServicesWithPrices,
         pickup_date: formData.pickupDate,
         pickup_time: formData.pickupTime,
         load_count: formData.loadCount,
@@ -414,7 +423,6 @@ const ScheduleBooking = () => {
         email: userData.email,
         address: userAddress,
         photos: [],
-        total_price: (selectedMainService.price * formData.loadCount) + (formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee), // This is for the payload to backend
         service_option: formData.serviceOption,
         delivery_fee: formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee,
         user_id: user.id, // This should be correct as `user` state is set with user_id

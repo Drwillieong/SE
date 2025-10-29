@@ -14,7 +14,6 @@ export const sendOrderConfirmationEmail = async (email, name, orderId, kilos, to
                           paymentMethod === 'gcash' ? 'GCash' : paymentMethod;
 
     const mailOptions = {
-        from: process.env.EMAIL_USER,
         to: email,
         subject: `Order Confirmation - Wash It Izzy #${orderId}`,
         html: `

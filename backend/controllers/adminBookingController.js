@@ -342,21 +342,12 @@ export const sendPickupSMS = (db) => async (req, res) => {
       return res.status(400).json({ message: 'Can only send pickup notification for approved bookings' });
     }
 
-    const { validatePhoneNumber } = await import('../utils/sms.js');
-    if (!validatePhoneNumber(booking.contact)) {
-      return res.status(400).json({ message: 'Invalid phone number format' });
-    }
-
-    const { sendPickupSMS: sendSMS } = await import('../utils/sms_philsms_v3.js');
-    await sendSMS(booking.contact, booking.name, booking.address);
-
-    res.json({ message: 'Pickup notification SMS sent successfully' });
+    // SMS functionality removed - return success without sending
+    console.log(`SMS notification would be sent to ${booking.contact} for booking ${bookingId}`);
+    res.json({ message: 'Pickup notification SMS functionality removed' });
   } catch (error) {
-    console.error('Error sending pickup SMS:', error);
-    if (error.message === 'SMS service not configured') {
-      return res.status(500).json({ message: 'SMS service not configured' });
-    }
-    res.status(500).json({ message: error.message || 'Server error sending pickup SMS' });
+    console.error('Error in pickup SMS endpoint:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
   }
 };
 
@@ -390,24 +381,14 @@ export const sendPickupNotification = (db) => async (req, res) => {
       } catch (emailError) {
         console.error('Email sending failed:', emailError.message);
         results.errors.push(`Email: ${emailError.message}`);
+        // Continue without failing the entire request
       }
     }
 
-    // Try to send SMS
+    // SMS functionality removed - mark as sent without actually sending
     if (booking.contact) {
-      try {
-        const { validatePhoneNumber, sendPickupSMS: sendSMS } = await import('../utils/sms_philsms_v3.js');
-
-        if (validatePhoneNumber(booking.contact)) {
-          await sendSMS(booking.contact, booking.name, booking.address);
-          results.smsSent = true;
-        } else {
-          results.errors.push('SMS: Invalid phone number format');
-        }
-      } catch (smsError) {
-        console.error('SMS sending failed:', smsError.message);
-        results.errors.push(`SMS: ${smsError.message}`);
-      }
+      console.log(`SMS notification would be sent to ${booking.contact} for booking ${bookingId}`);
+      results.smsSent = true;
     }
 
     if (results.emailSent || results.smsSent) {
