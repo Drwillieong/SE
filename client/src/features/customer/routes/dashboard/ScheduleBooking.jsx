@@ -264,7 +264,7 @@ const ScheduleBooking = () => {
       console.log('ScheduleBooking: fetchOrdersAndCounts triggered. userData:', userData);
       if (userData && userData.user_id) {
         try {
-          // Fetch unified orders from customer orders endpoint
+          // Fetch only historical orders (completed, rejected, cancelled) for the 'My Bookings' tab
           const ordersRes = await apiClient.get('/api/customer/orders?page=1&limit=100');
           const ordersData = ordersRes.data.orders || [];
           console.log('ScheduleBooking: Orders API response data:', ordersRes.data);
@@ -1185,10 +1185,13 @@ const ScheduleBooking = () => {
                           </button>
                         )}
                         {order.paymentMethod === 'gcash' &&
-                          ((order.order_id && (order.paymentStatus === 'unpaid' || order.paymentStatus === 'gcash_pending')) ||
-                           (!order.order_id && order.status === 'approved')) &&
+                          order.order_id &&
+                          (order.paymentStatus === 'unpaid' || order.paymentStatus === 'gcash_pending') && // Customer can pay if unpaid or if previous GCash payment is pending review
                           order.status !== 'completed' &&
-                          order.status !== 'cancelled' && (
+                          order.status !== 'cancelled' &&
+                          order.status !== 'pending_booking' && // Hide if it's just a booking request
+                          order.status !== 'approved' && // Hide if booking is approved but not yet a processed order
+                          (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();

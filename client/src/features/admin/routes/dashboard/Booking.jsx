@@ -1008,96 +1008,65 @@ const Booking = () => {
               const isToday = booking.pickupDate === new Date().toISOString().split('T')[0];
               return (
                 <div
-                  key={booking.id}
-                  className={`border-2 p-6 rounded-xl hover:shadow-lg transition-all duration-200 ${
-                    isToday
-                      ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300 shadow-md'
-                      : 'bg-white border-gray-200 hover:border-gray-300'
-                  }`}
+                  key={booking.id} onClick={() => setSelectedBooking(booking)}
+                  className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg">{booking.name}</h3>
-                      <p><span className="font-semibold">Service:</span> {
-                        mainServices.find((s) => s.value === booking.mainService)?.label || booking.mainService
-                      } (₱{booking.totalPrice})</p>
-                      {booking.dryCleaningServices && booking.dryCleaningServices.length > 0 && (
-                        <p><span className="font-semibold">Dry Cleaning:</span> {
-                          booking.dryCleaningServices.map(id => dryCleaningServices.find(s => s.id === id)?.name).filter(Boolean).join(', ')
-                        }</p>
-                      )}
-                      <p><span className="font-semibold">Service Option:</span> {
-                        booking.serviceOption === 'pickupOnly' ? 'Pickup Only' :
-                        booking.serviceOption === 'deliveryOnly' ? 'Delivery Only' : 'Pickup & Delivery'
-                      }</p>
-                      <p><span className="font-semibold">Pickup:</span> {booking.pickupDate} at {booking.pickupTime}</p>
-                      <p><span className="font-semibold">Loads:</span> {booking.loadCount}</p>
-                      {booking.serviceOption !== 'pickupOnly' && booking.deliveryFee > 0 && (
-                        <p><span className="font-semibold">Delivery Fee:</span> ₱{booking.deliveryFee}</p>
-                      )}
-                      <p><span className="font-semibold">Payment:</span> {
-                        booking.paymentMethod === 'cash' ? 'Cash on pickup' :
-                        booking.paymentMethod === 'gcash' ? 'GCash' :
-                        booking.paymentMethod === 'card' ? 'Credit/Debit Card' : 'Not specified'
-                      }</p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
+                  <h3 className="font-bold text-lg">{booking.name}</h3>
+                  <p><span className="font-semibold">Service:</span> {
+                    mainServices.find((s) => s.value === booking.mainService)?.label || booking.mainService
+                  } (₱{booking.totalPrice})</p>
+                  {booking.dryCleaningServices && booking.dryCleaningServices.length > 0 && (
+                    <p><span className="font-semibold">Dry Cleaning:</span> {
+                      booking.dryCleaningServices.map(id => dryCleaningServices.find(s => s.id === id)?.name).filter(Boolean).join(', ')
+                    }</p>
+                  )}
+                  <p><span className="font-semibold">Pickup:</span> {booking.pickupDate} at {booking.pickupTime}</p>
+                  <div className="flex flex-wrap justify-end gap-2 mt-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleEditBooking(booking); }}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteBooking(booking.id); }}
+                      disabled={deletingBooking}
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md disabled:opacity-50"
+                    >
+                      {deletingBooking ? 'Deleting...' : 'Delete'}
+                    </button>
+                    {pickupSuccess[booking.id] ? (
                       <button
-                        onClick={() => setSelectedBooking(booking)}
-                        className="text-blue-500 hover:text-blue-700 text-sm self-end sm:self-center px-3 py-1 rounded-md hover:bg-blue-50 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // When admin clicks "Check Order", open the order form modal
+                          setSelectedBookingForOrder(booking);
+                          setCheckOrderModalIsOpen(true);
+                          setOrderFormData({
+                            estimatedClothes: '',
+                            kilos: '',
+                            pants: '',
+                            shorts: '',
+                            tshirts: '',
+                            bedsheets: '',
+                            laundryPhoto: null
+                          });
+                          setLaundryPhotoFile(null);
+                          setLaundryPhotoPreview(null);
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
                       >
-                        View Details
+                        Check Order
                       </button>
+                    ) : (
                       <button
-                        onClick={() => handleEditBooking(booking)}
-                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center shadow-sm hover:shadow-md"
+                        onClick={(e) => { e.stopPropagation(); handlePickupNow(booking.id); }}
+                        disabled={pickupLoading}
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
                       >
-                        Edit
+                        {pickupLoading ? 'Sending...' : 'Ready for Pickup'}
                       </button>
-                      <button
-                        onClick={() => handleDeleteBooking(booking.id)}
-                        disabled={deletingBooking}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center shadow-sm hover:shadow-md disabled:opacity-50"
-                      >
-                        {deletingBooking ? 'Deleting...' : 'Delete'}
-                      </button>
-                      {pickupSuccess[booking.id] ? (
-                        <button
-                          onClick={() => {
-                            // When admin clicks "Check Order", open the order form modal
-                            setSelectedBookingForOrder(booking);
-                            setCheckOrderModalIsOpen(true);
-                            setOrderFormData({
-                              estimatedClothes: '',
-                              kilos: '',
-                              pants: '',
-                              shorts: '',
-                              tshirts: '',
-                              bedsheets: '',
-                              laundryPhoto: null
-                            });
-                            setLaundryPhotoFile(null);
-                            setLaundryPhotoPreview(null);
-                          }}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center shadow-sm hover:shadow-md"
-                        >
-                          Check Order
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handlePickupNow(booking.id)}
-                          disabled={pickupLoading}
-                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors self-end sm:self-center shadow-sm hover:shadow-md"
-                        >
-                          {pickupLoading ? 'Sending...' : 'Ready for Pickup'}
-                        </button>
-                      )}
-                      {booking.photos?.length > 0 && (
-                        <span className="text-xs text-gray-500 self-end sm:self-center px-2 py-1 bg-gray-100 rounded-full">
-                          {booking.photos.length} photo{booking.photos.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               );
@@ -1125,7 +1094,9 @@ const Booking = () => {
             ) : (
               <div className="space-y-4">
                 {pendingBookings.map((booking) => (
-                  <div key={booking.id} className=" bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                  <div key={booking.id}
+                    onClick={() => setSelectedBooking(booking)}
+                    className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
                     <h3 className="font-bold text-lg">{booking.name}</h3>
                     <p><span className="font-semibold">Service:</span> {
                       mainServices.find((s) => s.value === booking.mainService)?.label || booking.mainService
@@ -1140,57 +1111,25 @@ const Booking = () => {
                       booking.serviceOption === 'deliveryOnly' ? 'Delivery Only' : 'Pickup & Delivery'
                     }</p>
                     <p><span className="font-semibold">Pickup:</span> {booking.pickupDate} at {booking.pickupTime}</p>
-                    {booking.serviceOption !== 'pickupOnly' && booking.deliveryFee > 0 && (
-                      <p><span className="font-semibold">Delivery Fee:</span> ₱{booking.deliveryFee}</p>
-                    )}
                     <div className="flex flex-wrap justify-end gap-2 mt-2">
                       <button
-                        onClick={() => handleApproveBooking(booking.id)}
+                        onClick={(e) => { e.stopPropagation(); handleApproveBooking(booking.id); }}
                         className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
                       >
                         Approve
                       </button>
                       <button
-                        onClick={() => handleRejectBooking(booking)}
+                        onClick={(e) => { e.stopPropagation(); handleRejectBooking(booking); }}
                         className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
                       >
                         Reject
                       </button>
                       <button
-                        onClick={() => handleEditBooking(booking)}
-                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteBooking(booking.id)}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteBooking(booking.id); }}
                         disabled={deletingBooking}
                         className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md disabled:opacity-50"
                       >
                         {deletingBooking ? 'Deleting...' : 'Delete'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedBookingForOrder(booking);
-                          setCheckOrderModalIsOpen(true);
-                          setOrderFormData({
-                            estimatedClothes: '',
-                            kilos: '',
-                            additionalPrice: '',
-                            laundryPhoto: null
-                          });
-                          setLaundryPhotoFile(null);
-                          setLaundryPhotoPreview(null);
-                        }}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
-                      >
-                        Check Order
-                      </button>
-                      <button
-                        onClick={() => setSelectedBooking(booking)}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors shadow-sm hover:shadow-md"
-                      >
-                        Details
                       </button>
                     </div>
                   </div>
