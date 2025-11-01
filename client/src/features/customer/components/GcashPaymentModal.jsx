@@ -47,7 +47,7 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, orderId, onSubmit }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 relative">
+      <div className="bg-white rounded-2xl shadow-lg w-full max-w-sm md:max-w-md p-4 md:p-6 relative">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -58,11 +58,7 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, orderId, onSubmit }) => {
 
         {/* Header */}
         <div className="text-center mb-4">
-          <img
-          
-            alt="GCash"
-            className="w-24 mx-auto mb-2"
-          />
+         
           <h2 className="text-xl font-semibold text-gray-800">
             Pay with GCash
           </h2>
@@ -76,7 +72,7 @@ const GcashPaymentModal = ({ isOpen, onClose, amount, orderId, onSubmit }) => {
           <img
              src={QR}
             alt="GCash QR"
-            className="w-48 h-48 border rounded-lg"
+            className="w-32 h-32 md:w-48 md:h-48 border rounded-lg"
           />
         </div>
 

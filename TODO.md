@@ -1,29 +1,22 @@
-# TODO List
+# AnalyticsDashboard Update Tasks
 
-## Fix Customer Booking History Issues
+## Backend Updates
+- [ ] Update getAnalyticsData in adminAnalyticsController.js to fetch actual booking status distribution from service_orders table
+- [ ] Map service order statuses to booking statuses (pending, approved, rejected, completed)
+- [ ] Fetch recent activity from recent service_orders in getAnalyticsData
+- [ ] Include top customers data in analytics response
 
-### Backend Changes
-- [x] Update `getCustomerOrders` in `customerController.js` to return properly formatted data for frontend compatibility
-  - [x] Change `laundry_photos` to `laundryPhoto` (camelCase)
-  - [x] Add `paymentStatus` and `paymentMethod` fields
-  - [x] Add `serviceType` and `mainService` for compatibility
-  - [x] Add `order_id` as alias for `service_orders_id`
-  - [x] Add `loadCount` as alias for `load_count`
-  - [x] Add other missing fields: `pickupDate`, `pickupTime`, `instructions`, `name`, `contact`, `email`, `address`, `rejectionReason`, `createdAt`, `updatedAt`
-- [x] Update `getCustomerHistory` in `customerController.js` to include all history items and proper data formatting
-  - [x] Include completed orders, moved to history, and soft deleted items
-  - [x] Apply same data transformation as `getCustomerOrders` for consistency
+## Frontend Updates
+- [ ] Remove Processing Efficiency section from AnalyticsDashboard.jsx
+- [ ] Add Top Customers section to AnalyticsDashboard.jsx
+- [ ] Ensure booking status chart uses actual data (verify it's working)
+- [ ] Add export buttons for PDF and Excel reports in AnalyticsDashboard.jsx
 
-### Frontend Verification
-- [ ] Test that service information displays correctly in booking history list
-- [ ] Test that OrderDetailsModal shows complete information including:
-  - [ ] Service type/name
-  - [ ] Laundry photos
-  - [ ] Payment method
-  - [ ] Payment status
-  - [ ] All other order details
+## Export Functionality
+- [ ] Install jsPDF and xlsx libraries for export functionality
+- [ ] Implement PDF export function
+- [ ] Implement Excel export function
 
-### Testing
-- [ ] Verify customer can view their booking history
-- [ ] Verify OrderDetailsModal opens and displays all information
-- [ ] Check for any console errors or missing data
+## Testing
+- [ ] Test the updated dashboard to ensure all sections work correctly
+- [ ] Verify export functionality works for both PDF and Excel

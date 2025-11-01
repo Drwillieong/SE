@@ -370,14 +370,40 @@ export const getAnalyticsData = (db) => async (req, res) => {
       });
     });
 
-    // Get booking status distribution (assuming bookings are in a separate table)
-    // For now, using placeholder data
-    const bookingStatusDistribution = [
-      { status: 'pending', count: 0 },
-      { status: 'approved', count: 0 },
-      { status: 'rejected', count: 0 },
-      { status: 'completed', count: 0 }
-    ];
+    // Get booking status distribution from service_orders table
+    // Map service order statuses to booking statuses
+    const bookingStatusDistribution = await new Promise((resolve, reject) => {
+      const sql = `
+        SELECT
+          CASE
+            WHEN status = 'pending' THEN 'pending'
+            WHEN status = 'approved' THEN 'approved'
+            WHEN status IN ('washing', 'drying', 'folding', 'ready') THEN 'approved'
+            WHEN status = 'completed' THEN 'completed'
+            WHEN status = 'rejected' THEN 'rejected'
+            ELSE 'pending'
+          END as status,
+          COUNT(*) as count
+        FROM service_orders
+        WHERE DATE(created_at) BETWEEN ? AND ?
+        AND moved_to_history_at IS NULL
+        AND is_deleted = FALSE
+        GROUP BY
+          CASE
+            WHEN status = 'pending' THEN 'pending'
+            WHEN status = 'approved' THEN 'approved'
+            WHEN status IN ('washing', 'drying', 'folding', 'ready') THEN 'approved'
+            WHEN status = 'completed' THEN 'completed'
+            WHEN status = 'rejected' THEN 'rejected'
+            ELSE 'pending'
+          END
+      `;
+
+      db.query(sql, [startDateStr, endDateStr], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
 
     // Calculate growth metrics (compare with previous period)
     const previousPeriodStart = new Date(startDate.getTime() - (endDate.getTime() - startDate.getTime()));
@@ -454,13 +480,58 @@ export const getAnalyticsData = (db) => async (req, res) => {
       { name: 'Hang Dry', count: ordersByServiceType.hangDry || 0 }
     ].sort((a, b) => b.count - a.count);
 
-    // Recent activity (placeholder)
-    const recentActivity = [];
+    // Get recent activity from service_orders
+    const recentActivity = await new Promise((resolve, reject) => {
+      const sql = `
+        SELECT
+          service_orders_id as id,
+          'order' as type,
+          CONCAT('New order received from ', name) as description,
+          created_at as timestamp,
+          status
+        FROM service_orders
+        WHERE DATE(created_at) BETWEEN ? AND ?
+        AND moved_to_history_at IS NULL
+        AND is_deleted = FALSE
+        ORDER BY created_at DESC
+        LIMIT 10
+      `;
+
+      db.query(sql, [startDateStr, endDateStr], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
 
     // Performance metrics (placeholder)
     const avgProcessingTime = '2.5';
     const onTimeDeliveryRate = 95;
     const customerSatisfaction = 4.8;
+
+    // Get top customers
+    const topCustomers = await new Promise((resolve, reject) => {
+      const sql = `
+        SELECT
+          user_id,
+          name,
+          email,
+          COUNT(*) as totalOrders,
+          SUM(total_price) as totalSpent,
+          MAX(created_at) as lastOrderDate
+        FROM service_orders
+        WHERE user_id IS NOT NULL
+        AND moved_to_history_at IS NULL
+        AND is_deleted = FALSE
+        GROUP BY user_id, name, email
+        ORDER BY totalSpent DESC
+        LIMIT 5
+      `;
+
+      db.query(sql, (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
 
     // Compile final response
     const analyticsData = {
@@ -477,6 +548,7 @@ export const getAnalyticsData = (db) => async (req, res) => {
       ordersByServiceType,
       bookingsByStatus,
       topServices,
+      topCustomers,
       recentActivity,
       avgProcessingTime,
       onTimeDeliveryRate,

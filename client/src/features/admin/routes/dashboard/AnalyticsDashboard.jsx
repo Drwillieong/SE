@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../../../utils/axios';
 import { Bar, Line, Pie, Doughnut } from 'react-chartjs-2';
+import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -163,6 +165,53 @@ const AnalyticsDashboard = () => {
     }]
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.text('Analytics Dashboard Report', 20, 30);
+    doc.setFontSize(12);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 45);
+
+    // Add metrics
+    doc.text(`Total Orders: ${analyticsData.totalOrders || 0}`, 20, 65);
+    doc.text(`Total Revenue: ${formatCurrency(analyticsData.totalRevenue || 0)}`, 20, 80);
+    doc.text(`Active Bookings: ${analyticsData.activeBookings || 0}`, 20, 95);
+    doc.text(`Avg Order Value: ${formatCurrency(analyticsData.avgOrderValue || 0)}`, 20, 110);
+
+    // Add top services
+    doc.text('Top Services:', 20, 130);
+    let yPos = 145;
+    if (analyticsData.topServices) {
+      analyticsData.topServices.forEach((service, index) => {
+        doc.text(`${service.name}: ${service.count} orders`, 30, yPos);
+        yPos += 15;
+      });
+    }
+
+    doc.save('analytics-report.pdf');
+  };
+
+  const exportToExcel = () => {
+    const data = [
+      ['Metric', 'Value'],
+      ['Total Orders', analyticsData.totalOrders || 0],
+      ['Total Revenue', formatCurrency(analyticsData.totalRevenue || 0)],
+      ['Active Bookings', analyticsData.activeBookings || 0],
+      ['Avg Order Value', formatCurrency(analyticsData.avgOrderValue || 0)],
+      [],
+      ['Top Services', 'Orders'],
+      ...(analyticsData.topServices?.map(service => [service.name, service.count]) || []),
+      [],
+      ['Top Customers', 'Total Spent', 'Orders'],
+      ...(analyticsData.topCustomers?.map(customer => [customer.name, formatCurrency(customer.totalSpent), customer.totalOrders]) || [])
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Analytics');
+    XLSX.writeFile(wb, 'analytics-report.xlsx');
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -190,6 +239,22 @@ const AnalyticsDashboard = () => {
               {range.label}
             </button>
           ))}
+
+          {/* Export Buttons */}
+          <div className="ml-auto flex gap-2">
+            <button
+              onClick={() => exportToPDF()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+            >
+              Export PDF
+            </button>
+            <button
+              onClick={() => exportToExcel()}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+            >
+              Export Excel
+            </button>
+          </div>
         </div>
       </div>
 
@@ -365,23 +430,25 @@ const AnalyticsDashboard = () => {
         </div>
       </div>
 
-      {/* Performance Metrics */}
+        {/* Performance Metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Processing Efficiency</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Top Customers</h3>
           <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Avg Processing Time</span>
-              <span className="font-semibold">{analyticsData.avgProcessingTime || '2.5'} hours</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">On-Time Delivery Rate</span>
-              <span className="font-semibold text-green-600">{analyticsData.onTimeDeliveryRate || 95}%</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Customer Satisfaction</span>
-              <span className="font-semibold text-green-600">{analyticsData.customerSatisfaction || 4.8}/5.0</span>
-            </div>
+            {analyticsData.topCustomers?.map((customer, index) => (
+              <div key={index} className="flex justify-between items-center">
+                <div>
+                  <span className="text-sm font-medium text-gray-800">{customer.name}</span>
+                  <p className="text-xs text-gray-500">{customer.email}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-semibold text-green-600">{formatCurrency(customer.totalSpent)}</span>
+                  <p className="text-xs text-gray-500">{customer.totalOrders} orders</p>
+                </div>
+              </div>
+            )) || (
+              <div className="text-sm text-gray-500">No customer data available</div>
+            )}
           </div>
         </div>
 

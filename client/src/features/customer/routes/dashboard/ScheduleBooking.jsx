@@ -71,15 +71,6 @@ const ScheduleBooking = () => {
 
       await apiClient.post(`/api/customer/orders/${orderId}/gcash-payment`, payload);
 
-      // Update the order in the local state to mark it as complete
-      setOrders(prevOrders =>
-        prevOrders.map(order =>
-          (order.order_id === orderId || order.id === orderId)
-            ? { ...order, status: 'completed', paymentStatus: 'paid' }
-            : order
-        )
-      );
-
       setShowGcashModal(false); // Close modal on success
     } catch (error) {
       console.error('Error submitting payment:', error);
@@ -833,7 +824,7 @@ const ScheduleBooking = () => {
               {/* Service Option Selection */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-3">Service Option</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <button
                     type="button"
                     onClick={() => handleServiceOptionChange('pickupOnly')}
@@ -850,6 +841,15 @@ const ScheduleBooking = () => {
                   >
                     <h3 className="font-medium">Pickup & Delivery</h3>
                     <p className="text-sm text-gray-600">We'll pick up your laundry and deliver it back to you</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleServiceOptionChange('deliveryOnly')}
+                    className={`p-4 border rounded-lg text-center ${formData.serviceOption === 'deliveryOnly' ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}`}
+                  >
+                    <h3 className="font-medium">Delivery Only</h3>
+                    <p className="text-sm text-gray-600">We'll deliver your laundry to you without pickup</p>
                   </button>
                 </div>
               </div>
