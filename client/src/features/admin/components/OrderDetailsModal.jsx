@@ -142,9 +142,11 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus,
         {/* Complete Order Button - available for any status except completed */}
         {currentStatus !== 'completed' && onCompleteOrder && (
           <button
-            onClick={() => {
+            onClick={async () => {
               if (window.confirm('Are you sure you want to complete this order? This will move it to history.')) {
-                onCompleteOrder(selectedOrder.order_id);
+                if (typeof onCompleteOrder === 'function') {
+                  await onCompleteOrder(selectedOrder.order_id);
+                }
               }
             }}
             className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors font-medium"
@@ -259,7 +261,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder, updateOrderStatus,
               <div>
                 <label className="block text-sm font-medium text-gray-700">Service Type</label>
                 <p className="text-gray-900">
-                  {serviceOptions.find(s => s.value === selectedOrder.serviceType)?.label || selectedOrder.serviceType}
+                  {serviceOptions?.find(s => s.value === selectedOrder.serviceType)?.label || selectedOrder.serviceType}
                 </p>
               </div>
               <div>

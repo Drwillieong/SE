@@ -199,7 +199,7 @@ const OrderManagement = () => {
 
         // Filter out 'pending_booking' and 'approved' statuses as they are handled in the Booking section
         const processedOrdersData = ordersData.filter(
-          order => order.status !== 'pending_booking' && order.status !== 'approved'
+          order => order.status !== 'pending_booking' && order.status !== 'approved'  && order.status !== 'rejected'
         );
 
         // Transform the data to match frontend expectations
@@ -223,8 +223,14 @@ const OrderManagement = () => {
           estimatedClothes: order.estimated_clothes,
           kilos: order.kilos
         }));
-        console.log('Transformed orders:', transformedOrders);
-        setOrders(transformedOrders);
+
+        // Filter out completed and paid orders (they should be in history)
+        const filteredOrders = transformedOrders.filter(order =>
+          !(order.status === 'completed' && order.paymentStatus === 'paid')
+        );
+
+        console.log('Transformed and filtered orders:', filteredOrders);
+        setOrders(filteredOrders);
         setError(null);
       } else {
         if (response.status === 403) {
@@ -416,16 +422,16 @@ const OrderManagement = () => {
       if (response.ok) {
         const data = await response.json();
 
-        // Immediately remove the completed order from local state
-        setOrders(prev => prev.filter(order => order.order_id !== orderId));
-
-        // Refresh the orders list to ensure consistency
+        // Refresh the orders list to ensure consistency (filtering will handle removal if completed and paid)
         await fetchOrders();
 
         // Refresh stats as well
         await fetchStats();
 
-        alert('Order completed and moved to history!');
+        // Close the modal
+        setSelectedOrder(null);
+
+        alert('Order completed successfully!');
       } else {
         const errorData = await response.json();
         alert(`Failed to complete order: ${errorData.message || 'Unknown error'}`);

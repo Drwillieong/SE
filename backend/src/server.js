@@ -169,15 +169,7 @@ orderRouter.use((req, res, next) => {
 orderRouter.use(adminOrderRoutes(db));
 app.use('/api/orders', orderRouter);
 
-// Use analytics routes with JWT authentication
-const analyticsRouter = express.Router();
-analyticsRouter.use(verifyToken);
-analyticsRouter.use((req, res, next) => {
-  req.db = db;
-  next();
-});
-analyticsRouter.use(adminAnalyticsRoutes(db));
-app.use('/api/analytics', analyticsRouter);
+// Analytics routes are already mounted under /api/admin/analytics
 
 app.get('/', (req, res) => {
     res.send('Server is running!');

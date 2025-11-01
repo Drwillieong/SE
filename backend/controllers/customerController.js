@@ -93,7 +93,7 @@ export const getCustomerOrders = (db) => async (req, res) => {
             return [];
           }
         })(),
-        laundry_photos: (() => {
+        laundryPhoto: (() => {
           try {
             return typeof order.laundry_photos === 'string' ? JSON.parse(order.laundry_photos) : order.laundry_photos || [];
           } catch (e) {
@@ -109,13 +109,28 @@ export const getCustomerOrders = (db) => async (req, res) => {
             return [];
           }
         })(),
-        payment_status: order.payment_status || 'unpaid',
+        paymentStatus: order.payment_status || 'unpaid',
+        paymentMethod: order.payment_method || 'cash',
+        serviceType: order.service_type,
+        mainService: order.service_type, // For compatibility
         service_orders_id: order.service_orders_id,
+        order_id: order.service_orders_id, // For compatibility
         status: order.status || 'pending',
         totalPrice: order.total_price || 0,
         load_count: loadCount,
+        loadCount: loadCount, // For compatibility
         kilos: order.kilos || 0,
-        estimated_clothes: order.estimated_clothes || 0
+        estimated_clothes: order.estimated_clothes || 0,
+        pickupDate: order.pickup_date,
+        pickupTime: order.pickup_time,
+        instructions: order.instructions || '',
+        name: order.name,
+        contact: order.contact,
+        email: order.email || '',
+        address: order.address,
+        rejectionReason: order.rejection_reason,
+        createdAt: order.created_at,
+        updatedAt: order.updated_at
       };
     });
 
@@ -270,19 +285,70 @@ export const getCustomerHistory = (db) => async (req, res) => {
   const serviceOrderModel = new ServiceOrder(db);
   try {
     const userId = req.user.user_id;
-    // Get completed, rejected, or cancelled orders for this user
+    // Get all history items: completed orders, moved to history, or soft deleted
     const sql = `
       SELECT * FROM service_orders
-      WHERE user_id = ? AND status IN ('completed', 'rejected', 'cancelled')
-      ORDER BY updated_at DESC
+      WHERE user_id = ? AND (moved_to_history_at IS NOT NULL OR is_deleted = TRUE OR status IN ('completed', 'rejected', 'cancelled'))
+      ORDER BY COALESCE(moved_to_history_at, deleted_at, updated_at) DESC
     `;
-    const history = await new Promise((resolve, reject) => {
-      db.query(sql, [userId], (err, results) => {
-        if (err) reject(err);
-        else resolve(results);
-      });
+    const [results] = await db.promise().query(sql, [userId]);
+
+    const transformedHistory = results.map(order => {
+      // Cap load_count to prevent incorrect calculations
+      const loadCount = Math.min(order.load_count || 1, 5);
+
+      return {
+        ...order,
+        photos: (() => {
+          try {
+            return typeof order.photos === 'string' ? JSON.parse(order.photos) : order.photos || [];
+          } catch (e) {
+            console.error('Error parsing photos:', e);
+            return [];
+          }
+        })(),
+        laundryPhoto: (() => {
+          try {
+            return typeof order.laundry_photos === 'string' ? JSON.parse(order.laundry_photos) : order.laundry_photos || [];
+          } catch (e) {
+            console.error('Error parsing laundry_photos:', e);
+            return [];
+          }
+        })(),
+        dry_cleaning_services: (() => {
+          try {
+            return typeof order.dry_cleaning_services === 'string' ? JSON.parse(order.dry_cleaning_services) : order.dry_cleaning_services || [];
+          } catch (e) {
+            console.error('Error parsing dry_cleaning_services:', e);
+            return [];
+          }
+        })(),
+        paymentStatus: order.payment_status || 'unpaid',
+        paymentMethod: order.payment_method || 'cash',
+        serviceType: order.service_type,
+        mainService: order.service_type, // For compatibility
+        service_orders_id: order.service_orders_id,
+        order_id: order.service_orders_id, // For compatibility
+        status: order.status || 'pending',
+        totalPrice: order.total_price || 0,
+        load_count: loadCount,
+        loadCount: loadCount, // For compatibility
+        kilos: order.kilos || 0,
+        estimated_clothes: order.estimated_clothes || 0,
+        pickupDate: order.pickup_date,
+        pickupTime: order.pickup_time,
+        instructions: order.instructions || '',
+        name: order.name,
+        contact: order.contact,
+        email: order.email || '',
+        address: order.address,
+        rejectionReason: order.rejection_reason,
+        createdAt: order.created_at,
+        updatedAt: order.updated_at
+      };
     });
-    res.json(history);
+
+    res.json(transformedHistory);
   } catch (error) {
     console.error('Error fetching customer history:', error);
     res.status(500).json({ message: 'Server error fetching history' });
@@ -438,9 +504,20 @@ export const updateCustomerOrder = (db) => async (req, res) => {
       }
     }
 
+    // Recalculate total price to ensure accuracy (similar to createCustomerBooking)
+    const loadCount = Math.min(updateData.load_count || order.load_count || 1, 5);
+    const serviceType = updateData.service_type || order.service_type;
+    const mainServicePrice = serviceType === 'fullService' ? 199 :
+                            serviceType === 'washDryFold' ? 179 :
+                            serviceType === 'washFold' ? 150 :
+                            serviceType === 'dryCleaning' ? 0 : // Inspection required
+                            serviceType === 'hangDry' ? 100 : 0;
+    // Note: Dry cleaning prices vary by inspection, so not included in calculation
+    const calculatedTotal = mainServicePrice * loadCount + (updateData.delivery_fee || order.delivery_fee || 0);
+
     const updatedOrder = await serviceOrderModel.update(orderId, {
       ...updateData,
-      total_price: updateData.total_price, // Ensure total_price is passed correctly
+      total_price: calculatedTotal, // Always recalculate total_price for consistency
     });
 
     // Emit real-time update

@@ -9,7 +9,8 @@ import {
   getStatusDistribution,
   getCustomerAnalytics,
   getTopCustomers,
-  getMonthlyTrends
+  getMonthlyTrends,
+  getAnalyticsData
 } from '../controllers/adminAnalyticsController.js';
 import { verifyToken, requireAdmin } from '../middleware/authMiddleware.js';
 
@@ -17,6 +18,9 @@ const router = express.Router();
 
 // This function will be called from server.js to pass the db connection
 export default (db) => {
+    // Get aggregated analytics data
+    router.get('/', verifyToken, requireAdmin, getAnalyticsData(db));
+
     // Get dashboard statistics
     router.get('/dashboard', verifyToken, requireAdmin, getDashboardStats(db));
 

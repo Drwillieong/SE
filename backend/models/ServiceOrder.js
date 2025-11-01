@@ -272,8 +272,10 @@ export class ServiceOrder {
         SUM(CASE WHEN status = 'folding' THEN 1 ELSE 0 END) as foldingOrders,
         SUM(CASE WHEN status = 'ready' THEN 1 ELSE 0 END) as readyOrders,
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedOrders,
-        SUM(total_price) as totalRevenue
+        SUM(CASE WHEN status = 'completed' THEN total_price ELSE 0 END) as totalRevenue
       FROM service_orders
+      WHERE moved_to_history_at IS NULL
+      AND is_deleted = FALSE
     `;
 
     return new Promise((resolve, reject) => {
@@ -539,28 +541,39 @@ export class ServiceOrder {
         load_count,
         status,
         payment_method,
+        payment_status,
         name,
         contact,
         email,
         address,
         total_price,
+        instructions,
+        photos,
+        laundry_photos,
         moved_to_history_at,
         is_deleted,
         deleted_at,
         created_at,
         updated_at
       FROM service_orders
-      WHERE moved_to_history_at IS NOT NULL OR is_deleted = TRUE
-      ORDER BY moved_to_history_at DESC, deleted_at DESC
+      WHERE status = 'completed' OR is_deleted = TRUE
     `;
 
     return new Promise((resolve, reject) => {
       this.db.query(sql, (err, results) => {
         if (err) {
           reject(err);
-        } else {
-          resolve(results);
+          return;
         }
+
+        // Sort in memory to avoid server sort memory issues
+        results.sort((a, b) => {
+          const aTime = a.moved_to_history_at || a.deleted_at || a.updated_at;
+          const bTime = b.moved_to_history_at || b.deleted_at || b.updated_at;
+          return new Date(bTime) - new Date(aTime);
+        });
+
+        resolve(results);
       });
     });
   }
@@ -579,11 +592,15 @@ export class ServiceOrder {
           load_count,
           status,
           payment_method,
+          payment_status,
           name,
           contact,
           email,
           address,
           total_price,
+          instructions,
+          photos,
+          laundry_photos,
           moved_to_history_at,
           is_deleted,
           deleted_at,
@@ -604,11 +621,15 @@ export class ServiceOrder {
           load_count,
           status,
           payment_method,
+          payment_status,
           name,
           contact,
           email,
           address,
           total_price,
+          instructions,
+          photos,
+          laundry_photos,
           moved_to_history_at,
           is_deleted,
           deleted_at,

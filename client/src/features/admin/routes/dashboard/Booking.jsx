@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import BookingDetailsModal from '../../../../shared/components/BookingDetailsModal';
+import OrderDetailsModal from '../../components/OrderDetailsModal';
 import CreateBookingModal from '../../components/CreateBookingModal';
 import EditBookingModal from '../../components/EditBookingModal';
 import DayBookingsModal from '../../components/DayBookingsModal';
@@ -438,7 +438,7 @@ const Booking = () => {
     }
 
     try {
-      const response = await apiClient.put(`/api/admin/bookings/${bookingToReject.id}`, { status: "rejected", rejectionReason: rejectionReason.trim() });
+      const response = await apiClient.put(`/api/admin/bookings/${bookingToReject.id}`, { status: "rejected", rejection_reason: rejectionReason.trim() });
 
       if (response.status >= 200 && response.status < 300) {
         alert("Booking rejected successfully!");
@@ -689,6 +689,13 @@ const Booking = () => {
 
       if (response.status >= 200 && response.status < 300) {
         alert("Booking created successfully!");
+        // Ensure the new booking shows "Check Order" button
+        const newBookingId = response.data.service_orders_id;
+        setPickupSuccess(prev => {
+          const newSuccess = { ...prev, [newBookingId]: true };
+          localStorage.setItem('pickupSuccess', JSON.stringify(newSuccess));
+          return newSuccess;
+        });
         fetchBookings(); // Refresh the bookings
       } else {
         const errorData = response.data;
@@ -1140,11 +1147,10 @@ const Booking = () => {
         </div>
       )}
 
-      <BookingDetailsModal
-        selectedBooking={selectedBooking}
-        setSelectedBooking={setSelectedBooking}
-        mainServices={mainServices}
-        dryCleaningServices={dryCleaningServices}
+      <OrderDetailsModal
+        selectedOrder={selectedBooking}
+        setSelectedOrder={setSelectedBooking}
+        serviceOptions={mainServices}
       />
 
       <CreateBookingModal

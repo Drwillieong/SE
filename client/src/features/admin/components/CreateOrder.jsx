@@ -16,7 +16,6 @@ const CreateOrder = () => {
         loadCount: 1,
         paymentMethod: 'cash',
         serviceOption: 'pickupAndDelivery',
-        photos: [],
         instructions: '',
         kilos: 0,
         dryCleaningPrices: {}
@@ -144,7 +143,7 @@ const CreateOrder = () => {
                 contact: formData.contact,
                 email: formData.email,
                 address: formData.address,
-                photos: formData.photos,
+               
                 dryCleaningServices: formData.dryCleaningServices, // Add this
                 dryCleaningPrices: formData.dryCleaningPrices, // Add this
                 totalPrice: calculateTotal(),
@@ -165,7 +164,7 @@ const CreateOrder = () => {
                     loadCount: 1,
                     paymentMethod: 'cash',
                     serviceOption: 'pickupAndDelivery',
-                    photos: [],
+                   
                     instructions: '',
                     kilos: 0,
                     dryCleaningPrices: {},
@@ -418,19 +417,7 @@ const CreateOrder = () => {
                         />
                     </div>
 
-                    {/* Photos */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Photos (Optional)
-                        </label>
-                        <input
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Upload photos of your laundry items</p>
-                    </div>
+                
 
                     {/* Special Instructions */}
                     <div>

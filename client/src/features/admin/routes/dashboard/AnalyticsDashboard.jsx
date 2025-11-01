@@ -173,6 +173,7 @@ const AnalyticsDashboard = () => {
         {/* Time Range Selector */}
         <div className="flex gap-2 mt-4">
           {[
+            { value: '1d', label: 'Last Day' },
             { value: '7d', label: 'Last 7 Days' },
             { value: '30d', label: 'Last 30 Days' },
             { value: '90d', label: 'Last 3 Months' }

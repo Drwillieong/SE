@@ -1,4 +1,5 @@
 import { ServiceOrder } from '../models/ServiceOrder.js';
+import { sendOrderConfirmationEmail } from '../utils/orderEmail.js';
 
 // Controller to get all orders for admin
 export const getAllOrders = (db) => async (req, res) => {
@@ -208,6 +209,36 @@ export const updateOrder = (db) => async (req, res) => {
           message: `Your order status has been updated to ${orderAfter.status}`,
           timestamp: new Date().toISOString()
         });
+      }
+    }
+
+    // Send order confirmation email if status changed to 'pending' and laundry photos are provided
+    if (orderBefore.status !== 'pending' && orderAfter.status === 'pending' && orderAfter.email && orderAfter.laundry_photos) {
+      try {
+        // Parse laundry photos if it's a string
+        let laundryPhotos = orderAfter.laundry_photos;
+        if (typeof laundryPhotos === 'string') {
+          laundryPhotos = JSON.parse(laundryPhotos);
+        }
+
+        // Send email with the first laundry photo if available
+        const laundryPhoto = Array.isArray(laundryPhotos) && laundryPhotos.length > 0 ? laundryPhotos[0] : null;
+
+        await sendOrderConfirmationEmail(
+          orderAfter.email,
+          orderAfter.name,
+          orderAfter.service_orders_id,
+          orderAfter.kilos,
+          orderAfter.total_price,
+          laundryPhoto,
+          orderAfter.payment_method,
+          orderAfter.service_type,
+          orderAfter.load_count
+        );
+        console.log('✅ Order confirmation email sent successfully to:', orderAfter.email);
+      } catch (emailError) {
+        console.error('❌ Error sending order confirmation email:', emailError.message);
+        // Don't fail the update if email fails
       }
     }
 

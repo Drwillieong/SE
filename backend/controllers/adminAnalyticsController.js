@@ -267,3 +267,225 @@ export const getMonthlyTrends = (db) => async (req, res) => {
     res.status(500).json({ message: 'Server error fetching monthly trends' });
   }
 };
+
+// Controller to get aggregated analytics data based on range
+export const getAnalyticsData = (db) => async (req, res) => {
+  const { range = '7d' } = req.query;
+  const serviceOrderModel = new ServiceOrder(db);
+
+  try {
+    // Calculate date range based on range parameter
+    const now = new Date();
+    let startDate, endDate;
+
+    switch (range) {
+      case '1d':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        endDate = now;
+        break;
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        endDate = now;
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        endDate = now;
+        break;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        endDate = now;
+        break;
+      default:
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        endDate = now;
+    }
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    // Get dashboard stats (filtered by active orders)
+    const dashboardStats = await serviceOrderModel.getDashboardStats();
+
+    // Get revenue analytics (filtered by completed orders)
+    const revenueAnalytics = await new Promise((resolve, reject) => {
+      const sql = `
+        SELECT
+          DATE(created_at) as date,
+          COUNT(*) as orderCount,
+          SUM(total_price) as dailyRevenue,
+          AVG(total_price) as avgOrderValue
+        FROM service_orders
+        WHERE DATE(created_at) BETWEEN ? AND ?
+        AND status = 'completed'
+        AND moved_to_history_at IS NULL
+        AND is_deleted = FALSE
+        GROUP BY DATE(created_at)
+        ORDER BY date DESC
+      `;
+
+      db.query(sql, [startDateStr, endDateStr], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    // Get status distribution
+    const statusDistribution = await new Promise((resolve, reject) => {
+      const sql = `
+        SELECT
+          status,
+          COUNT(*) as count
+        FROM service_orders
+        WHERE DATE(created_at) BETWEEN ? AND ?
+        AND moved_to_history_at IS NULL
+        AND is_deleted = FALSE
+        GROUP BY status
+        ORDER BY count DESC
+      `;
+
+      db.query(sql, [startDateStr, endDateStr], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    // Get service type distribution
+    const serviceTypeDistribution = await new Promise((resolve, reject) => {
+      const sql = `
+        SELECT
+          service_type,
+          COUNT(*) as count,
+          SUM(total_price) as totalRevenue
+        FROM service_orders
+        WHERE DATE(created_at) BETWEEN ? AND ?
+        AND moved_to_history_at IS NULL
+        AND is_deleted = FALSE
+        GROUP BY service_type
+        ORDER BY count DESC
+      `;
+
+      db.query(sql, [startDateStr, endDateStr], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    // Get booking status distribution (assuming bookings are in a separate table)
+    // For now, using placeholder data
+    const bookingStatusDistribution = [
+      { status: 'pending', count: 0 },
+      { status: 'approved', count: 0 },
+      { status: 'rejected', count: 0 },
+      { status: 'completed', count: 0 }
+    ];
+
+    // Calculate growth metrics (compare with previous period)
+    const previousPeriodStart = new Date(startDate.getTime() - (endDate.getTime() - startDate.getTime()));
+    const previousPeriodEnd = startDate;
+    const prevStartStr = previousPeriodStart.toISOString().split('T')[0];
+    const prevEndStr = previousPeriodEnd.toISOString().split('T')[0];
+
+    const previousRevenue = await new Promise((resolve, reject) => {
+      const sql = `
+        SELECT SUM(total_price) as totalRevenue, COUNT(*) as totalOrders
+        FROM service_orders
+        WHERE DATE(created_at) BETWEEN ? AND ?
+        AND status = 'completed'
+        AND moved_to_history_at IS NULL
+        AND is_deleted = FALSE
+      `;
+
+      db.query(sql, [prevStartStr, prevEndStr], (err, results) => {
+        if (err) reject(err);
+        else resolve(results[0]);
+      });
+    });
+
+    const currentRevenue = revenueAnalytics.reduce((sum, day) => sum + parseFloat(day.dailyRevenue || 0), 0);
+    const currentOrders = revenueAnalytics.reduce((sum, day) => sum + parseInt(day.orderCount || 0), 0);
+
+    const previousRevenueTotal = parseFloat(previousRevenue.totalRevenue || 0);
+    const previousOrdersTotal = parseInt(previousRevenue.totalOrders || 0);
+
+    const revenueGrowth = previousRevenueTotal > 0 ? ((currentRevenue - previousRevenueTotal) / previousRevenueTotal) * 100 : 0;
+    const ordersGrowth = previousOrdersTotal > 0 ? ((currentOrders - previousOrdersTotal) / previousOrdersTotal) * 100 : 0;
+
+    // Calculate average order value
+    const avgOrderValue = currentOrders > 0 ? currentRevenue / currentOrders : 0;
+
+    // Calculate active bookings (placeholder - would need booking model)
+    const activeBookings = 0;
+
+    // Calculate bookings growth (placeholder)
+    const bookingsGrowth = 0;
+
+    // Calculate AOV growth
+    const previousAOV = previousOrdersTotal > 0 ? previousRevenueTotal / previousOrdersTotal : 0;
+    const aovGrowth = previousAOV > 0 ? ((avgOrderValue - previousAOV) / previousAOV) * 100 : 0;
+
+    // Format status distribution for frontend
+    const ordersByStatus = {};
+    statusDistribution.forEach(item => {
+      ordersByStatus[item.status] = item.count;
+    });
+
+    // Format service type distribution for frontend
+    const ordersByServiceType = {};
+    serviceTypeDistribution.forEach(item => {
+      if (item.service_type === 'washDryFold') {
+        ordersByServiceType.washFold = item.count;
+      } else if (item.service_type === 'dryCleaning') {
+        ordersByServiceType.dryCleaning = item.count;
+      } else if (item.service_type === 'hangDry') {
+        ordersByServiceType.hangDry = item.count;
+      }
+    });
+
+    // Format booking status distribution for frontend
+    const bookingsByStatus = {};
+    bookingStatusDistribution.forEach(item => {
+      bookingsByStatus[item.status] = item.count;
+    });
+
+    // Get top services (placeholder data)
+    const topServices = [
+      { name: 'Wash & Fold', count: ordersByServiceType.washFold || 0 },
+      { name: 'Dry Cleaning', count: ordersByServiceType.dryCleaning || 0 },
+      { name: 'Hang Dry', count: ordersByServiceType.hangDry || 0 }
+    ].sort((a, b) => b.count - a.count);
+
+    // Recent activity (placeholder)
+    const recentActivity = [];
+
+    // Performance metrics (placeholder)
+    const avgProcessingTime = '2.5';
+    const onTimeDeliveryRate = 95;
+    const customerSatisfaction = 4.8;
+
+    // Compile final response
+    const analyticsData = {
+      totalOrders: dashboardStats.totalOrders || 0,
+      totalRevenue: currentRevenue,
+      ordersGrowth: Math.round(ordersGrowth * 100) / 100,
+      revenueGrowth: Math.round(revenueGrowth * 100) / 100,
+      activeBookings,
+      bookingsGrowth,
+      avgOrderValue,
+      aovGrowth: Math.round(aovGrowth * 100) / 100,
+      ordersByStatus,
+      dailyRevenue: revenueAnalytics,
+      ordersByServiceType,
+      bookingsByStatus,
+      topServices,
+      recentActivity,
+      avgProcessingTime,
+      onTimeDeliveryRate,
+      customerSatisfaction
+    };
+
+    res.json(analyticsData);
+  } catch (error) {
+    console.error('Error fetching analytics data:', error);
+    res.status(500).json({ message: 'Server error fetching analytics data' });
+  }
+};

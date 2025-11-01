@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from 'react-modal';
-import BookingDetailsModal from '../../../../shared/components/BookingDetailsModal';
+import OrderDetailsModal from '../../components/OrderDetailsModal';
 import apiClient from '../../../../utils/axios';
 
 // API URL from environment variables
@@ -75,7 +75,11 @@ const AdminHistory = () => {
 
     // Apply type filter
     if (typeFilter !== 'all') {
-      filtered = filtered.filter(item => item.status === typeFilter || item.type === typeFilter);
+      if (typeFilter === 'deleted') {
+        filtered = filtered.filter(item => item.is_deleted);
+      } else {
+        filtered = filtered.filter(item => item.status === typeFilter || item.type === typeFilter);
+      }
     }
 
     // Apply search filter
@@ -133,14 +137,17 @@ const AdminHistory = () => {
         const transformedHistory = historyData.map(item => ({
           ...item,
           // Format dates
-          createdAt: new Date(item.createdAt),
+          createdAt: new Date(item.created_at),
           moved_to_history_at: item.moved_to_history_at ? new Date(item.moved_to_history_at) : null,
           deleted_at: item.deleted_at ? new Date(item.deleted_at) : null,
-          // Ensure consistent field names
-          mainService: item.mainService || item.serviceType,
-          totalPrice: item.totalPrice || item.amount,
-          pickupDate: item.pickupDate || item.date,
-          pickupTime: item.pickupTime || item.time
+          // Map snake_case to camelCase
+          mainService: item.service_type,
+          totalPrice: item.total_price,
+          pickupDate: item.pickup_date,
+          pickupTime: item.pickup_time,
+          loadCount: item.load_count,
+          // Change type to 'order'
+          type: 'order'
         }));
 
         setHistoryItems(transformedHistory);
@@ -490,13 +497,10 @@ const AdminHistory = () => {
         )}
       </div>
 
-      {/* Booking Details Modal */}
-      <BookingDetailsModal
-        selectedBooking={selectedItem}
-        setSelectedBooking={setSelectedItem}
-        onRestore={restoreFromHistory}
-        onDelete={deleteFromHistory}
-        loading={actionLoading[selectedItem?.id]}
+      {/* Order Details Modal */}
+      <OrderDetailsModal
+        selectedOrder={selectedItem}
+        setSelectedOrder={setSelectedItem}
       />
     </div>
   );

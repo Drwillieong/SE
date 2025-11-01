@@ -197,8 +197,8 @@ const ScheduleBooking = () => {
     return 30;
   };
 
-  // Available pickup dates (next 14 days)
-  const getPickupDates = () => {
+  // Available pickup dates (next 7 days, plus selected date if editing)
+  const getPickupDates = (selectedDate = null) => {
     const dates = [];
     const today = new Date();
     for (let i = 0; i < 7; i++) {
@@ -210,9 +210,23 @@ const ScheduleBooking = () => {
         day: date.toLocaleDateString('en-US', { weekday: 'short' }),
         fullDate,
         count: bookingCounts[fullDate] || 0
-     
+
       });
     }
+
+    // If selectedDate is provided and not already in dates, add it
+    if (selectedDate && !dates.some(d => d.fullDate === selectedDate)) {
+      const selDate = new Date(selectedDate);
+      dates.push({
+        date: selDate.getDate(),
+        day: selDate.toLocaleDateString('en-US', { weekday: 'short' }),
+        fullDate: selectedDate,
+        count: bookingCounts[selectedDate] || 0
+      });
+      // Sort dates by fullDate to maintain order
+      dates.sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate));
+    }
+
     return dates;
   };
 
@@ -292,9 +306,14 @@ const ScheduleBooking = () => {
         deliveryFee: order.delivery_fee || 0
       }));
 
-          console.log('ScheduleBooking: Transformed orders:', transformedOrders);
-          setOrders(transformedOrders);
-          console.log('ScheduleBooking: Orders state updated. Current orders:', transformedOrders); // New log
+      // Filter out completed and paid orders (move to booking history)
+      const filteredOrders = transformedOrders.filter(order =>
+        !(order.status === 'completed' && order.paymentStatus === 'paid')
+      );
+
+      console.log('ScheduleBooking: Transformed orders:', transformedOrders);
+      console.log('ScheduleBooking: Filtered orders (excluding completed & paid):', filteredOrders);
+      setOrders(filteredOrders);
           await fetchBookingCounts();
         } catch (error) {
           console.error('Error fetching orders:', error);
@@ -339,9 +358,9 @@ const ScheduleBooking = () => {
     // This effect now correctly depends on bookingCounts.
     // It will run after the initial fetch and after any socket updates.
     if (!bookingCountsLoading) {
-      setPickupDates(getPickupDates());
+      setPickupDates(getPickupDates(formData.pickupDate));
     }
-  }, [bookingCounts, bookingCountsLoading]);
+  }, [bookingCounts, bookingCountsLoading, formData.pickupDate]);
 
   // Persist booking counts to localStorage whenever they change
   useEffect(() => {
@@ -505,6 +524,8 @@ const ScheduleBooking = () => {
       status: order.status, // This will be 'pending_booking' for an editable order
       serviceOption: order.serviceOption || 'pickupAndDelivery'
     });
+    // Also set payment details to show selected payment method
+    setPaymentDetails(prev => ({ ...prev, method: order.paymentMethod || 'cash' }));
     setActiveTab('pickup');
   };
 
@@ -1176,14 +1197,7 @@ const ScheduleBooking = () => {
                             </button>
                           </>
                         )}
-                        {(order.status === 'completed' || order.status === 'cancelled') && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleArchive(order.id); }}
-                            className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
-                          >
-                            Archive
-                          </button>
-                        )}
+
                         {order.paymentMethod === 'gcash' &&
                           order.order_id &&
                           (order.paymentStatus === 'unpaid' || order.paymentStatus === 'gcash_pending') && // Customer can pay if unpaid or if previous GCash payment is pending review

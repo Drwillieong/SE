@@ -13,7 +13,11 @@ if (process.env.SENDGRID_API_KEY) {
 }
 
 // IMPORTANT: Replace this with an email address you have verified on SendGrid.
-const VERIFIED_SENDER = process.env.VERIFIED_SENDER || 'Fromboladokvn@gmail.com';
+const VERIFIED_SENDER = process.env.VERIFIED_SENDER;
+
+if (!VERIFIED_SENDER && process.env.SENDGRID_API_KEY) {
+  throw new Error('VERIFIED_SENDER environment variable must be set to a verified email address in SendGrid when using SendGrid.');
+}
 
 // --- Nodemailer (Gmail) Configuration ---
 let nodemailerTransporter;

@@ -51,6 +51,11 @@ function App() {
             ),
             children: [
                 {   
+                  
+                    index: true,
+                    element: <Analytics />,
+                },
+                  {   
                     path: "analytics",
                     index: true,
                     element: <Analytics />,
