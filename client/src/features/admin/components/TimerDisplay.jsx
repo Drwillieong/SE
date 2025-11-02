@@ -42,8 +42,8 @@ const TimerDisplay = ({ orderId, timerStatus, onTimerExpired }) => {
     return Math.min(100, (elapsed / timerStatus.duration) * 100);
   };
 
-  if (!isActive) {
-    return null; // Don't render if timer is not active or has expired
+  if (!timerStatus) {
+    return null; // Don't render if no timer status
   }
 
   return (

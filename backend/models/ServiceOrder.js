@@ -289,6 +289,29 @@ export class ServiceOrder {
     });
   }
 
+  // Get order statistics for admin dashboard
+  async getOrderStats() {
+    const sql = `
+      SELECT
+        COUNT(*) as totalOrders,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingOrders,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedOrders
+      FROM service_orders
+      WHERE moved_to_history_at IS NULL
+      AND is_deleted = FALSE
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results[0]);
+        }
+      });
+    });
+  }
+
   // Get service orders created today
   async getTodaysOrders() {
     const today = new Date().toISOString().split('T')[0];

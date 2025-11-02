@@ -49,25 +49,108 @@ const OrderManagement = () => {
   const [userId, setUserId] = useState(null);
   const [paymentReviewModalOpen, setPaymentReviewModalOpen] = useState(false);
 
-  // Load timer statuses from localStorage on mount
+  // Load timer statuses from backend and localStorage on mount
   useEffect(() => {
-    const savedTimerStatuses = localStorage.getItem('orderTimerStatuses');
-    if (savedTimerStatuses) {
+    const loadTimerStatuses = async () => {
       try {
-        const parsed = JSON.parse(savedTimerStatuses);
-        // Clean up expired timers
-        const now = Date.now();
-        const cleanedTimers = {};
-        Object.entries(parsed).forEach(([orderId, timer]) => {
-          if (timer.isActive && (now - timer.startTime) < timer.duration) {
-            cleanedTimers[orderId] = timer;
+        // First, try to get timer statuses from backend
+        const token = localStorage.getItem('token');
+        if (token) {
+          const response = await fetch(`${API_URL}/api/admin/orders/timers/active`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (response.ok) {
+            const backendTimers = await response.json();
+            const backendTimerStatuses = {};
+
+            // Convert backend timer data to frontend format
+            backendTimers.forEach(order => {
+              if (order.timer_start && order.timer_end) {
+                const startTime = new Date(order.timer_start).getTime();
+                const endTime = new Date(order.timer_end).getTime();
+                const duration = endTime - startTime;
+
+                backendTimerStatuses[order.service_orders_id] = {
+                  isActive: true,
+                  startTime: startTime,
+                  duration: duration,
+                  autoAdvanceEnabled: order.auto_advance_enabled || false,
+                };
+              }
+            });
+
+            // Merge with localStorage data (backend takes precedence)
+            const savedTimerStatuses = localStorage.getItem('orderTimerStatuses');
+            let localTimers = {};
+            if (savedTimerStatuses) {
+              try {
+                localTimers = JSON.parse(savedTimerStatuses);
+              } catch (error) {
+                console.error('Error parsing localStorage timers:', error);
+              }
+            }
+
+            // Combine backend and local timers (backend wins conflicts)
+            const combinedTimers = { ...localTimers, ...backendTimerStatuses };
+
+            // Clean up expired timers
+            const now = Date.now();
+            const cleanedTimers = {};
+            Object.entries(combinedTimers).forEach(([orderId, timer]) => {
+              if (timer.isActive && (now - timer.startTime) < timer.duration) {
+                cleanedTimers[orderId] = timer;
+              }
+            });
+
+            setTimerStatuses(cleanedTimers);
+            // Update localStorage with the merged data
+            localStorage.setItem('orderTimerStatuses', JSON.stringify(cleanedTimers));
+          } else {
+            // Fallback to localStorage only
+            const savedTimerStatuses = localStorage.getItem('orderTimerStatuses');
+            if (savedTimerStatuses) {
+              try {
+                const parsed = JSON.parse(savedTimerStatuses);
+                const now = Date.now();
+                const cleanedTimers = {};
+                Object.entries(parsed).forEach(([orderId, timer]) => {
+                  if (timer.isActive && (now - timer.startTime) < timer.duration) {
+                    cleanedTimers[orderId] = timer;
+                  }
+                });
+                setTimerStatuses(cleanedTimers);
+              } catch (error) {
+                console.error('Error loading timer statuses from localStorage:', error);
+              }
+            }
           }
-        });
-        setTimerStatuses(cleanedTimers);
+        }
       } catch (error) {
-        console.error('Error loading timer statuses from localStorage:', error);
+        console.error('Error loading timer statuses:', error);
+        // Fallback to localStorage
+        const savedTimerStatuses = localStorage.getItem('orderTimerStatuses');
+        if (savedTimerStatuses) {
+          try {
+            const parsed = JSON.parse(savedTimerStatuses);
+            const now = Date.now();
+            const cleanedTimers = {};
+            Object.entries(parsed).forEach(([orderId, timer]) => {
+              if (timer.isActive && (now - timer.startTime) < timer.duration) {
+                cleanedTimers[orderId] = timer;
+              }
+            });
+            setTimerStatuses(cleanedTimers);
+          } catch (error) {
+            console.error('Error loading timer statuses from localStorage:', error);
+          }
+        }
       }
-    }
+    };
+
+    loadTimerStatuses();
   }, []);
 
   // Save timer statuses to localStorage whenever they change
@@ -116,23 +199,6 @@ const OrderManagement = () => {
 
     return () => clearInterval(intervalId);
   }, []);
-
-  // Fetch timer statuses for all orders
-  useEffect(() => {
-    const fetchAllTimerStatuses = async () => {
-      if (orders.length > 0) {
-        const timerPromises = orders.map(order => {
-          // If a timer is active, we just need to set it up locally
-          if (['washing', 'drying', 'folding'].includes(order.status)) {
-            startLocalTimer(order.order_id, order.status);
-          }
-        });
-        await Promise.all(timerPromises);
-      }
-    };
-
-    fetchAllTimerStatuses();
-  }, [orders]);
 
   // Filter and sort orders when dependencies change
   useEffect(() => {
@@ -298,20 +364,44 @@ const OrderManagement = () => {
     }
   };
 
-  // Starts a timer locally without a backend call
-  const startLocalTimer = (orderId, status) => {
-    // Define duration for each status in seconds (e.g., 1 hour)
-    const duration = 3600;
+  // Starts a timer by calling backend API and updating local state
+  const startLocalTimer = async (orderId, status) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/start-timer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
 
-    setTimerStatuses(prev => ({
-      ...prev,
-      [orderId]: {
-        isActive: true,
-        startTime: Date.now(),
-        duration: duration * 1000, // duration in milliseconds
-        autoAdvanceEnabled: prev[orderId]?.autoAdvanceEnabled || false,
+      if (response.ok) {
+        const data = await response.json();
+        // Use backend's timer_start and timer_end to calculate duration
+        const backendStartTime = new Date(data.timer_start).getTime();
+        const backendEndTime = new Date(data.timer_end).getTime();
+        const duration = backendEndTime - backendStartTime;
+
+        setTimerStatuses(prev => ({
+          ...prev,
+          [orderId]: {
+            isActive: true,
+            startTime: backendStartTime,
+            duration: duration,
+            autoAdvanceEnabled: data.auto_advance_enabled || false,
+          }
+        }));
+        // Update localStorage with backend data
+        const updatedTimers = { ...timerStatuses, [orderId]: { isActive: true, startTime: backendStartTime, duration: duration, autoAdvanceEnabled: data.auto_advance_enabled || false } };
+        localStorage.setItem('orderTimerStatuses', JSON.stringify(updatedTimers));
+      } else {
+        console.error('Failed to start timer on backend');
       }
-    }));
+    } catch (error) {
+      console.error('Error starting timer:', error);
+    }
   };
   const autoAdvanceOrder = async (orderId) => {
     try {
@@ -342,14 +432,34 @@ const OrderManagement = () => {
   // Timer management functions
 
   const toggleAutoAdvance = async (orderId, enabled) => {
-    // This now only updates the local state
-    setTimerStatuses(prev => ({
-      ...prev,
-      [orderId]: {
-        ...prev[orderId],
-        autoAdvanceEnabled: enabled
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/toggle-auto-advance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ enabled })
+      });
+
+      if (response.ok) {
+        // Update local state
+        setTimerStatuses(prev => ({
+          ...prev,
+          [orderId]: {
+            ...prev[orderId],
+            autoAdvanceEnabled: enabled
+          }
+        }));
+        alert(`Auto-advance ${enabled ? 'enabled' : 'disabled'} successfully!`);
+      } else {
+        alert('Failed to update auto-advance setting');
       }
-    }));
+    } catch (error) {
+      console.error('Error updating auto-advance:', error);
+      alert('Failed to update auto-advance setting');
+    }
   };
 
   // Defines the order of status progression

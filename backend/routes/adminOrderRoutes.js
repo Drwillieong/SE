@@ -16,6 +16,7 @@ import {
   updatePaymentStatus,
   reviewGcashPayment,
   completeOrder,
+  getOrderStats,
   softDeleteOrder
 } from '../controllers/adminOrderController.js';
 import { verifyToken, requireAdmin } from '../middleware/authMiddleware.js';
@@ -62,7 +63,10 @@ export default (db) => {
 
     // Order completion and history
     router.post('/:id/complete', verifyToken, requireAdmin, completeOrder(db));
-    router.delete('/:id/soft-delete', verifyToken, requireAdmin, softDeleteOrder(db));
+    router.put('/:id/soft-delete', verifyToken, requireAdmin, softDeleteOrder(db));
+
+    // Get order statistics
+    router.get('/stats', verifyToken, requireAdmin, getOrderStats(db));
 
     return router;
 };

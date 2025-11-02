@@ -60,13 +60,13 @@ export const sendOrderConfirmationEmail = async (email, name, orderId, kilos, to
     // Add laundry photo attachment if available
     if (laundryPhoto && laundryPhoto.length > 0) {
         try {
-            // If it's a base64 string, convert it
+            // If it's a base64 string, extract the base64 content
             if (laundryPhoto.startsWith('data:image')) {
                 const base64Data = laundryPhoto.replace(/^data:image\/[a-z]+;base64,/, '');
                 mailOptions.attachments = [{
                     filename: `laundry_photo_order_${orderId}.jpg`,
-                    content: Buffer.from(base64Data, 'base64'),
-                    contentType: 'image/jpeg'
+                    content: base64Data,
+                    type: 'image/jpeg'
                 }];
             }
         } catch (attachmentError) {

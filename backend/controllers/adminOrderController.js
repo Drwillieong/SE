@@ -679,6 +679,18 @@ export const completeOrder = (db) => async (req, res) => {
   }
 };
 
+// Get order statistics for admin dashboard
+export const getOrderStats = (db) => async (req, res) => {
+  const serviceOrderModel = new ServiceOrder(db);
+  try {
+    const stats = await serviceOrderModel.getOrderStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching order stats:', error);
+    res.status(500).json({ message: 'Server error fetching order stats' });
+  }
+};
+
 // Soft delete order
 export const softDeleteOrder = (db) => async (req, res) => {
   const orderId = req.params.id;

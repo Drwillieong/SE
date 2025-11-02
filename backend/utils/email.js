@@ -60,13 +60,19 @@ export const sendEmail = async (mailOptions) => {
           return {
             content: base64Content,
             filename: att.filename,
-            type: att.contentType || 'application/octet-stream',
-            disposition: 'attachment',
-            contentId: att.cid
+            type: att.type || att.contentType || 'application/octet-stream',
+            disposition: att.disposition || 'attachment',
+            contentId: att.contentId || att.cid
           };
         }
         // Fallback for other attachment formats if needed
-        return att;
+        return {
+          content: att.content,
+          filename: att.filename,
+          type: att.type || att.contentType || 'application/octet-stream',
+          disposition: att.disposition || 'attachment',
+          contentId: att.contentId || att.cid
+        };
       });
     }
 

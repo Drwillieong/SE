@@ -14,8 +14,9 @@ export const sendGcashPaymentNotificationEmail = async (order, referenceNumber, 
         attachments.push({
             filename: `gcash_payment_proof_${order.order_id}.png`,
             content: proofBase64.split(';base64,').pop(), // Remove the data URI part
-            encoding: 'base64',
-            cid: 'payment-proof' // Content ID for inline display
+            type: 'image/png',
+            disposition: 'attachment',
+            contentId: 'payment-proof' // Content ID for inline display
         });
     }
 
