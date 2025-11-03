@@ -39,6 +39,12 @@ USE wash;
 
 
 
+
+
+
+
+
+
 -- Combined service_orders table replacing both bookings and orders
 CREATE TABLE service_orders (
   service_orders_id INT NOT NULL AUTO_INCREMENT,
@@ -108,5 +114,6 @@ CREATE TABLE service_orders (
   KEY idx_payment_review_status (payment_review_status),
   KEY idx_moved_to_history_at (moved_to_history_at),
   KEY idx_is_deleted (is_deleted),
-  KEY idx_created_at (created_at)
+  KEY idx_created_at (created_at),
+  KEY idx_user_orders (user_id, moved_to_history_at, is_deleted, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -1,16 +1,22 @@
-# Timer Persistence Fix
+# TODO: Fix MySQL "Out of sort memory" Error
 
-## Tasks
-- [x] Modify OrderManagement.jsx to fetch timer statuses from backend on mount
-- [x] Update timer initialization to use backend data as primary source, localStorage as fallback
-- [x] Ensure timer operations (start, toggle auto-advance) call backend APIs and update both localStorage and backend
-- [x] Add API call to get timer status for all orders with active timers on component mount
-- [x] Update localStorage when backend operations succeed to maintain sync
-- [x] Fix timer start time to use backend's timer_start instead of Date.now() to prevent timer reset on page refresh
-- [x] Fix TimerDisplay component to show timer even when not active (display remaining time correctly)
+## Issue
+- Error: "Out of sort memory, consider increasing server sort buffer size"
+- Occurs in `getCustomerOrders` function in `backend/controllers/customerController.js`
+- Query: `SELECT * FROM service_orders WHERE user_id = ? AND moved_to_history_at IS NULL AND is_deleted = FALSE ORDER BY created_at DESC LIMIT ? OFFSET ?`
 
-## Testing
-- [ ] Test persistence across page refreshes
-- [ ] Test persistence across logout/login cycles
-- [ ] Verify timer display shows correct data from backend
-- [ ] Ensure backend timer operations work correctly
+## Root Cause
+- The query requires sorting a large number of rows for a single user
+- No composite index on (user_id, moved_to_history_at, is_deleted, created_at)
+- MySQL falls back to filesort, which exceeds sort_buffer_size
+
+## Solution
+- Add composite index to optimize query performance
+- Update schema.sql with the new index
+- Run ALTER TABLE on production database
+
+## Steps
+- [x] Update `backend/database/schema.sql` to include composite index
+- [x] Create `backend/add_index.sql` with ALTER TABLE command
+- [ ] Run ALTER TABLE command on Aiven MySQL database
+- [ ] Test the fix in production
