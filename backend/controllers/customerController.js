@@ -187,20 +187,19 @@ export const createCustomerBooking = (db) => async (req, res) => {
 
   const serviceOrderModel = new ServiceOrder(db);
 
-  // Check booking limit for the date (3 bookings per day)
+  // Check booking limit for the date (3 bookings per day) using booking_counts table
   if (req.user.role !== 'admin') {
     try {
       const countSql = `
-        SELECT COUNT(*) as count
-        FROM service_orders
-        WHERE pickup_date = ? AND status NOT IN ('rejected', 'cancelled', 'completed')
-        AND moved_to_history_at IS NULL
-        AND is_deleted = FALSE
+        SELECT count, limit_count
+        FROM booking_counts
+        WHERE date = ?
       `;
       const [countResults] = await db.promise().query(countSql, [bookingData.pickup_date]);
-      const count = countResults[0].count;
+      const count = countResults.length > 0 ? countResults[0].count : 0;
+      const limit = countResults.length > 0 ? countResults[0].limit_count : 3;
 
-      if (count >= 3) {
+      if (count >= limit) {
         return res.status(400).json({ message: 'This day is fully booked. Maximum 3 bookings per day allowed.' });
       }
     } catch (error) {
@@ -242,6 +241,20 @@ export const createCustomerBooking = (db) => async (req, res) => {
 
     const orderId = await serviceOrderModel.create(orderData);
 
+    // Increment booking count for the date
+    try {
+      const updateCountSql = `
+        INSERT INTO booking_counts (date, count, limit_count)
+        VALUES (?, 1, 3)
+        ON DUPLICATE KEY UPDATE count = count + 1
+      `;
+      await db.promise().query(updateCountSql, [bookingData.pickup_date]);
+      console.log(`Booking count incremented for date: ${bookingData.pickup_date}`);
+    } catch (countError) {
+      console.error('Error updating booking count:', countError);
+      // Don't fail the booking if count update fails
+    }
+
     // Emit real-time update for booking counts
     if (req.io) {
       req.io.emit('booking-counts-updated', { date: bookingData.pickup_date, change: 1 });
@@ -254,6 +267,49 @@ export const createCustomerBooking = (db) => async (req, res) => {
   }
 };
 
+// Controller to get booking count for a specific date
+export const getBookingCount = (db) => async (req, res) => {
+  if (!req.user || !req.user.user_id) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  const { date } = req.query;
+
+  if (!date) {
+    return res.status(400).json({ message: 'Date parameter is required' });
+  }
+
+  try {
+    // Get or create booking count entry for the date
+    const selectSql = `
+      SELECT count, limit_count
+      FROM booking_counts
+      WHERE date = ?
+    `;
+    const [results] = await db.promise().query(selectSql, [date]);
+
+    let count = 0;
+    let limit = 3;
+
+    if (results.length === 0) {
+      // Create entry if it doesn't exist
+      const insertSql = `
+        INSERT INTO booking_counts (date, count, limit_count)
+        VALUES (?, 0, 3)
+      `;
+      await db.promise().query(insertSql, [date]);
+    } else {
+      count = results[0].count;
+      limit = results[0].limit_count;
+    }
+
+    res.json({ count, limit });
+  } catch (error) {
+    console.error('Error fetching booking count:', error);
+    res.status(500).json({ message: 'Server error fetching booking count' });
+  }
+};
+
 // Controller to get customer booking counts for dates
 export const getCustomerBookingCounts = (db) => async (req, res) => {
   if (!req.user || !req.user.user_id) {
@@ -261,14 +317,44 @@ export const getCustomerBookingCounts = (db) => async (req, res) => {
   }
 
   const { dates } = req.query;
-  const serviceOrderModel = new ServiceOrder(db);
 
-  if (!dates || !Array.isArray(dates)) {
-    return res.status(400).json({ message: 'Dates array is required' });
+  // Handle dates as either array or comma-separated string
+  let dateArray = [];
+  if (Array.isArray(dates)) {
+    dateArray = dates;
+  } else if (typeof dates === 'string') {
+    dateArray = dates.split(',');
+  } else {
+    return res.status(400).json({ message: 'Dates parameter is required' });
+  }
+
+  if (dateArray.length === 0) {
+    return res.status(400).json({ message: 'At least one date is required' });
   }
 
   try {
-    const counts = await serviceOrderModel.getOrderCountsForDates(dates);
+    // Query the booking_counts table
+    const placeholders = dateArray.map(() => '?').join(',');
+    const sql = `
+      SELECT DATE_FORMAT(date, '%Y-%m-%d') as date_str, count
+      FROM booking_counts
+      WHERE date IN (${placeholders})
+    `;
+    const [results] = await db.promise().query(sql, dateArray);
+
+    // Convert to object {date: count}
+    const counts = {};
+    results.forEach(row => {
+      counts[row.date_str] = row.count;
+    });
+
+    // Ensure all dates have a count (0 if none)
+    dateArray.forEach(date => {
+      if (!(date in counts)) {
+        counts[date] = 0;
+      }
+    });
+
     res.json(counts);
   } catch (error) {
     console.error('Error fetching customer booking counts:', error);
@@ -489,17 +575,15 @@ export const updateCustomerOrder = (db) => async (req, res) => {
     // Check booking limit for new date if pickup_date is being changed
     if (updateData.pickup_date && updateData.pickup_date !== order.pickup_date) {
       const countSql = `
-        SELECT COUNT(*) as count
-        FROM service_orders
-        WHERE pickup_date = ? AND status NOT IN ('rejected', 'cancelled', 'completed')
-        AND moved_to_history_at IS NULL
-        AND is_deleted = FALSE
-        AND service_orders_id != ?
+        SELECT count, limit_count
+        FROM booking_counts
+        WHERE date = ?
       `;
-      const [countResults] = await db.promise().query(countSql, [updateData.pickup_date, orderId]);
-      const count = countResults[0].count;
+      const [countResults] = await db.promise().query(countSql, [updateData.pickup_date]);
+      const count = countResults.length > 0 ? countResults[0].count : 0;
+      const limit = countResults.length > 0 ? countResults[0].limit_count : 3;
 
-      if (count >= 3) {
+      if (count >= limit) {
         return res.status(400).json({ message: 'This day is fully booked. Maximum 3 bookings per day allowed.' });
       }
     }
@@ -519,6 +603,36 @@ export const updateCustomerOrder = (db) => async (req, res) => {
       ...updateData,
       total_price: calculatedTotal, // Always recalculate total_price for consistency
     });
+
+    // Update booking counts if date changed
+    if (updateData.pickup_date && updateData.pickup_date !== order.pickup_date) {
+      try {
+        // Decrement old date count
+        const decrementSql = `
+          UPDATE booking_counts
+          SET count = GREATEST(count - 1, 0)
+          WHERE date = ?
+        `;
+        await db.promise().query(decrementSql, [order.pickup_date]);
+
+        // Increment new date count
+        const incrementSql = `
+          INSERT INTO booking_counts (date, count, limit_count)
+          VALUES (?, 1, 3)
+          ON DUPLICATE KEY UPDATE count = count + 1
+        `;
+        await db.promise().query(incrementSql, [updateData.pickup_date]);
+
+        // Emit real-time updates for booking counts
+        if (req.io) {
+          req.io.emit('booking-counts-updated', { date: order.pickup_date, change: -1 });
+          req.io.emit('booking-counts-updated', { date: updateData.pickup_date, change: 1 });
+        }
+      } catch (countError) {
+        console.error('Error updating booking counts on date change:', countError);
+        // Don't fail the update if count update fails
+      }
+    }
 
     // Emit real-time update
     if (req.io) {
@@ -552,9 +666,23 @@ export const cancelCustomerOrder = (db) => async (req, res) => {
 
     await serviceOrderModel.update(orderId, { status: 'cancelled' });
 
+    // Decrement booking count for the date
+    try {
+      const updateCountSql = `
+        UPDATE booking_counts
+        SET count = GREATEST(count - 1, 0)
+        WHERE date = ?
+      `;
+      await db.promise().query(updateCountSql, [order.pickup_date]);
+    } catch (countError) {
+      console.error('Error updating booking count on cancellation:', countError);
+      // Don't fail the cancellation if count update fails
+    }
+
     // Emit real-time update
     if (req.io) {
       req.io.emit('order-updated', { orderId, userId, status: 'cancelled' });
+      req.io.emit('booking-counts-updated', { date: order.pickup_date, change: -1 });
     }
 
     res.json({ message: 'Order cancelled successfully' });

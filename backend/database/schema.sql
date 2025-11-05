@@ -32,18 +32,18 @@ USE wash;
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+-- Booking counts table for tracking daily booking limits
+CREATE TABLE booking_counts (
+  id INT NOT NULL AUTO_INCREMENT,
+  date DATE NOT NULL UNIQUE,
+  count INT NOT NULL DEFAULT 0,
+  limit_count INT NOT NULL DEFAULT 3,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY unique_date (date),
+  KEY idx_date (date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Combined service_orders table replacing both bookings and orders
 CREATE TABLE service_orders (

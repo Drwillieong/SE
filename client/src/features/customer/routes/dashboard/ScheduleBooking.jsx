@@ -55,7 +55,7 @@ const ScheduleBooking = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token && userData) {
-      const newSocket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001', {
+      const newSocket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:8800', {
         auth: { token }
       });
 
@@ -71,6 +71,7 @@ const ScheduleBooking = () => {
       newSocket.on('order-update', handleOrderUpdate);
       newSocket.on('new-order', handleNewOrder);
       newSocket.on('booking-to-order', handleBookingToOrder);
+      newSocket.on('booking-counts-updated', handleBookingCountsUpdated);
 
       setSocket(newSocket);
 
@@ -78,6 +79,7 @@ const ScheduleBooking = () => {
         newSocket.off('order-update', handleOrderUpdate);
         newSocket.off('new-order', handleNewOrder);
         newSocket.off('booking-to-order', handleBookingToOrder);
+        newSocket.off('booking-counts-updated', handleBookingCountsUpdated);
         newSocket.disconnect();
       };
     }
@@ -222,6 +224,35 @@ const ScheduleBooking = () => {
 
   // State for the pickup dates to be displayed
   const [pickupDates, setPickupDates] = useState(getPickupDates());
+
+  // State for booking counts
+  const [bookingCounts, setBookingCounts] = useState({});
+  const [countsLoading, setCountsLoading] = useState(false);
+
+  // Fetch booking counts for displayed dates
+  const fetchBookingCounts = async () => {
+    try {
+      setCountsLoading(true);
+      const dateStrings = pickupDates.map(date => date.fullDate);
+      const response = await apiClient.get('/api/customer/calendar-bookings', {
+        params: { dates: dateStrings.join(',') }
+      });
+      setBookingCounts(response.data || {});
+    } catch (error) {
+      console.error('Error fetching booking counts:', error);
+      // Set empty counts on error to allow booking
+      setBookingCounts({});
+    } finally {
+      setCountsLoading(false);
+    }
+  };
+
+  // Fetch counts when pickup dates change
+  useEffect(() => {
+    if (pickupDates.length > 0) {
+      fetchBookingCounts();
+    }
+  }, [pickupDates]);
 
   // Fetch user data and orders
   useEffect(() => {
@@ -405,7 +436,10 @@ const ScheduleBooking = () => {
       setEditingOrder(null);
       resetForm();
       setActiveTab('orders');
-      
+
+      // Refresh booking counts after successful booking
+      fetchBookingCounts();
+
       // Refresh orders
       const ordersRes = await apiClient.get('/api/customer/orders?page=1&limit=100'); // This is for refreshing after booking
       const ordersData = ordersRes.data.orders || []; // Correctly extracts from nested object
@@ -572,6 +606,13 @@ const ScheduleBooking = () => {
         console.log('Unhandled order update type:', type);
         break;
     }
+  };
+
+  // Handle real-time booking counts updates
+  const handleBookingCountsUpdated = (data) => {
+    console.log('Booking counts updated:', data);
+    // Refresh booking counts for all displayed dates
+    fetchBookingCounts();
   };
 
   const handleNewOrder = (newOrder) => {
@@ -803,21 +844,31 @@ const ScheduleBooking = () => {
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date *</label>
                     <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                      {pickupDates.map((date) => (
-                        <button
-                          key={date.fullDate}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, pickupDate: date.fullDate }))}
-                          className={`py-2 text-center rounded ${
-                            formData.pickupDate === date.fullDate
-                              ? 'bg-pink-600 text-white'
-                              : 'bg-gray-100 hover:bg-gray-200'
-                          }`}
-                        >
-                          <div className="text-xs">{date.day}</div>
-                          <div className="font-medium">{date.date}</div>
-                        </button>
-                      ))}
+                      {pickupDates.map((date) => {
+                        const count = bookingCounts[date.fullDate] || 0;
+                        const isOverbooked = count >= 3; // Max 3 bookings per date
+                        return (
+                          <button
+                            key={date.fullDate}
+                            type="button"
+                            onClick={() => !isOverbooked && setFormData(prev => ({ ...prev, pickupDate: date.fullDate }))}
+                            disabled={isOverbooked}
+                            className={`py-2 text-center rounded relative ${
+                              formData.pickupDate === date.fullDate
+                                ? 'bg-pink-600 text-white'
+                                : isOverbooked
+                                ? 'bg-red-500 text-white cursor-not-allowed'
+                                : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
+                          >
+                            <div className="text-xs">{date.day}</div>
+                            <div className="font-medium">{date.date}</div>
+                            <div className={`text-xs mt-1 ${isOverbooked ? 'text-white font-bold' : 'text-gray-600'}`}>
+                              {isOverbooked ? 'FULL' : `${count}/3`}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div>

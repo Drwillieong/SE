@@ -4,6 +4,7 @@ import {
   getCustomerOrders,
   getCustomerOrderById,
   createCustomerBooking,
+  getBookingCount,
   getCustomerBookingCounts,
   getCustomerHistory,
   updateCustomerProfile,
@@ -28,8 +29,14 @@ export default (db) => {
     // Create a new order/booking for customer
     router.post('/orders', verifyToken, requireCustomer, createCustomerBooking(db));
 
+    // Get booking count for a specific date
+    router.get('/booking-count', verifyToken, requireCustomer, getBookingCount(db));
+
     // Get booking counts for dates (for customer booking calendar)
     router.get('/orders/counts', verifyToken, requireCustomer, getCustomerBookingCounts(db));
+
+    // Get booking counts for calendar display
+    router.get('/calendar-bookings', verifyToken, requireCustomer, getCustomerBookingCounts(db));
 
     // Get customer order by ID
     router.get('/orders/:id', verifyToken, requireCustomer, getCustomerOrderById(db));
