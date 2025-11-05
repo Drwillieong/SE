@@ -137,30 +137,43 @@ export const updateBooking = (db) => async (req, res) => {
   }
 
   try {
-    // Get booking details before updating to send rejection email if needed
-    let booking = null;
-    if (updates.status === 'rejected') {
-      booking = await serviceOrderModel.getById(bookingId);
+    // Get booking details before updating
+    const currentBooking = await serviceOrderModel.getById(bookingId);
+    if (!currentBooking) {
+      return res.status(404).json({ message: 'Booking not found' });
     }
 
-    await serviceOrderModel.update(bookingId, updates);
-
-    // Send rejection email if status is rejected and we have booking details
-    if (updates.status === 'rejected' && booking && booking.email) {
+    // Send rejection email if status is being set to rejected
+    if (updates.status === 'rejected' && currentBooking.email) {
       try {
         const { sendRejectionEmail } = await import('../utils/email.js');
-        await sendRejectionEmail(booking.email, booking.name, updates.rejection_reason);
-        console.log('✅ Rejection email sent successfully to:', booking.email);
+        await sendRejectionEmail(currentBooking.email, currentBooking.name, updates.rejection_reason);
+        console.log('✅ Rejection email sent successfully to:', currentBooking.email);
       } catch (emailError) {
         console.error('❌ Error sending rejection email:', emailError.message);
       }
     }
 
-    // Emit real-time update for booking counts if status changed to rejected or cancelled
-    if ((updates.status === 'rejected' || updates.status === 'cancelled') && req.io) {
-      const updatedBooking = await serviceOrderModel.getById(bookingId);
-      if (updatedBooking) {
-        req.io.emit('booking-counts-updated', { date: updatedBooking.pickup_date, change: -1 });
+    await serviceOrderModel.update(bookingId, updates);
+
+    // Update booking counts if status changed from active to non-active
+    if (updates.status && (currentBooking.status === 'pending' || currentBooking.status === 'pending_booking' || currentBooking.status === 'approved') && updates.status !== 'pending' && updates.status !== 'pending_booking' && updates.status !== 'approved') {
+      try {
+        // Delete the booking count entry for this date since the booking is no longer active
+        const deleteCountSql = `
+          DELETE FROM booking_counts
+          WHERE date = ?
+        `;
+        await db.promise().query(deleteCountSql, [currentBooking.pickup_date]);
+        console.log(`Booking count entry deleted for date: ${currentBooking.pickup_date} due to status change to ${updates.status}`);
+      } catch (countError) {
+        console.error('Error deleting booking count on status change:', countError);
+        // Don't fail the update if count deletion fails
+      }
+
+      // Emit real-time update for booking counts
+      if (req.io) {
+        req.io.emit('booking-counts-updated', { date: currentBooking.pickup_date, change: -1 });
       }
     }
 
@@ -185,6 +198,21 @@ export const deleteBooking = (db) => async (req, res) => {
     const booking = await serviceOrderModel.getById(bookingId);
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Delete booking count entry for the date if the booking was active
+    if (booking.status === 'pending' || booking.status === 'pending_booking' || booking.status === 'approved') {
+      try {
+        const deleteCountSql = `
+          DELETE FROM booking_counts
+          WHERE date = ?
+        `;
+        await db.promise().query(deleteCountSql, [booking.pickup_date]);
+        console.log(`Booking count entry deleted for date: ${booking.pickup_date} due to deletion`);
+      } catch (countError) {
+        console.error('Error deleting booking count on deletion:', countError);
+        // Don't fail the deletion if count deletion fails
+      }
     }
 
     await serviceOrderModel.delete(bookingId);
