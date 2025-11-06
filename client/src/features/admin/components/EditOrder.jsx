@@ -56,7 +56,6 @@ const EditOrder = () => {
         contact: '',
         email: '',
         address: '',
-        estimatedClothes: 0,
         kilos: 0,
         status: 'pending',
         dryCleaningServices: [],
@@ -83,7 +82,7 @@ const EditOrder = () => {
                 contact: order.contact || '',
                 email: order.email || '',
                 address: order.address || '',
-                estimatedClothes: order.estimatedClothes || 0,
+
                 kilos: order.kilos || 0,
                 status: order.status || 'pending',
                 dryCleaningServices: order.dryCleaningServices || [],

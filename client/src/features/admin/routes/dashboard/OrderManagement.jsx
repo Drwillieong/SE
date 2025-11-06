@@ -186,9 +186,7 @@ const OrderManagement = () => {
       window.history.replaceState({}, '', newUrl);
 
       // Show success message
-      setTimeout(() => {
-        alert('Order created successfully! The new order should now be visible.');
-      }, 1000);
+      
     }
 
     // Set up periodic refresh every 30 seconds
@@ -286,7 +284,6 @@ const OrderManagement = () => {
           paymentStatus: order.payment_status,
           paymentMethod: order.payment_method,
           totalPrice: order.total_price || 0,
-          estimatedClothes: order.estimated_clothes,
           kilos: order.kilos
         }));
 

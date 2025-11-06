@@ -28,7 +28,8 @@ console.log('Loaded env vars:', {
 const app = express();
 
 const allowedOrigins = [
-  'http://localhost:5173',          // Your local development frontend
+  'http://localhost:5173',
+  'http://washit.netlify.app',         // Your local development frontend
   'https://sanapasapo.netlify.app'  // Your deployed Netlify frontend
 ];
 

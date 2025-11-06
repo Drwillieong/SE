@@ -20,31 +20,24 @@ export const getAllBookings = (db) => async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
 
-    // Get all active bookings (including customer bookings)
-    const sql = `
-      SELECT * FROM service_orders
-      WHERE is_deleted = FALSE
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `;
+    // Use the model's getAll method which handles sorting in memory to avoid MySQL sort memory issues
+    const bookings = await serviceOrderModel.getAll(page, limit);
+    const totalCount = await serviceOrderModel.getTotalCount();
 
-    const offset = (page - 1) * limit;
-    const bookings = await new Promise((resolve, reject) => {
-      db.query(sql, [limit, offset], (err, results) => {
-        if (err) reject(err);
-        else resolve(results);
-      });
-    });
-
-    const totalCount = await new Promise((resolve, reject) => {
-      db.query('SELECT COUNT(*) as total FROM service_orders WHERE is_deleted = FALSE', (err, results) => {
-        if (err) reject(err);
-        else resolve(results[0].total);
-      });
-    });
+    const transformedBookings = bookings.map(booking => ({
+      ...booking,
+      photos: typeof booking.photos === 'string' ? JSON.parse(booking.photos) : booking.photos || [],
+      laundry_photos: typeof booking.laundry_photos === 'string' ? JSON.parse(booking.laundry_photos) : booking.laundry_photos || [],
+      payment_status: booking.payment_status || 'unpaid',
+      service_orders_id: booking.service_orders_id,
+      status: booking.status || 'pending',
+      total_price: booking.total_price || 0,
+      load_count: booking.load_count || 1,
+      kilos: booking.kilos || 0,
+    }));
 
     res.json({
-      bookings,
+      bookings: transformedBookings,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(totalCount / limit),

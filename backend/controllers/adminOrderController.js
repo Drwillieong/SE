@@ -21,7 +21,7 @@ export const getAllOrders = (db) => async (req, res) => {
       total_price: order.total_price || 0,
       load_count: order.load_count || 1,
       kilos: order.kilos || 0,
-      estimated_clothes: order.estimated_clothes || 0
+
     }));
 
     res.json({
@@ -130,7 +130,6 @@ export const updateOrder = (db) => async (req, res) => {
   addIfProvided('load_count', updates.load_count || updates.loadCount);
   addIfProvided('payment_method', updates.payment_method || updates.paymentMethod);
   addIfProvided('payment_status', updates.payment_status || updates.paymentStatus);
-  addIfProvided('estimated_clothes', updates.estimated_clothes || updates.estimatedClothes);
   addIfProvided('dry_cleaning_services', updates.dry_cleaning_services || updates.dryCleaningServices);
   addIfProvided('pickup_date', updates.pickup_date || updates.pickupDate);
   addIfProvided('pickup_time', updates.pickup_time || updates.pickupTime);
@@ -188,6 +187,41 @@ export const updateOrder = (db) => async (req, res) => {
     await serviceOrderModel.update(orderId, filteredUpdates);
 
     const orderAfter = await serviceOrderModel.getById(orderId);
+
+    // Update booking counts if pickup_date changed and order is still active
+    if (updates.pickup_date && updates.pickup_date !== orderBefore.pickup_date) {
+      const activeStatuses = ['pending', 'pending_booking', 'approved', 'washing', 'drying', 'folding', 'ready'];
+      if (activeStatuses.includes(orderAfter.status)) {
+        try {
+          // Decrement count for old date
+          const decrementSql = `
+            UPDATE booking_counts
+            SET count = GREATEST(count - 1, 0)
+            WHERE date = ?
+          `;
+          await db.promise().query(decrementSql, [orderBefore.pickup_date]);
+
+          // Increment count for new date
+          const incrementSql = `
+            INSERT INTO booking_counts (date, count, limit_count)
+            VALUES (?, 1, 3)
+            ON DUPLICATE KEY UPDATE count = count + 1
+          `;
+          await db.promise().query(incrementSql, [updates.pickup_date]);
+
+          console.log(`Booking count updated: moved from ${orderBefore.pickup_date} to ${updates.pickup_date}`);
+
+          // Emit real-time updates for booking counts
+          if (req.io) {
+            req.io.emit('booking-counts-updated', { date: orderBefore.pickup_date, change: -1 });
+            req.io.emit('booking-counts-updated', { date: updates.pickup_date, change: 1 });
+          }
+        } catch (countError) {
+          console.error('Error updating booking counts on date change:', countError);
+          // Don't fail the update if count update fails
+        }
+      }
+    }
 
     // Emit WebSocket notification
     if (req.io) {

@@ -30,8 +30,6 @@ USE wash;
    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
  );
 
-
-
 -- Booking counts table for tracking daily booking limits
 CREATE TABLE booking_counts (
   id INT NOT NULL AUTO_INCREMENT,
@@ -65,7 +63,6 @@ CREATE TABLE service_orders (
   instructions TEXT DEFAULT NULL,
 
   -- Processing details (populated during order phase)
-  estimated_clothes INT DEFAULT NULL,
   kilos DECIMAL(5,2) DEFAULT NULL,
   laundry_photos JSON DEFAULT NULL,  -- Photos of processed laundry
 
@@ -78,15 +75,12 @@ CREATE TABLE service_orders (
   delivery_fee DECIMAL(10,2) DEFAULT 0,
 
   -- Payment information
-  payment_method ENUM('cash', 'gcash',) NOT NULL,
+  payment_method ENUM('cash', 'gcash') NOT NULL,
   total_price DECIMAL(10,2) NOT NULL,
   payment_status ENUM('unpaid', 'paid') DEFAULT 'unpaid',  -- General payment status
   payment_proof VARCHAR(255) DEFAULT NULL,  -- File path to payment proof
   reference_id VARCHAR(255) DEFAULT NULL,   -- Payment reference number
   payment_review_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',  -- For GCash reviews
-
-  -- Customer uploaded photos (booking phase)
-  photos JSON DEFAULT NULL,
 
   -- Operational fields (order processing phase)
   timer_start DATETIME DEFAULT NULL,
@@ -114,6 +108,5 @@ CREATE TABLE service_orders (
   KEY idx_payment_review_status (payment_review_status),
   KEY idx_moved_to_history_at (moved_to_history_at),
   KEY idx_is_deleted (is_deleted),
-  KEY idx_created_at (created_at),
-  KEY idx_user_orders (user_id, moved_to_history_at, is_deleted, created_at)
+  KEY idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

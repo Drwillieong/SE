@@ -138,11 +138,11 @@ export class ServiceOrder {
     const sql = `
       INSERT INTO service_orders (
         user_id, name, contact, email, address, service_type, dry_cleaning_services,
-        pickup_date, pickup_time, load_count, instructions, estimated_clothes,
+        pickup_date, pickup_time, load_count, instructions,
         kilos, laundry_photos, status, rejection_reason, payment_method, service_option, delivery_fee,
         total_price, payment_status, payment_proof, reference_id, payment_review_status,
-        photos, timer_start, timer_end, auto_advance_enabled, current_timer_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        timer_start, timer_end, auto_advance_enabled, current_timer_status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     // Calculate total price from services
@@ -180,7 +180,6 @@ export class ServiceOrder {
       orderData.pickup_time || orderData.pickupTime,
       orderData.load_count || orderData.loadCount || 1,
       orderData.instructions || '',
-      orderData.estimated_clothes || orderData.estimatedClothes || null,
       orderData.kilos || null,
       JSON.stringify(orderData.laundry_photos || orderData.laundryPhoto || []),
       orderData.status || 'pending',
@@ -193,7 +192,6 @@ export class ServiceOrder {
       orderData.payment_proof || null,
       orderData.reference_id || orderData.referenceNumber || null,
       orderData.payment_review_status || 'pending',
-      JSON.stringify(orderData.photos || []),
       orderData.timer_start || null,
       orderData.timer_end || null,
       orderData.auto_advance_enabled || false,
@@ -217,11 +215,17 @@ export class ServiceOrder {
       throw new Error('No fields to update');
     }
 
+    // Map 'photos' to 'laundry_photos' for consistency
+    if (updates.photos !== undefined) {
+      updates.laundry_photos = updates.photos;
+      delete updates.photos;
+    }
+
     // Handle JSON fields
-    const jsonFields = ['dry_cleaning_services', 'laundry_photos', 'photos'];
+    const jsonFields = ['dry_cleaning_services', 'laundry_photos'];
     jsonFields.forEach(field => {
-      if (updates[field]) {
-        updates[field] = JSON.stringify(updates[field]);
+      if (updates[field] !== undefined) {
+        updates[field] = JSON.stringify(updates[field] || []);
       }
     });
 
@@ -571,7 +575,6 @@ export class ServiceOrder {
         address,
         total_price,
         instructions,
-        photos,
         laundry_photos,
         moved_to_history_at,
         is_deleted,
@@ -622,7 +625,6 @@ export class ServiceOrder {
           address,
           total_price,
           instructions,
-          photos,
           laundry_photos,
           moved_to_history_at,
           is_deleted,
@@ -651,7 +653,6 @@ export class ServiceOrder {
           address,
           total_price,
           instructions,
-          photos,
           laundry_photos,
           moved_to_history_at,
           is_deleted,

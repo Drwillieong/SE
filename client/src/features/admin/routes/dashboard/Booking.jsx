@@ -71,7 +71,7 @@ const Booking = () => {
   const [checkOrderModalIsOpen, setCheckOrderModalIsOpen] = useState(false);
   const [selectedBookingForOrder, setSelectedBookingForOrder] = useState(null);
   const [orderFormData, setOrderFormData] = useState({
-    estimatedClothes: '',
+    
     kilos: '',
     additionalPrice: '',
     laundryPhoto: null
@@ -143,7 +143,6 @@ const Booking = () => {
         totalPrice: selectedBookingForOrder.totalPrice || 199,
         user_id: selectedBookingForOrder.userId || null,
         booking_id: selectedBookingForOrder.id,
-        estimatedClothes: 10,
         kilos: 5.0,
         laundryPhoto: []
       };
@@ -857,7 +856,6 @@ const Booking = () => {
 
       const updatePayload = {
         status: 'pending',
-        estimated_clothes: parseInt(orderFormData.estimatedClothes) || 1,
         kilos: parseFloat(orderFormData.kilos) || 1.0,
         total_price: totalPrice,
         laundry_photos: orderFormData.laundryPhoto ? [orderFormData.laundryPhoto] : []
@@ -882,7 +880,7 @@ const Booking = () => {
 
         // Reset form data
         setOrderFormData({
-          estimatedClothes: '',
+      
           kilos: '',
           additionalPrice: '',
           laundryPhoto: null
@@ -1050,7 +1048,7 @@ const Booking = () => {
                           setSelectedBookingForOrder(booking);
                           setCheckOrderModalIsOpen(true);
                           setOrderFormData({
-                            estimatedClothes: '',
+                          
                             kilos: '',
                             pants: '',
                             shorts: '',

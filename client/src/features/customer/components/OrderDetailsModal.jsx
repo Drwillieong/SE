@@ -239,7 +239,7 @@ const OrderDetailsModal = ({ selectedOrder, setSelectedOrder }) => {
         </div>
 
         {/* Laundry Details */}
-        {selectedOrder.estimatedClothes || selectedOrder.kilos || selectedOrder.pants || selectedOrder.shorts || selectedOrder.tshirts || selectedOrder.bedsheets ? (
+        {selectedOrder.kilos || selectedOrder.pants || selectedOrder.shorts || selectedOrder.tshirts || selectedOrder.bedsheets ? (
           <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Laundry Details</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
