@@ -69,6 +69,7 @@ export const getCustomerOrders = (db) => async (req, res) => {
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
     `;
+    // Note: Ensure composite index on (user_id, moved_to_history_at, is_deleted, created_at) exists to avoid sort memory issues
     const [results] = await db.promise().query(sql, [userId, limit, offset]);
 
     // Get total count
