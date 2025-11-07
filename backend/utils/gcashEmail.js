@@ -15,17 +15,21 @@ export const sendGcashPaymentNotificationEmail = async (order, referenceNumber, 
         pickupTime: order.pickup_time
     };
 
+    // Use parameters if provided, otherwise get from order object (for fallback)
+    const actualReferenceNumber = referenceNumber || order.reference_id;
+    const actualProofBase64 = proofBase64 || order.payment_proof;
+
     const serviceName = transformedOrder.serviceType === 'washFold' ? 'Wash & Fold' :
                        transformedOrder.serviceType === 'dryCleaning' ? 'Dry Cleaning' :
                        transformedOrder.serviceType === 'hangDry' ? 'Hang Dry' : 'Laundry Service';
 
     // Prepare attachment if proof image exists
     const attachments = [];
-    if (proofBase64 && proofBase64.length > 0) {
+    if (actualProofBase64 && actualProofBase64.length > 0) {
         try {
             // Handle base64 data URI format like in sendOrderConfirmationEmail
-            if (proofBase64.startsWith('data:image')) {
-                const base64Data = proofBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+            if (actualProofBase64.startsWith('data:image')) {
+                const base64Data = actualProofBase64.replace(/^data:image\/[a-z]+;base64,/, '');
                 attachments.push({
                     filename: `gcash_payment_proof_${transformedOrder.order_id}.jpg`,
                     content: base64Data,
@@ -37,7 +41,7 @@ export const sendGcashPaymentNotificationEmail = async (order, referenceNumber, 
                 // Fallback for other formats
                 attachments.push({
                     filename: `gcash_payment_proof_${transformedOrder.order_id}.png`,
-                    content: proofBase64,
+                    content: actualProofBase64,
                     type: 'image/png',
                     disposition: 'attachment',
                     contentId: 'payment-proof'
@@ -50,7 +54,7 @@ export const sendGcashPaymentNotificationEmail = async (order, referenceNumber, 
 
     const mailOptions = {
         to: 'kevincorpuz321@gmail.com',
-        subject: `New GCash Payment Submitted - Ref #${referenceNumber || transformedOrder.order_id}`,
+        subject: `New GCash Payment Submitted - Ref #${actualReferenceNumber || transformedOrder.order_id}`,
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #007bff;">💳 New GCash Payment Submitted</h2>
@@ -58,8 +62,8 @@ export const sendGcashPaymentNotificationEmail = async (order, referenceNumber, 
 
                 <div style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; padding: 15px; margin: 20px 0;">
                     <h3 style="color: #495057; margin-top: 0;">Payment Details:</h3>
-                    <p style="margin-bottom: 5px;"><strong>Reference ID:</strong> #${referenceNumber || 'N/A'}</p>
-                    <p style="margin-bottom: 5px;"><strong>Reference Number:</strong> ${referenceNumber || '<span style="color: red;">Not Provided</span>'}</p>
+                    <p style="margin-bottom: 5px;"><strong>Reference ID:</strong> #${transformedOrder.order_id}</p>
+                    <p style="margin-bottom: 5px;"><strong>Reference Number:</strong> ${actualReferenceNumber || '<span style="color: red;">Not Provided</span>'}</p>
                     <p style="margin-bottom: 5px;"><strong>Amount:</strong> ₱${transformedOrder.totalPrice?.toLocaleString() || 'N/A'}</p>
                     <p style="margin-bottom: 0;"><strong>Payment Status:</strong> Pending Review</p>
                 </div>
@@ -80,7 +84,7 @@ export const sendGcashPaymentNotificationEmail = async (order, referenceNumber, 
                     <p style="margin-bottom: 0;"><strong>Pickup Time:</strong> ${transformedOrder.pickupTime || 'Not specified'}</p>
                 </div>
 
-                ${proofBase64 && attachments.length > 0 ? `
+                ${actualProofBase64 && attachments.length > 0 ? `
                     <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 5px; padding: 15px; margin: 20px 0;">
                         <h3 style="color: #0c5460; margin-top: 0;">📎 Payment Proof:</h3>
                         <p style="margin-bottom: 0;">Payment proof image has been attached to this email.</p>
@@ -88,7 +92,7 @@ export const sendGcashPaymentNotificationEmail = async (order, referenceNumber, 
                     </div>
                 ` : ''}
 
-                ${(!proofBase64 || attachments.length === 0) && !referenceNumber ? `
+                ${(!actualProofBase64 || attachments.length === 0) && !actualReferenceNumber ? `
                 <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
                     <h3 style="color: #721c24; margin-top: 0;">⚠️ No Payment Details Provided:</h3>
                     <p style="margin-bottom: 0;">The customer did not provide a reference number or a payment proof image. Please follow up manually.</p>

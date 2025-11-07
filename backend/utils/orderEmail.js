@@ -1,7 +1,7 @@
 import { sendEmail } from './email.js';
 
 // Function to send order confirmation email
-export const sendOrderConfirmationEmail = async (email, name, orderId, kilos, totalPrice, laundryPhoto, paymentMethod, serviceType, loadCount) => {
+export const sendOrderConfirmationEmail = async (email, name, orderId, kilos, totalPrice, laundryPhoto, paymentMethod, serviceType, loadCount, contact, address) => {
     console.log('📤 Attempting to send order confirmation email to:', email);
 
     // Format service type for display
@@ -32,13 +32,21 @@ export const sendOrderConfirmationEmail = async (email, name, orderId, kilos, to
                     <p style="margin-bottom: 0;"><strong>Payment Method:</strong> ${paymentDisplay}</p>
                 </div>
 
+                <div style="background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                    <h3 style="color: #004085; margin-top: 0;">Customer Details:</h3>
+                    <p style="margin-bottom: 5px;"><strong>Name:</strong> ${name}</p>
+                    <p style="margin-bottom: 5px;"><strong>Contact:</strong> ${contact}</p>
+                    <p style="margin-bottom: 5px;"><strong>Email:</strong> ${email}</p>
+                    <p style="margin-bottom: 0;"><strong>Address:</strong> ${address}</p>
+                </div>
+
                 <p><strong>What happens next?</strong></p>
                 <ul>
-                    
+
                     <li>🧺 Your clothes will be professionally cleaned</li>
                     <li>📱 You'll receive updates throughout the process</li>
                     <li>🚚 You'll receive updates when your laundry is done</li>
-                    
+
                 </ul>
 
                 <p>If you have any questions or need to make changes to your order, please don't hesitate to contact us:</p>

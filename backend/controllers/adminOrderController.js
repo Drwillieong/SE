@@ -267,7 +267,9 @@ export const updateOrder = (db) => async (req, res) => {
           laundryPhoto,
           orderAfter.payment_method,
           orderAfter.service_type,
-          orderAfter.load_count
+          orderAfter.load_count,
+          orderAfter.contact,
+          orderAfter.address
         );
         console.log('✅ Order confirmation email sent successfully to:', orderAfter.email);
       } catch (emailError) {
