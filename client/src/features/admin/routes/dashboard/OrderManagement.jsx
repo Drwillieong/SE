@@ -485,8 +485,25 @@ const OrderManagement = () => {
 
       const nextStatus = statusProgression[currentIndex + 1];
 
-      // Call the existing updateOrderStatus function
-      await updateOrderStatus(orderId, nextStatus);
+      // Call the advance-status endpoint instead of the general update endpoint
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/advance-status`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update local state with the new status from the response
+        setOrders(prev => prev.map(order =>
+          order.order_id === orderId ? { ...order, status: data.order.status } : order
+        ));
+        alert(`Order advanced to ${data.order.status} status!`);
+      } else {
+        throw new Error('Failed to advance order status');
+      }
 
       // Start a local timer for the new status if it's a processing step
       if (['washing', 'drying', 'folding'].includes(nextStatus)) {
@@ -520,7 +537,7 @@ const OrderManagement = () => {
 
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/complete`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
         }

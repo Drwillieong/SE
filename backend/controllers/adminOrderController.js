@@ -687,7 +687,17 @@ export const completeOrder = (db) => async (req, res) => {
     if (order.email) {
       try {
         const { sendCompletionEmail } = await import('../utils/email.js');
-        await sendCompletionEmail(order.email, order.name, order);
+        // Transform order object to camelCase for email function
+        const transformedOrder = {
+          ...order,
+          serviceType: order.service_type,
+          order_id: order.service_orders_id,
+          totalPrice: order.total_price,
+          paymentStatus: order.payment_status,
+          loadCount: order.load_count,
+          kilos: order.kilos
+        };
+        await sendCompletionEmail(order.email, order.name, transformedOrder);
         console.log('✅ Order completion email sent successfully to:', order.email);
       } catch (emailError) {
         console.error('❌ Error sending completion email:', emailError.message);
