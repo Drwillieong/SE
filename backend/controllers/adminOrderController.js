@@ -1,4 +1,9 @@
 import { ServiceOrder } from '../models/ServiceOrder.js';
+import { AdminHistory } from '../models/AdminHistory.js';
+import { AdminAnalytics } from '../models/AdminAnalytics.js';
+import { AdminBooking } from '../models/AdminBooking.js';
+import { Payment } from '../models/Payment.js';
+import { Timer } from '../models/Timer.js';
 import { sendOrderConfirmationEmail } from '../utils/orderEmail.js';
 
 // Controller to get all orders for admin
@@ -84,11 +89,17 @@ export const createOrder = (db) => async (req, res) => {
         timestamp: new Date().toISOString()
       });
 
-      if (req.body.user_id) {
-        global.io.to(`user_${req.body.user_id}`).emit('your-order-created', {
-          order_id: orderId,
-          message: 'Your order has been created',
-          timestamp: new Date().toISOString()
+      if (orderData.customer_id) {
+        // Get user_id from customer profile for WebSocket notification
+        const customerSql = 'SELECT user_id FROM customers_profiles WHERE customer_id = ?';
+        this.db.query(customerSql, [orderData.customer_id], (err, customerResults) => {
+          if (!err && customerResults.length > 0 && customerResults[0].user_id) {
+            global.io.to(`user_${customerResults[0].user_id}`).emit('your-order-created', {
+              order_id: orderId,
+              message: 'Your order has been created',
+              timestamp: new Date().toISOString()
+            });
+          }
         });
       }
     }

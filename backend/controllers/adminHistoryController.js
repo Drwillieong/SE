@@ -1,11 +1,12 @@
-import { ServiceOrder } from '../models/ServiceOrder.js';
+import { AdminHistory } from '../models/AdminHistory.js';
+import { Timer } from '../models/Timer.js';
 
 // Controller to get all history items (completed orders, rejected bookings, deleted items)
 export const getHistory = (db) => async (req, res) => {
-  const serviceOrderModel = new ServiceOrder(db);
+  const adminHistoryModel = new AdminHistory(db);
 
   try {
-    const history = await serviceOrderModel.getHistory();
+    const history = await adminHistoryModel.getHistory();
     res.json(history);
   } catch (error) {
     console.error('Error fetching history:', error);
@@ -16,10 +17,10 @@ export const getHistory = (db) => async (req, res) => {
 // Controller to get history items by type
 export const getHistoryByType = (db) => async (req, res) => {
   const { type } = req.params;
-  const serviceOrderModel = new ServiceOrder(db);
+  const adminHistoryModel = new AdminHistory(db);
 
   try {
-    const history = await serviceOrderModel.getHistoryByType(type);
+    const history = await adminHistoryModel.getHistoryByType(type);
     res.json(history);
   } catch (error) {
     console.error('Error fetching history by type:', error);
@@ -30,10 +31,10 @@ export const getHistoryByType = (db) => async (req, res) => {
 // Controller to move order to history
 export const moveOrderToHistory = (db) => async (req, res) => {
   const orderId = req.params.id;
-  const serviceOrderModel = new ServiceOrder(db);
+  const adminHistoryModel = new AdminHistory(db);
 
   try {
-    await serviceOrderModel.moveToHistory(orderId);
+    await adminHistoryModel.moveToHistory(orderId);
 
     // Emit WebSocket notification
     if (req.io) {
@@ -58,10 +59,10 @@ export const moveOrderToHistory = (db) => async (req, res) => {
 export const restoreFromHistory = (db) => async (req, res) => {
   const itemId = req.params.id;
   const { type } = req.body; // 'order' or 'booking'
-  const serviceOrderModel = new ServiceOrder(db);
+  const adminHistoryModel = new AdminHistory(db);
 
   try {
-    await serviceOrderModel.restoreFromHistory(itemId, type);
+    await adminHistoryModel.restoreFromHistory(itemId);
 
     // Emit WebSocket notification
     if (req.io) {
@@ -87,10 +88,10 @@ export const restoreFromHistory = (db) => async (req, res) => {
 export const deleteFromHistory = (db) => async (req, res) => {
   const itemId = req.params.id;
   const { type } = req.body; // 'order' or 'booking'
-  const serviceOrderModel = new ServiceOrder(db);
+  const adminHistoryModel = new AdminHistory(db);
 
   try {
-    await serviceOrderModel.deleteFromHistory(itemId, type);
+    await adminHistoryModel.deleteFromHistory(itemId);
 
     // Emit WebSocket notification
     if (req.io) {
@@ -120,20 +121,9 @@ export const getWelcome = (db) => async (req, res) => {
 // Controller to auto-advance status (called by client when timer expires OR by server cron)
 export const autoAdvanceOrder = (db) => async (req, res) => {
   const orderId = req.params.id;
-  const serviceOrderModel = new ServiceOrder(db);
+  const timerModel = new Timer(db);
   try {
-    const order = await serviceOrderModel.getById(orderId);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-
-    // Determine next stage based on processStage or status
-    const current = order.process_stage || order.status || 'pending';
-    const seq = ['pending','washing','drying','folding','ready'];
-    const idx = seq.indexOf(current);
-    const next = (idx >= 0 && idx < seq.length - 1) ? seq[idx + 1] : seq[seq.length - 1];
-
-    // Update both processStage and status to keep things consistent
-    await serviceOrderModel.update(orderId, { process_stage: next, status: next });
-
+    const next = await timerModel.autoAdvanceOrder(orderId);
     res.json({ message: 'Order advanced', next });
   } catch (error) {
     console.error('Error auto-advancing order:', error);

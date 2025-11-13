@@ -35,10 +35,15 @@ export class User {
     }, process.env.JWT_SECRET || 'your_jwt_secret', { expiresIn: '1h' });
   }
 
-  // Find user by email
+  // Find user by email with profile data for customers
   findByEmail(email) {
     return new Promise((resolve, reject) => {
-      const sql = "SELECT * FROM users WHERE email = ?";
+      const sql = `
+        SELECT u.*, cp.firstName, cp.lastName, cp.contact, cp.address
+        FROM users u
+        LEFT JOIN customers_profiles cp ON u.user_id = cp.user_id
+        WHERE u.email = ?
+      `;
       this.db.query(sql, [email], (err, data) => {
         if (err) reject(err);
         else resolve(data.length > 0 ? data[0] : null);
@@ -46,10 +51,15 @@ export class User {
     });
   }
 
-  // Find user by ID
+  // Find user by ID with profile data for customers
   findById(user_id) {
     return new Promise((resolve, reject) => {
-      const sql = "SELECT * FROM users WHERE user_id = ?";
+      const sql = `
+        SELECT u.*, cp.firstName, cp.lastName, cp.contact, cp.address
+        FROM users u
+        LEFT JOIN customers_profiles cp ON u.user_id = cp.user_id
+        WHERE u.user_id = ?
+      `;
       this.db.query(sql, [user_id], (err, data) => {
         if (err) reject(err);
         else resolve(data.length > 0 ? data[0] : null);
@@ -57,24 +67,17 @@ export class User {
     });
   }
 
-  // Create new user
+  // Create new user (only core auth fields)
   create(userData) {
     return new Promise(async (resolve, reject) => {
       try {
         const verificationToken = this.generateVerificationToken();
         const hashedPassword = await this.hashPassword(userData.password);
 
-        const sql = "INSERT INTO users (`firstName`, `lastName`, `contact`, `email`, `password`, `barangay`, `street`, `blockLot`, `landmark`, `verificationToken`, `authProvider`) VALUES (?)";
+        const sql = "INSERT INTO users (email, password, verificationToken, authProvider) VALUES (?)";
         const values = [
-          userData.firstName,
-          userData.lastName,
-          userData.contact,
           userData.email,
           hashedPassword,
-          null, // barangay
-          null, // street
-          null, // blockLot
-          null, // landmark
           verificationToken,
           'email'
         ];
@@ -86,6 +89,48 @@ export class User {
       } catch (error) {
         reject(error);
       }
+    });
+  }
+
+  // Create customer profile (for customers only)
+  createCustomerProfile(user_id, profileData) {
+    return new Promise((resolve, reject) => {
+      const sql = "INSERT INTO customers_profiles (user_id, firstName, lastName, name, contact, email, address) VALUES (?)";
+      const values = [
+        user_id,
+        profileData.firstName,
+        profileData.lastName,
+        `${profileData.firstName} ${profileData.lastName}`,
+        profileData.contact,
+        profileData.email || null,
+        `${profileData.barangay || ''} ${profileData.street || ''} ${profileData.blockLot || ''} ${profileData.landmark || ''}`.trim()
+      ];
+
+      this.db.query(sql, [values], (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+  }
+
+  // Update customer profile
+  updateCustomerProfile(user_id, profileData) {
+    return new Promise((resolve, reject) => {
+      const sql = "UPDATE customers_profiles SET firstName = ?, lastName = ?, name = ?, contact = ?, email = ?, address = ? WHERE user_id = ?";
+      const values = [
+        profileData.firstName,
+        profileData.lastName,
+        `${profileData.firstName} ${profileData.lastName}`,
+        profileData.contact,
+        profileData.email || null,
+        `${profileData.barangay || ''} ${profileData.street || ''} ${profileData.blockLot || ''} ${profileData.landmark || ''}`.trim(),
+        user_id
+      ];
+
+      this.db.query(sql, values, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
     });
   }
 

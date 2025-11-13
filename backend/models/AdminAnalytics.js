@@ -1,56 +1,103 @@
-import { AdminAnalytics } from '../models/AdminAnalytics.js';
-
-// Controller to get dashboard statistics
-export const getDashboardStats = (db) => async (req, res) => {
-  const adminAnalyticsModel = new AdminAnalytics(db);
-  try {
-    const stats = await adminAnalyticsModel.getDashboardStats();
-    res.json(stats);
-  } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
-    res.status(500).json({ message: 'Server error fetching dashboard stats' });
-  }
-};
-
-// Controller to get orders created today
-export const getTodaysOrders = (db) => async (req, res) => {
-  const adminAnalyticsModel = new AdminAnalytics(db);
-  try {
-    const orders = await adminAnalyticsModel.getTodaysOrders();
-    res.json(orders);
-  } catch (error) {
-    console.error('Error fetching today\'s orders:', error);
-    res.status(500).json({ message: 'Server error fetching today\'s orders' });
-  }
-};
-
-// Controller to get orders by date range
-export const getOrdersByDateRange = (db) => async (req, res) => {
-  const { startDate, endDate } = req.body;
-  const adminAnalyticsModel = new AdminAnalytics(db);
-
-  if (!startDate || !endDate) {
-    return res.status(400).json({ message: 'startDate and endDate are required' });
+export class AdminAnalytics {
+  constructor(db) {
+    this.db = db;
   }
 
-  try {
-    const orders = await adminAnalyticsModel.getOrdersByDateRange(startDate, endDate);
-    res.json(orders);
-  } catch (error) {
-    console.error('Error fetching orders by date range:', error);
-    res.status(500).json({ message: 'Server error fetching orders by date range' });
+  // Get dashboard statistics
+  async getDashboardStats() {
+    const sql = `
+      SELECT
+        COUNT(*) as totalOrders,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingOrders,
+        SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approvedOrders,
+        SUM(CASE WHEN status = 'washing' THEN 1 ELSE 0 END) as washingOrders,
+        SUM(CASE WHEN status = 'drying' THEN 1 ELSE 0 END) as dryingOrders,
+        SUM(CASE WHEN status = 'folding' THEN 1 ELSE 0 END) as foldingOrders,
+        SUM(CASE WHEN status = 'ready' THEN 1 ELSE 0 END) as readyOrders,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedOrders,
+        SUM(CASE WHEN status = 'completed' THEN total_price ELSE 0 END) as totalRevenue
+      FROM service_orders
+      WHERE moved_to_history_at IS NULL
+      AND is_deleted = FALSE
+    `;
+
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results[0]);
+        }
+      });
+    });
   }
-};
 
-// Controller to get revenue analytics
-export const getRevenueAnalytics = (db) => async (req, res) => {
-  const { startDate, endDate } = req.body;
+  // Get order statistics for admin dashboard
+  async getOrderStats() {
+    const sql = `
+      SELECT
+        COUNT(*) as totalOrders,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingOrders,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedOrders
+      FROM service_orders
+      WHERE moved_to_history_at IS NULL
+      AND is_deleted = FALSE
+    `;
 
-  if (!startDate || !endDate) {
-    return res.status(400).json({ message: 'startDate and endDate are required' });
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results[0]);
+        }
+      });
+    });
   }
 
-  try {
+  // Get service orders created today
+  async getTodaysOrders() {
+    const today = new Date().toISOString().split('T')[0];
+    const sql = `
+      SELECT * FROM service_orders
+      WHERE DATE(created_at) = ?
+      AND moved_to_history_at IS NULL
+      AND is_deleted = FALSE
+      ORDER BY created_at DESC
+    `;
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [today], (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results);
+        }
+      });
+    });
+  }
+
+  // Get service orders by date range
+  async getOrdersByDateRange(startDate, endDate) {
+    const sql = `
+      SELECT * FROM service_orders
+      WHERE DATE(created_at) BETWEEN ? AND ?
+      AND moved_to_history_at IS NULL
+      AND is_deleted = FALSE
+      ORDER BY created_at DESC
+    `;
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [startDate, endDate], (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results);
+        }
+      });
+    });
+  }
+
+  // Get revenue analytics
+  async getRevenueAnalytics(startDate, endDate) {
     const sql = `
       SELECT
         DATE(created_at) as date,
@@ -65,23 +112,16 @@ export const getRevenueAnalytics = (db) => async (req, res) => {
       ORDER BY date DESC
     `;
 
-    const analytics = await new Promise((resolve, reject) => {
-      db.query(sql, [startDate, endDate], (err, results) => {
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [startDate, endDate], (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
     });
-
-    res.json(analytics);
-  } catch (error) {
-    console.error('Error fetching revenue analytics:', error);
-    res.status(500).json({ message: 'Server error fetching revenue analytics' });
   }
-};
 
-// Controller to get service type distribution
-export const getServiceTypeDistribution = (db) => async (req, res) => {
-  try {
+  // Get service type distribution
+  async getServiceTypeDistribution() {
     const sql = `
       SELECT
         service_type,
@@ -94,52 +134,39 @@ export const getServiceTypeDistribution = (db) => async (req, res) => {
       ORDER BY count DESC
     `;
 
-    const distribution = await new Promise((resolve, reject) => {
-      db.query(sql, (err, results) => {
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
     });
-
-    res.json(distribution);
-  } catch (error) {
-    console.error('Error fetching service type distribution:', error);
-    res.status(500).json({ message: 'Server error fetching service type distribution' });
   }
-};
 
-// Controller to get payment method analytics
-export const getPaymentMethodAnalytics = (db) => async (req, res) => {
-  try {
+  // Get payment method analytics
+  async getPaymentMethodAnalytics() {
     const sql = `
       SELECT
-        payment_method,
+        p.payment_method,
         COUNT(*) as count,
-        SUM(total_price) as totalRevenue
-      FROM service_orders
-      WHERE moved_to_history_at IS NULL
-      AND is_deleted = FALSE
-      GROUP BY payment_method
+        SUM(p.total_price) as totalRevenue
+      FROM payments p
+      LEFT JOIN service_orders so ON p.service_orders_id = so.service_orders_id
+      WHERE so.moved_to_history_at IS NULL
+      AND so.is_deleted = FALSE
+      GROUP BY p.payment_method
       ORDER BY count DESC
     `;
 
-    const analytics = await new Promise((resolve, reject) => {
-      db.query(sql, (err, results) => {
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
     });
-
-    res.json(analytics);
-  } catch (error) {
-    console.error('Error fetching payment method analytics:', error);
-    res.status(500).json({ message: 'Server error fetching payment method analytics' });
   }
-};
 
-// Controller to get status distribution
-export const getStatusDistribution = (db) => async (req, res) => {
-  try {
+  // Get status distribution
+  async getStatusDistribution() {
     const sql = `
       SELECT
         status,
@@ -151,95 +178,72 @@ export const getStatusDistribution = (db) => async (req, res) => {
       ORDER BY count DESC
     `;
 
-    const distribution = await new Promise((resolve, reject) => {
-      db.query(sql, (err, results) => {
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
     });
-
-    res.json(distribution);
-  } catch (error) {
-    console.error('Error fetching status distribution:', error);
-    res.status(500).json({ message: 'Server error fetching status distribution' });
   }
-};
 
-// Controller to get customer analytics
-export const getCustomerAnalytics = (db) => async (req, res) => {
-  try {
+  // Get customer analytics
+  async getCustomerAnalytics() {
     const sql = `
       SELECT
-        COUNT(DISTINCT user_id) as totalCustomers,
-        COUNT(DISTINCT CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN user_id END) as newCustomers30Days,
+        COUNT(DISTINCT so.customer_id) as totalCustomers,
+        COUNT(DISTINCT CASE WHEN so.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN so.customer_id END) as newCustomers30Days,
         AVG(orderCount) as avgOrdersPerCustomer
       FROM (
         SELECT
-          user_id,
+          customer_id,
           COUNT(*) as orderCount
         FROM service_orders
-        WHERE user_id IS NOT NULL
+        WHERE customer_id IS NOT NULL
         AND moved_to_history_at IS NULL
         AND is_deleted = FALSE
-        GROUP BY user_id
+        GROUP BY customer_id
       ) as customerOrders
+      LEFT JOIN service_orders so ON so.customer_id = customerOrders.customer_id
     `;
 
-    const analytics = await new Promise((resolve, reject) => {
-      db.query(sql, (err, results) => {
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, (err, results) => {
         if (err) reject(err);
         else resolve(results[0]);
       });
     });
-
-    res.json(analytics);
-  } catch (error) {
-    console.error('Error fetching customer analytics:', error);
-    res.status(500).json({ message: 'Server error fetching customer analytics' });
   }
-};
 
-// Controller to get top customers
-export const getTopCustomers = (db) => async (req, res) => {
-  const limit = parseInt(req.query.limit) || 10;
-
-  try {
+  // Get top customers
+  async getTopCustomers(limit = 10) {
     const sql = `
       SELECT
-        user_id,
-        name,
-        email,
+        cp.customer_id,
+        cp.name,
+        cp.email,
         COUNT(*) as totalOrders,
-        SUM(total_price) as totalSpent,
-        MAX(created_at) as lastOrderDate
-      FROM service_orders
-      WHERE user_id IS NOT NULL
-      AND moved_to_history_at IS NULL
-      AND is_deleted = FALSE
-      GROUP BY user_id, name, email
+        SUM(so.total_price) as totalSpent,
+        MAX(so.created_at) as lastOrderDate
+      FROM service_orders so
+      LEFT JOIN customers_profiles cp ON so.customer_id = cp.customer_id
+      WHERE so.customer_id IS NOT NULL
+      AND so.moved_to_history_at IS NULL
+      AND so.is_deleted = FALSE
+      GROUP BY so.customer_id, cp.name, cp.email
       ORDER BY totalSpent DESC
       LIMIT ?
     `;
 
-    const customers = await new Promise((resolve, reject) => {
-      db.query(sql, [limit], (err, results) => {
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [limit], (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
     });
-
-    res.json(customers);
-  } catch (error) {
-    console.error('Error fetching top customers:', error);
-    res.status(500).json({ message: 'Server error fetching top customers' });
   }
-};
 
-// Controller to get monthly trends
-export const getMonthlyTrends = (db) => async (req, res) => {
-  const { months = 12 } = req.query;
-
-  try {
+  // Get monthly trends
+  async getMonthlyTrends(months = 12) {
     const sql = `
       SELECT
         DATE_FORMAT(created_at, '%Y-%m') as month,
@@ -254,26 +258,16 @@ export const getMonthlyTrends = (db) => async (req, res) => {
       ORDER BY month DESC
     `;
 
-    const trends = await new Promise((resolve, reject) => {
-      db.query(sql, [months], (err, results) => {
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [months], (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
     });
-
-    res.json(trends);
-  } catch (error) {
-    console.error('Error fetching monthly trends:', error);
-    res.status(500).json({ message: 'Server error fetching monthly trends' });
   }
-};
 
-// Controller to get aggregated analytics data based on range
-export const getAnalyticsData = (db) => async (req, res) => {
-  const { range = '7d' } = req.query;
-  const adminAnalyticsModel = new AdminAnalytics(db);
-
-  try {
+  // Get aggregated analytics data based on range
+  async getAnalyticsData(range = '7d') {
     // Calculate date range based on range parameter
     const now = new Date();
     let startDate, endDate;
@@ -304,7 +298,7 @@ export const getAnalyticsData = (db) => async (req, res) => {
     const endDateStr = endDate.toISOString().split('T')[0];
 
     // Get dashboard stats (filtered by active orders)
-    const dashboardStats = await adminAnalyticsModel.getDashboardStats();
+    const dashboardStats = await this.getDashboardStats();
 
     // Get revenue analytics (filtered by completed orders)
     const revenueAnalytics = await new Promise((resolve, reject) => {
@@ -323,7 +317,7 @@ export const getAnalyticsData = (db) => async (req, res) => {
         ORDER BY date DESC
       `;
 
-      db.query(sql, [startDateStr, endDateStr], (err, results) => {
+      this.db.query(sql, [startDateStr, endDateStr], (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
@@ -343,7 +337,7 @@ export const getAnalyticsData = (db) => async (req, res) => {
         ORDER BY count DESC
       `;
 
-      db.query(sql, [startDateStr, endDateStr], (err, results) => {
+      this.db.query(sql, [startDateStr, endDateStr], (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
@@ -364,7 +358,7 @@ export const getAnalyticsData = (db) => async (req, res) => {
         ORDER BY count DESC
       `;
 
-      db.query(sql, [startDateStr, endDateStr], (err, results) => {
+      this.db.query(sql, [startDateStr, endDateStr], (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
@@ -399,7 +393,7 @@ export const getAnalyticsData = (db) => async (req, res) => {
           END
       `;
 
-      db.query(sql, [startDateStr, endDateStr], (err, results) => {
+      this.db.query(sql, [startDateStr, endDateStr], (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
@@ -421,7 +415,7 @@ export const getAnalyticsData = (db) => async (req, res) => {
         AND is_deleted = FALSE
       `;
 
-      db.query(sql, [prevStartStr, prevEndStr], (err, results) => {
+      this.db.query(sql, [prevStartStr, prevEndStr], (err, results) => {
         if (err) reject(err);
         else resolve(results[0]);
       });
@@ -486,18 +480,19 @@ export const getAnalyticsData = (db) => async (req, res) => {
         SELECT
           service_orders_id as id,
           'order' as type,
-          CONCAT('New order received from ', name) as description,
-          created_at as timestamp,
-          status
-        FROM service_orders
-        WHERE DATE(created_at) BETWEEN ? AND ?
-        AND moved_to_history_at IS NULL
-        AND is_deleted = FALSE
-        ORDER BY created_at DESC
+          CONCAT('New order received from ', cp.name) as description,
+          so.created_at as timestamp,
+          so.status
+        FROM service_orders so
+        LEFT JOIN customers_profiles cp ON so.customer_id = cp.customer_id
+        WHERE DATE(so.created_at) BETWEEN ? AND ?
+        AND so.moved_to_history_at IS NULL
+        AND so.is_deleted = FALSE
+        ORDER BY so.created_at DESC
         LIMIT 10
       `;
 
-      db.query(sql, [startDateStr, endDateStr], (err, results) => {
+      this.db.query(sql, [startDateStr, endDateStr], (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
@@ -509,29 +504,7 @@ export const getAnalyticsData = (db) => async (req, res) => {
     const customerSatisfaction = 4.8;
 
     // Get top customers
-    const topCustomers = await new Promise((resolve, reject) => {
-      const sql = `
-        SELECT
-          user_id,
-          name,
-          email,
-          COUNT(*) as totalOrders,
-          SUM(total_price) as totalSpent,
-          MAX(created_at) as lastOrderDate
-        FROM service_orders
-        WHERE user_id IS NOT NULL
-        AND moved_to_history_at IS NULL
-        AND is_deleted = FALSE
-        GROUP BY user_id, name, email
-        ORDER BY totalSpent DESC
-        LIMIT 5
-      `;
-
-      db.query(sql, (err, results) => {
-        if (err) reject(err);
-        else resolve(results);
-      });
-    });
+    const topCustomers = await this.getTopCustomers(5);
 
     // Compile final response
     const analyticsData = {
@@ -555,9 +528,6 @@ export const getAnalyticsData = (db) => async (req, res) => {
       customerSatisfaction
     };
 
-    res.json(analyticsData);
-  } catch (error) {
-    console.error('Error fetching analytics data:', error);
-    res.status(500).json({ message: 'Server error fetching analytics data' });
+    return analyticsData;
   }
-};
+}

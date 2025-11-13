@@ -38,9 +38,8 @@ const createAdmin = async () => {
 
         // Create admin user
         const insertAdminSql = `
-            INSERT INTO users (firstName, lastName, contact, email, password, role, authProvider, isVerified)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `;
+              INSERT INTO users ( email, password, role, authProvider, isVerified)
+            VALUES ('admin@123.com', '$2b$10$nxERFr6c7ODkt0a1xx1Jg.yBRWq81KdWgOUsBuX9pQ0UvuHN3SnUy','admin', 'email', True)
 
         const values = [
             'Admin',

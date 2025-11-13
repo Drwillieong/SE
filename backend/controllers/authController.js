@@ -25,14 +25,24 @@ export const signup = (db) => async (req, res) => {
     }
 
     const newUser = {
-      firstName: req.body.firstName,
-      lastName: req.body.lastName,
-      contact: req.body.contact,
       email: req.body.email,
       password: req.body.password
     };
 
     const createdUser = await userModel.create(newUser);
+
+    // Create customer profile for the new user
+    const profileData = {
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      contact: req.body.contact,
+      barangay: null,
+      street: null,
+      blockLot: null,
+      landmark: null
+    };
+
+    await userModel.createCustomerProfile(createdUser.user_id, profileData);
     const token = userModel.generateToken({
       user_id: createdUser.user_id,
       firstName: newUser.firstName,

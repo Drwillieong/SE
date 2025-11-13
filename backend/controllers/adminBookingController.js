@@ -253,8 +253,8 @@ export const approveBooking = (db) => async (req, res) => {
       return res.status(400).json({ message: 'Only pending bookings can be approved' });
     }
 
-    // Update status to approved
-    await serviceOrderModel.update(bookingId, { status: 'approved' });
+    // Update status to pending (order is now ready for processing)
+    await serviceOrderModel.update(bookingId, { status: 'pending' });
 
     // Send approval email with payment reminder
     if (booking.email) {

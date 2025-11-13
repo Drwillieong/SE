@@ -400,10 +400,8 @@ const ScheduleBooking = () => {
     try {
       setLoading(true);
 
-      const userAddress = `${userData.street || ''}${userData.blockLot ? `, Block ${userData.blockLot}` : ''}, ${userData.barangay || ''}, Calamba City`;
-
       const bookingPayload = {
-        service_type: formData.mainService,        
+        service_type: formData.mainService,
         // The backend expects a JSON string of IDs, not an array of objects for updates.
         dry_cleaning_services: JSON.stringify(formData.dryCleaningServices || []),
         pickup_date: formData.pickupDate,
@@ -412,10 +410,13 @@ const ScheduleBooking = () => {
         instructions: formData.instructions,
         status: 'pending_booking', // New initial status for a booking request
         payment_method: formData.paymentMethod,
-        name: userData.firstName + ' ' + userData.lastName,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
         contact: userData.contact,
         email: userData.email,
-        address: userAddress,
+        barangay: userData.barangay,
+        street: userData.street,
+        blockLot: userData.blockLot,
         photos: [],
         service_option: formData.serviceOption,
         delivery_fee: formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee,

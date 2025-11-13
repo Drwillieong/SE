@@ -14,11 +14,15 @@ export const getCustomerBookings = (db) => async (req, res) => {
 
     // Get only pending bookings
     const sql = `
-      SELECT * FROM service_orders
-      WHERE user_id = ? AND status = 'pending_booking'
-      AND moved_to_history_at IS NULL
-      AND is_deleted = FALSE
-      ORDER BY created_at DESC
+      SELECT so.*, cp.firstName, cp.lastName, cp.name, cp.contact, cp.email, cp.address,
+             p.payment_method, p.payment_status, p.payment_proof, p.reference_id, p.payment_review_status
+      FROM service_orders so
+      LEFT JOIN customers_profiles cp ON so.customer_id = cp.customer_id
+      LEFT JOIN payments p ON so.service_orders_id = p.service_orders_id
+      WHERE cp.user_id = ? AND so.status = 'pending_booking'
+      AND so.moved_to_history_at IS NULL
+      AND so.is_deleted = FALSE
+      ORDER BY so.created_at DESC
       LIMIT ? OFFSET ?
     `;
     const offset = (page - 1) * limit;
@@ -62,25 +66,37 @@ export const getCustomerOrders = (db) => async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const offset = (page - 1) * limit;
 
-    // Get all orders including pending bookings
+    // Get all orders including pending bookings (use efficient approach to avoid sort memory issues)
+    // Fetch more records and sort in memory
+    const batchSize = limit * 2; // Get more records to ensure we have enough after filtering
+
     const sql = `
-      SELECT * FROM service_orders
-      WHERE user_id = ? AND moved_to_history_at IS NULL AND is_deleted = FALSE
-      ORDER BY created_at DESC
+      SELECT so.*, cp.firstName, cp.lastName, cp.name, cp.contact, cp.email, cp.address,
+             p.payment_method, p.payment_status, p.payment_proof, p.reference_id, p.payment_review_status
+      FROM service_orders so
+      LEFT JOIN customers_profiles cp ON so.customer_id = cp.customer_id
+      LEFT JOIN payments p ON so.service_orders_id = p.service_orders_id
+      WHERE cp.user_id = ? AND so.moved_to_history_at IS NULL AND so.is_deleted = FALSE
       LIMIT ? OFFSET ?
     `;
-    // Note: Ensure composite index on (user_id, moved_to_history_at, is_deleted, created_at) exists to avoid sort memory issues
-    const [results] = await db.promise().query(sql, [userId, limit, offset]);
+    const [results] = await db.promise().query(sql, [userId, batchSize, offset]);
+
+    // Sort the results in memory by created_at (JavaScript sort)
+    results.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    // Take only the number we need
+    const paginatedResults = results.slice(0, limit);
 
     // Get total count
     const countSql = `
-      SELECT COUNT(*) as count FROM service_orders
-      WHERE user_id = ? AND moved_to_history_at IS NULL AND is_deleted = FALSE
+      SELECT COUNT(*) as count FROM service_orders so
+      LEFT JOIN customers_profiles cp ON so.customer_id = cp.customer_id
+      WHERE cp.user_id = ? AND so.moved_to_history_at IS NULL AND so.is_deleted = FALSE
     `;
     const [countResults] = await db.promise().query(countSql, [userId]);
     const totalCount = countResults[0].count;
 
-    const transformedOrders = results.map(order => {
+    const transformedOrders = paginatedResults.map(order => {
       // Cap load_count to prevent incorrect calculations
       const loadCount = Math.min(order.load_count || 1, 5);
 
@@ -220,12 +236,46 @@ export const createCustomerBooking = (db) => async (req, res) => {
     // Note: Dry cleaning prices vary by inspection, so not included in calculation
     const calculatedTotal = mainServicePrice * loadCount + (bookingData.delivery_fee || 0);
 
+    // First, get or create customer profile for this user
+    // Construct name and address from individual fields
+    const fullName = `${bookingData.firstName || ''} ${bookingData.lastName || ''}`.trim();
+    const fullAddress = `${bookingData.street || ''}${bookingData.blockLot ? `, Block ${bookingData.blockLot}` : ''}, ${bookingData.barangay || ''}, Calamba City`.trim();
+
+    const customerSql = `
+      INSERT INTO customers_profiles (user_id, firstName, lastName, name, contact, email, address, barangay, street, blockLot)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        firstName = VALUES(firstName),
+        lastName = VALUES(lastName),
+        name = VALUES(name),
+        contact = VALUES(contact),
+        email = VALUES(email),
+        address = VALUES(address),
+        barangay = VALUES(barangay),
+        street = VALUES(street),
+        blockLot = VALUES(blockLot)
+    `;
+    const customerValues = [
+      req.user.user_id,
+      bookingData.firstName || '',
+      bookingData.lastName || '',
+      fullName,
+      bookingData.contact,
+      bookingData.email || '',
+      fullAddress,
+      bookingData.barangay || '',
+      bookingData.street || '',
+      bookingData.blockLot || ''
+    ];
+    await db.promise().query(customerSql, customerValues);
+
+    // Get the customer_id
+    const getCustomerIdSql = `SELECT customer_id FROM customers_profiles WHERE user_id = ?`;
+    const [customerResult] = await db.promise().query(getCustomerIdSql, [req.user.user_id]);
+    const customerId = customerResult[0].customer_id;
+
     const orderData = {
-      user_id: req.user.user_id,
-      name: bookingData.name,
-      contact: bookingData.contact,
-      email: bookingData.email || '',
-      address: bookingData.address,
+      customer_id: customerId,
       service_type: bookingData.service_type,
       dry_cleaning_services: bookingData.dry_cleaning_services || [],
       pickup_date: bookingData.pickup_date,
@@ -233,7 +283,6 @@ export const createCustomerBooking = (db) => async (req, res) => {
       load_count: loadCount,
       instructions: bookingData.instructions || '',
       total_price: calculatedTotal,
-      payment_method: bookingData.payment_method || 'cash',
       photos: bookingData.photos || [],
       service_option: bookingData.service_option || 'pickupAndDelivery',
       delivery_fee: bookingData.delivery_fee || 0,
@@ -241,6 +290,21 @@ export const createCustomerBooking = (db) => async (req, res) => {
     };
 
     const orderId = await serviceOrderModel.create(orderData);
+
+    // Create payment record if payment method is specified
+    if (bookingData.payment_method) {
+      const { Payment } = await import('../models/Payment.js');
+      const paymentModel = new Payment(db);
+      await paymentModel.create({
+        service_orders_id: orderId,
+        payment_method: bookingData.payment_method,
+        total_price: calculatedTotal,
+        payment_status: 'unpaid',
+        payment_proof: null,
+        reference_id: null,
+        payment_review_status: 'pending'
+      });
+    }
 
     // Increment booking count for the date
     try {
@@ -374,9 +438,13 @@ export const getCustomerHistory = (db) => async (req, res) => {
     const userId = req.user.user_id;
     // Get all history items: completed orders, moved to history, or soft deleted
     const sql = `
-      SELECT * FROM service_orders
-      WHERE user_id = ? AND (moved_to_history_at IS NOT NULL OR is_deleted = TRUE OR status IN ('completed', 'rejected', 'cancelled'))
-      ORDER BY COALESCE(moved_to_history_at, deleted_at, updated_at) DESC
+      SELECT so.*, cp.firstName, cp.lastName, cp.name, cp.contact, cp.email, cp.address,
+             p.payment_method, p.payment_status, p.payment_proof, p.reference_id, p.payment_review_status
+      FROM service_orders so
+      LEFT JOIN customers_profiles cp ON so.customer_id = cp.customer_id
+      LEFT JOIN payments p ON so.service_orders_id = p.service_orders_id
+      WHERE cp.user_id = ? AND (so.moved_to_history_at IS NOT NULL OR so.is_deleted = TRUE OR so.status IN ('completed', 'rejected', 'cancelled'))
+      ORDER BY COALESCE(so.moved_to_history_at, so.deleted_at, so.updated_at) DESC
     `;
     const [results] = await db.promise().query(sql, [userId]);
 
@@ -449,20 +517,19 @@ export const updateCustomerProfile = (db) => async (req, res) => {
   }
 
   const userId = req.user.user_id;
-  const { firstName, lastName, contact, email, barangay, street, blockLot, landmark } = req.body;
+  const { firstName, lastName, contact, barangay, street, blockLot, landmark } = req.body;
 
-  const sql = `UPDATE users SET
+  const sql = `UPDATE customers_profiles SET
     firstName = ?,
     lastName = ?,
     contact = ?,
-    email = ?,
     barangay = ?,
     street = ?,
     blockLot = ?,
     landmark = ?
     WHERE user_id = ?`;
 
-  const values = [firstName, lastName, contact, email, barangay, street, blockLot, landmark, userId];
+  const values = [firstName, lastName, contact, barangay, street, blockLot, landmark, userId];
 
   db.query(sql, values, (err, result) => {
     if (err) {
@@ -471,11 +538,16 @@ export const updateCustomerProfile = (db) => async (req, res) => {
     }
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: 'User profile not found' });
     }
 
-    // Fetch updated user data
-    const selectSql = "SELECT user_id, firstName, lastName, contact, email, barangay, street, blockLot, landmark FROM users WHERE user_id = ?";
+    // Fetch updated user data with profile join
+    const selectSql = `
+      SELECT u.user_id, u.email, u.role, cp.firstName, cp.lastName, cp.contact, cp.barangay, cp.street, cp.blockLot, cp.landmark
+      FROM users u
+      LEFT JOIN customers_profiles cp ON u.user_id = cp.user_id
+      WHERE u.user_id = ?
+    `;
     db.query(selectSql, [userId], (err, userResult) => {
       if (err) {
         console.error('Error fetching updated user:', err);
@@ -495,7 +567,12 @@ export const getCustomerProfile = (db) => async (req, res) => {
 
   const userId = req.user.user_id;
 
-  const sql = "SELECT user_id, firstName, lastName, contact, email, barangay, street, blockLot, landmark, role FROM users WHERE user_id = ?";
+  const sql = `
+    SELECT u.user_id, u.email, u.role, cp.firstName, cp.lastName, cp.contact, cp.barangay, cp.street, cp.blockLot, cp.landmark
+    FROM users u
+    LEFT JOIN customers_profiles cp ON u.user_id = cp.user_id
+    WHERE u.user_id = ?
+  `;
   db.query(sql, [userId], (err, results) => {
     if (err) {
       console.error('Error fetching profile:', err);

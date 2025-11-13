@@ -34,8 +34,13 @@ export default (db) => {
             console.log('User ID:', req.user.user_id);
             console.log('User email:', req.user.email);
 
-            // Check if user profile is complete
-            const checkProfileSql = "SELECT user_id, barangay, street, firstName, lastName, role FROM users WHERE user_id = ?";
+            // Check if user profile is complete (for customers only)
+            const checkProfileSql = `
+                SELECT u.user_id, u.role, cp.barangay, cp.street, cp.firstName, cp.lastName
+                FROM users u
+                LEFT JOIN customers_profiles cp ON u.user_id = cp.user_id
+                WHERE u.user_id = ?
+            `;
             console.log('Checking profile for user ID:', req.user.user_id);
             db.query(checkProfileSql, [req.user.user_id], (err, profileResult) => {
                 if (err) {
@@ -88,8 +93,14 @@ export default (db) => {
                     role: userProfile.role
                 });
 
-                const profileComplete = !!(userProfile.barangay && userProfile.street);
-                const userRole = userProfile.role || 'customer';
+                const userRole = userProfile.role || 'user';
+                let profileComplete = true;
+
+                // Only check profile completeness for customers (role 'user')
+                if (userRole === 'user') {
+                    profileComplete = !!(userProfile.barangay && userProfile.street);
+                }
+
                 console.log('Profile complete check result:', profileComplete);
                 console.log('Barangay value:', userProfile.barangay, 'Street value:', userProfile.street);
                 console.log('User role:', userRole);
@@ -99,8 +110,8 @@ export default (db) => {
                     {
                         user_id: req.user.user_id,
                         email: req.user.email,
-                        firstName: req.user.firstName,
-                        lastName: req.user.lastName,
+                        firstName: userProfile.firstName,
+                        lastName: userProfile.lastName,
                         role: userRole
                     },
                     process.env.JWT_SECRET || 'your_jwt_secret',
@@ -150,10 +161,15 @@ export default (db) => {
             const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
             console.log('Auth /me - Token decoded successfully:', decoded);
 
-            // Get user data from database to check if profile is complete
+            // Get user data from database with profile join
             const userId = decoded.user_id;
             console.log('Auth /me - Fetching user data for ID:', userId);
-            const selectQuery = 'SELECT * FROM users WHERE user_id = ?';
+            const selectQuery = `
+                SELECT u.*, cp.firstName, cp.lastName, cp.contact, cp.barangay, cp.street, cp.blockLot, cp.landmark
+                FROM users u
+                LEFT JOIN customers_profiles cp ON u.user_id = cp.user_id
+                WHERE u.user_id = ?
+            `;
             db.query(selectQuery, [userId], (err, rows) => {
                 if (err) {
                     console.error('Auth /me - Error fetching user:', err);
@@ -177,14 +193,20 @@ export default (db) => {
                     barangay: user.barangay,
                     street: user.street,
                     blockLot: user.blockLot,
-                    landmark: user.landmark
+                    landmark: user.landmark,
+                    role: user.role
                 });
 
-                // Check if profile is complete (has barangay and street)
-                const profileComplete = !!(user.barangay && user.street);
+                let profileComplete = true;
+                // Only check profile completeness for customers (role 'user')
+                if (user.role === 'user') {
+                    profileComplete = !!(user.barangay && user.street);
+                }
+
                 console.log('Auth /me - Profile complete calculation:', {
                     barangay: user.barangay,
                     street: user.street,
+                    role: user.role,
                     profileComplete
                 });
 
@@ -221,14 +243,14 @@ export default (db) => {
 
             const { firstName, lastName, contact, email, barangay, street, blockLot, landmark } = req.body;
 
-            // Update user in database
+            // Update customer profile in database
             const updateQuery = `
-                UPDATE users
-                SET firstName = ?, lastName = ?, contact = ?, email = ?, barangay = ?, street = ?, blockLot = ?, landmark = ?
+                UPDATE customers_profiles
+                SET firstName = ?, lastName = ?, contact = ?, barangay = ?, street = ?, blockLot = ?, landmark = ?
                 WHERE user_id = ?
             `;
 
-            db.query(updateQuery, [firstName, lastName, contact, email, barangay, street, blockLot, landmark, userId], (err, result) => {
+            db.query(updateQuery, [firstName, lastName, contact, barangay, street, blockLot, landmark, userId], (err, result) => {
                 if (err) {
                     console.error('Error updating profile:', err);
                     return res.status(500).json({ success: false, message: 'Server error' });
@@ -238,8 +260,13 @@ export default (db) => {
                     return res.status(404).json({ success: false, message: 'User not found' });
                 }
 
-                // Get updated user data
-                const selectQuery = 'SELECT * FROM users WHERE user_id = ?';
+                // Get updated user data with profile join
+                const selectQuery = `
+                    SELECT u.*, cp.firstName, cp.lastName, cp.contact, cp.barangay, cp.street, cp.blockLot, cp.landmark
+                    FROM users u
+                    LEFT JOIN customers_profiles cp ON u.user_id = cp.user_id
+                    WHERE u.user_id = ?
+                `;
                 db.query(selectQuery, [userId], (err, rows) => {
                     if (err) {
                         console.error('Error fetching updated user:', err);
