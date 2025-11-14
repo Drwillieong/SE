@@ -714,7 +714,7 @@ const ScheduleBooking = () => {
           <h2 className="text-xl font-bold mb-4">Profile Incomplete</h2>
           <p className="mb-4">Please complete your profile information before booking.</p>
           <button
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate('/customer-dashboard/profile')}
             className="bg-pink-600 text-white px-4 py-2 rounded-md hover:bg-pink-700"
           >
             Complete Profile

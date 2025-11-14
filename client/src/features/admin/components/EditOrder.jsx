@@ -2,6 +2,18 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import apiClient from '../../../utils/axios';
 
+const calambaBarangays = [
+    "Banlic", "Barandal", "Batino", "Bubuyan", "Bucal", "Bunggo",
+    "Burol", "Camaligan", "Canlubang", "Halang", "Hornalan",
+    "Kay-Anlog", "La Mesa", "Laguerta", "Lawa", "Lecheria",
+    "Lingga", "Looc", "Mabato", "Majada Labas", "Makiling",
+    "Mapagong", "Masili", "Maunong", "Mayapa", "Paciano Rizal",
+    "Palingon", "Palo-Alto", "Pansol", "Parian", "Prinza",
+    "Punta", "Puting Lupa", "Real", "Saimsim", "Sampiruhan",
+    "San Cristobal", "San Jose", "San Juan", "Sirang Lupa",
+    "Sucol", "Turbina", "Ulango", "Uwisan"
+];
+
 const mainServices = [
     {
         id: 'washDryFold',
@@ -52,10 +64,16 @@ const EditOrder = () => {
         loadCount: 1,
         instructions: '',
         paymentMethod: 'cash',
+        firstName: '',
+        lastName: '',
         name: '',
         contact: '',
         email: '',
         address: '',
+        barangay: '',
+        street: '',
+        blockLot: '',
+        landmark: '',
         kilos: 0,
         status: 'pending',
         dryCleaningServices: [],
@@ -78,11 +96,16 @@ const EditOrder = () => {
                 loadCount: order.loadCount || 1,
                 instructions: order.instructions || '',
                 paymentMethod: order.paymentMethod || 'cash',
+                firstName: order.firstName || '',
+                lastName: order.lastName || '',
                 name: order.name || '',
                 contact: order.contact || '',
                 email: order.email || '',
                 address: order.address || '',
-
+                barangay: order.barangay || '',
+                street: order.street || '',
+                blockLot: order.blockLot || '',
+                landmark: order.landmark || '',
                 kilos: order.kilos || 0,
                 status: order.status || 'pending',
                 dryCleaningServices: order.dryCleaningServices || [],
@@ -303,59 +326,144 @@ const EditOrder = () => {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Customer Name
-                        </label>
-                        <input
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                        />
-                    </div>
+                    {/* Customer Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                First Name *
+                            </label>
+                            <input
+                                type="text"
+                                name="firstName"
+                                value={formData.firstName}
+                                onChange={(e) => {
+                                    handleChange(e);
+                                    // Update full name when first name changes
+                                    const fullName = `${e.target.value} ${formData.lastName || ''}`.trim();
+                                    setFormData(prev => ({ ...prev, name: fullName }));
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Last Name *
+                            </label>
+                            <input
+                                type="text"
+                                name="lastName"
+                                value={formData.lastName}
+                                onChange={(e) => {
+                                    handleChange(e);
+                                    // Update full name when last name changes
+                                    const fullName = `${formData.firstName || ''} ${e.target.value}`.trim();
+                                    setFormData(prev => ({ ...prev, name: fullName }));
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                        </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Contact Number
-                        </label>
-                        <input
-                            type="tel"
-                            name="contact"
-                            value={formData.contact}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                        />
-                    </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Contact Number *
+                            </label>
+                            <input
+                                type="tel"
+                                name="contact"
+                                value={formData.contact}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                        </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Email (Optional)
-                        </label>
-                        <input
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Email (Optional)
+                            </label>
+                            <input
+                                type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Address
-                        </label>
-                        <textarea
-                            name="address"
-                            value={formData.address}
-                            onChange={handleChange}
-                            rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                        />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Barangay *
+                            </label>
+                            <select
+                                name="barangay"
+                                value={formData.barangay}
+                                onChange={(e) => {
+                                    handleChange(e);
+                                    // Update the address in formData
+                                    const address = `${formData.street || ''}${formData.blockLot ? `, Block ${formData.blockLot}` : ''}, ${e.target.value || ''}, Calamba City`;
+                                    setFormData(prev => ({ ...prev, address }));
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            >
+                                <option value="">Select Barangay</option>
+                                {calambaBarangays.map(brgy => (
+                                    <option key={brgy} value={brgy}>{brgy}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Street *
+                            </label>
+                            <input
+                                type="text"
+                                name="street"
+                                value={formData.street}
+                                onChange={(e) => {
+                                    handleChange(e);
+                                    // Update the address in formData
+                                    const address = `${e.target.value || ''}${formData.blockLot ? `, Block ${formData.blockLot}` : ''}, ${formData.barangay || ''}, Calamba City`;
+                                    setFormData(prev => ({ ...prev, address }));
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="e.g. Rizal Street"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Block/Lot Number (Optional)
+                            </label>
+                            <input
+                                type="text"
+                                name="blockLot"
+                                value={formData.blockLot}
+                                onChange={(e) => {
+                                    handleChange(e);
+                                    // Update the address in formData
+                                    const address = `${formData.street || ''}${e.target.value ? `, Block ${e.target.value}` : ''}, ${formData.barangay || ''}, Calamba City`;
+                                    setFormData(prev => ({ ...prev, address }));
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="e.g. Block 5 Lot 12"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Landmark (Optional)
+                            </label>
+                            <input
+                                type="text"
+                                name="landmark"
+                                value={formData.landmark || ''}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="e.g. Near Calamba City Hall"
+                            />
+                        </div>
                     </div>
 
                     <div>

@@ -3,14 +3,32 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../../../utils/axios';
 import { authUtils } from '../../../utils/auth';
 
+const calambaBarangays = [
+    "Banlic", "Barandal", "Batino", "Bubuyan", "Bucal", "Bunggo",
+    "Burol", "Camaligan", "Canlubang", "Halang", "Hornalan",
+    "Kay-Anlog", "La Mesa", "Laguerta", "Lawa", "Lecheria",
+    "Lingga", "Looc", "Mabato", "Majada Labas", "Makiling",
+    "Mapagong", "Masili", "Maunong", "Mayapa", "Paciano Rizal",
+    "Palingon", "Palo-Alto", "Pansol", "Parian", "Prinza",
+    "Punta", "Puting Lupa", "Real", "Saimsim", "Sampiruhan",
+    "San Cristobal", "San Jose", "San Juan", "Sirang Lupa",
+    "Sucol", "Turbina", "Ulango", "Uwisan"
+];
+
 const CreateOrder = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
+        firstName: '',
+        lastName: '',
         name: '',
         contact: '',
         email: '',
         address: '',
+        barangay: '',
+        street: '',
+        blockLot: '',
+        landmark: '',
         mainService: 'washDryFold',
         dryCleaningServices: [],
         loadCount: 1,
@@ -143,7 +161,12 @@ const CreateOrder = () => {
                 contact: formData.contact,
                 email: formData.email,
                 address: formData.address,
-               
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                barangay: formData.barangay,
+                street: formData.street,
+                blockLot: formData.blockLot,
+                landmark: formData.landmark,
                 dryCleaningServices: formData.dryCleaningServices, // Add this
                 dryCleaningPrices: formData.dryCleaningPrices, // Add this
                 totalPrice: calculateTotal(),
@@ -155,16 +178,22 @@ const CreateOrder = () => {
 
                 // Reset form
                 setFormData({
+                    firstName: '',
+                    lastName: '',
                     name: '',
                     contact: '',
                     email: '',
                     address: '',
+                    barangay: '',
+                    street: '',
+                    blockLot: '',
+                    landmark: '',
                     mainService: 'washDryFold',
                     dryCleaningServices: [],
                     loadCount: 1,
                     paymentMethod: 'cash',
                     serviceOption: 'pickupAndDelivery',
-                   
+
                     instructions: '',
                     kilos: 0,
                     dryCleaningPrices: {},
@@ -204,13 +233,36 @@ const CreateOrder = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Customer Name *
+                                First Name *
                             </label>
                             <input
                                 type="text"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
+                                name="firstName"
+                                value={formData.firstName}
+                                onChange={(e) => {
+                                    handleChange(e);
+                                    // Update full name when first name changes
+                                    const fullName = `${e.target.value} ${formData.lastName || ''}`.trim();
+                                    setFormData(prev => ({ ...prev, name: fullName }));
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Last Name *
+                            </label>
+                            <input
+                                type="text"
+                                name="lastName"
+                                value={formData.lastName}
+                                onChange={(e) => {
+                                    handleChange(e);
+                                    // Update full name when last name changes
+                                    const fullName = `${formData.firstName || ''} ${e.target.value}`.trim();
+                                    setFormData(prev => ({ ...prev, name: fullName }));
+                                }}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 required
                             />
@@ -245,15 +297,74 @@ const CreateOrder = () => {
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Full Address *
+                                Barangay *
                             </label>
-                            <textarea
-                                name="address"
-                                value={formData.address}
-                                onChange={handleChange}
-                                rows={3}
+                            <select
+                                name="barangay"
+                                value={formData.barangay}
+                                onChange={(e) => {
+                                    handleChange(e);
+                                    // Update the address in formData
+                                    const address = `${formData.street || ''}${formData.blockLot ? `, Block ${formData.blockLot}` : ''}, ${e.target.value || ''}, Calamba City`;
+                                    setFormData(prev => ({ ...prev, address }));
+                                }}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 required
+                            >
+                                <option value="">Select Barangay</option>
+                                {calambaBarangays.map(brgy => (
+                                    <option key={brgy} value={brgy}>{brgy}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Street *
+                            </label>
+                            <input
+                                type="text"
+                                name="street"
+                                value={formData.street}
+                                onChange={(e) => {
+                                    handleChange(e);
+                                    // Update the address in formData
+                                    const address = `${e.target.value || ''}${formData.blockLot ? `, Block ${formData.blockLot}` : ''}, ${formData.barangay || ''}, Calamba City`;
+                                    setFormData(prev => ({ ...prev, address }));
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="e.g. Rizal Street"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Block/Lot Number (Optional)
+                            </label>
+                            <input
+                                type="text"
+                                name="blockLot"
+                                value={formData.blockLot}
+                                onChange={(e) => {
+                                    handleChange(e);
+                                    // Update the address in formData
+                                    const address = `${formData.street || ''}${e.target.value ? `, Block ${e.target.value}` : ''}, ${formData.barangay || ''}, Calamba City`;
+                                    setFormData(prev => ({ ...prev, address }));
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="e.g. Block 5 Lot 12"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Landmark (Optional)
+                            </label>
+                            <input
+                                type="text"
+                                name="landmark"
+                                value={formData.landmark || ''}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="e.g. Near Calamba City Hall"
                             />
                         </div>
                     </div>

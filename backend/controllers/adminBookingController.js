@@ -143,6 +143,20 @@ export const createAdminBooking = (db) => async (req, res) => {
 
     const orderId = await serviceOrderModel.create(orderData);
 
+    // Increment booking count for the date (admin bookings also count toward availability)
+    try {
+      const updateCountSql = `
+        INSERT INTO booking_counts (date, count, limit_count)
+        VALUES (?, 1, 3)
+        ON DUPLICATE KEY UPDATE count = count + 1
+      `;
+      await db.promise().query(updateCountSql, [bookingData.pickup_date]);
+      console.log(`Booking count incremented for date: ${bookingData.pickup_date}`);
+    } catch (countError) {
+      console.error('Error updating booking count:', countError);
+      // Don't fail the booking if count update fails
+    }
+
     // Emit real-time update for booking counts
     if (req.io) {
       req.io.emit('booking-counts-updated', { date: bookingData.pickup_date, change: 1 });
@@ -193,17 +207,34 @@ export const updateBooking = (db) => async (req, res) => {
 
     // Update booking counts if status changed from active to non-active
     if (updates.status && (currentBooking.status === 'pending' || currentBooking.status === 'pending_booking' || currentBooking.status === 'approved') && updates.status !== 'pending' && updates.status !== 'pending_booking' && updates.status !== 'approved') {
+      // Use transaction to ensure atomic decrement and delete operations
+      const connection = await db.promise().getConnection();
       try {
-        // Delete the booking count entry for this date since the booking is no longer active
-        const deleteCountSql = `
-          DELETE FROM booking_counts
+        await connection.beginTransaction();
+
+        // Decrement the count for this date
+        const decrementSql = `
+          UPDATE booking_counts
+          SET count = GREATEST(count - 1, 0)
           WHERE date = ?
         `;
-        await db.promise().query(deleteCountSql, [currentBooking.pickup_date]);
-        console.log(`Booking count entry deleted for date: ${currentBooking.pickup_date} due to status change to ${updates.status}`);
+        await connection.query(decrementSql, [currentBooking.pickup_date]);
+
+        // Delete the row if count reaches 0
+        const deleteIfZeroSql = `
+          DELETE FROM booking_counts
+          WHERE date = ? AND count = 0
+        `;
+        await connection.query(deleteIfZeroSql, [currentBooking.pickup_date]);
+
+        await connection.commit();
+        console.log(`Booking count decremented for date: ${currentBooking.pickup_date} due to status change to ${updates.status}`);
       } catch (countError) {
-        console.error('Error deleting booking count on status change:', countError);
-        // Don't fail the update if count deletion fails
+        await connection.rollback();
+        console.error('Error updating booking count on status change:', countError);
+        // Don't fail the update if count update fails
+      } finally {
+        connection.release();
       }
 
       // Emit real-time update for booking counts
@@ -235,18 +266,36 @@ export const deleteBooking = (db) => async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // Delete booking count entry for the date if the booking was active
+    // Decrement booking count entry for the date if the booking was active
     if (booking.status === 'pending' || booking.status === 'pending_booking' || booking.status === 'approved') {
+      // Use transaction to ensure atomic decrement and delete operations
+      const connection = await db.promise().getConnection();
       try {
-        const deleteCountSql = `
-          DELETE FROM booking_counts
+        await connection.beginTransaction();
+
+        // Decrement the count for this date
+        const decrementSql = `
+          UPDATE booking_counts
+          SET count = GREATEST(count - 1, 0)
           WHERE date = ?
         `;
-        await db.promise().query(deleteCountSql, [booking.pickup_date]);
-        console.log(`Booking count entry deleted for date: ${booking.pickup_date} due to deletion`);
+        await connection.query(decrementSql, [booking.pickup_date]);
+
+        // Delete the row if count reaches 0
+        const deleteIfZeroSql = `
+          DELETE FROM booking_counts
+          WHERE date = ? AND count = 0
+        `;
+        await connection.query(deleteIfZeroSql, [booking.pickup_date]);
+
+        await connection.commit();
+        console.log(`Booking count decremented for date: ${booking.pickup_date} due to deletion`);
       } catch (countError) {
-        console.error('Error deleting booking count on deletion:', countError);
-        // Don't fail the deletion if count deletion fails
+        await connection.rollback();
+        console.error('Error updating booking count on deletion:', countError);
+        // Don't fail the deletion if count update fails
+      } finally {
+        connection.release();
       }
     }
 

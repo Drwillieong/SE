@@ -170,19 +170,21 @@ export const getCustomerAnalytics = (db) => async (req, res) => {
   try {
     const sql = `
       SELECT
-        COUNT(DISTINCT user_id) as totalCustomers,
-        COUNT(DISTINCT CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN user_id END) as newCustomers30Days,
+        COUNT(DISTINCT cp.user_id) as totalCustomers,
+        COUNT(DISTINCT CASE WHEN so.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN cp.user_id END) as newCustomers30Days,
         AVG(orderCount) as avgOrdersPerCustomer
       FROM (
         SELECT
-          user_id,
+          customer_id,
           COUNT(*) as orderCount
         FROM service_orders
-        WHERE user_id IS NOT NULL
+        WHERE customer_id IS NOT NULL
         AND moved_to_history_at IS NULL
         AND is_deleted = FALSE
-        GROUP BY user_id
+        GROUP BY customer_id
       ) as customerOrders
+      LEFT JOIN customers_profiles cp ON customerOrders.customer_id = cp.customer_id
+      WHERE cp.user_id IS NOT NULL
     `;
 
     const analytics = await new Promise((resolve, reject) => {
@@ -206,17 +208,18 @@ export const getTopCustomers = (db) => async (req, res) => {
   try {
     const sql = `
       SELECT
-        user_id,
-        name,
-        email,
+        cp.user_id,
+        cp.name,
+        cp.email,
         COUNT(*) as totalOrders,
-        SUM(total_price) as totalSpent,
-        MAX(created_at) as lastOrderDate
-      FROM service_orders
-      WHERE user_id IS NOT NULL
-      AND moved_to_history_at IS NULL
-      AND is_deleted = FALSE
-      GROUP BY user_id, name, email
+        SUM(so.total_price) as totalSpent,
+        MAX(so.created_at) as lastOrderDate
+      FROM service_orders so
+      LEFT JOIN customers_profiles cp ON so.customer_id = cp.customer_id
+      WHERE cp.user_id IS NOT NULL
+      AND so.moved_to_history_at IS NULL
+      AND so.is_deleted = FALSE
+      GROUP BY cp.user_id, cp.name, cp.email
       ORDER BY totalSpent DESC
       LIMIT ?
     `;
@@ -484,16 +487,17 @@ export const getAnalyticsData = (db) => async (req, res) => {
     const recentActivity = await new Promise((resolve, reject) => {
       const sql = `
         SELECT
-          service_orders_id as id,
+          so.service_orders_id as id,
           'order' as type,
-          CONCAT('New order received from ', name) as description,
-          created_at as timestamp,
-          status
-        FROM service_orders
-        WHERE DATE(created_at) BETWEEN ? AND ?
-        AND moved_to_history_at IS NULL
-        AND is_deleted = FALSE
-        ORDER BY created_at DESC
+          CONCAT('New order received from ', cp.name) as description,
+          so.created_at as timestamp,
+          so.status
+        FROM service_orders so
+        LEFT JOIN customers_profiles cp ON so.customer_id = cp.customer_id
+        WHERE DATE(so.created_at) BETWEEN ? AND ?
+        AND so.moved_to_history_at IS NULL
+        AND so.is_deleted = FALSE
+        ORDER BY so.created_at DESC
         LIMIT 10
       `;
 
@@ -512,17 +516,18 @@ export const getAnalyticsData = (db) => async (req, res) => {
     const topCustomers = await new Promise((resolve, reject) => {
       const sql = `
         SELECT
-          user_id,
-          name,
-          email,
+          cp.user_id,
+          cp.name,
+          cp.email,
           COUNT(*) as totalOrders,
-          SUM(total_price) as totalSpent,
-          MAX(created_at) as lastOrderDate
-        FROM service_orders
-        WHERE user_id IS NOT NULL
-        AND moved_to_history_at IS NULL
-        AND is_deleted = FALSE
-        GROUP BY user_id, name, email
+          SUM(so.total_price) as totalSpent,
+          MAX(so.created_at) as lastOrderDate
+        FROM service_orders so
+        LEFT JOIN customers_profiles cp ON so.customer_id = cp.customer_id
+        WHERE cp.user_id IS NOT NULL
+        AND so.moved_to_history_at IS NULL
+        AND so.is_deleted = FALSE
+        GROUP BY cp.user_id, cp.name, cp.email
         ORDER BY totalSpent DESC
         LIMIT 5
       `;

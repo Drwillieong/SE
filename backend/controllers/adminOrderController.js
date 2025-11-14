@@ -79,6 +79,52 @@ export const createOrder = (db) => async (req, res) => {
       }));
     }
 
+    // Always create customer profile for admin-created orders
+    const customerData = {
+      user_id: null, // Admin-created orders don't have a user account
+      firstName: req.body.firstName || '',
+      lastName: req.body.lastName || '',
+      name: req.body.name || `${req.body.firstName || ''} ${req.body.lastName || ''}`.trim() || 'Unknown Customer',
+      contact: req.body.contact || '',
+      email: req.body.email || '',
+      address: req.body.address || '',
+      barangay: req.body.barangay || '',
+      street: req.body.street || '',
+      blockLot: req.body.blockLot || '',
+      landmark: req.body.landmark || ''
+    };
+
+    // Insert into customers_profiles table
+    const customerSql = `
+      INSERT INTO customers_profiles (user_id, firstName, lastName, name, contact, email, address, barangay, street, blockLot, landmark)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    const customerValues = [
+      customerData.user_id,
+      customerData.firstName,
+      customerData.lastName,
+      customerData.name,
+      customerData.contact,
+      customerData.email,
+      customerData.address,
+      customerData.barangay,
+      customerData.street,
+      customerData.blockLot,
+      customerData.landmark
+    ];
+
+    const customerResult = await new Promise((resolve, reject) => {
+      db.query(customerSql, customerValues, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+
+    const customerId = customerResult.insertId;
+
+    // Add customer_id to order data
+    orderData.customer_id = customerId;
+
     const orderId = await serviceOrderModel.create(orderData);
 
     // Emit WebSocket notification
@@ -92,7 +138,7 @@ export const createOrder = (db) => async (req, res) => {
       if (orderData.customer_id) {
         // Get user_id from customer profile for WebSocket notification
         const customerSql = 'SELECT user_id FROM customers_profiles WHERE customer_id = ?';
-        this.db.query(customerSql, [orderData.customer_id], (err, customerResults) => {
+        db.query(customerSql, [orderData.customer_id], (err, customerResults) => {
           if (!err && customerResults.length > 0 && customerResults[0].user_id) {
             global.io.to(`user_${customerResults[0].user_id}`).emit('your-order-created', {
               order_id: orderId,
@@ -125,67 +171,101 @@ export const updateOrder = (db) => async (req, res) => {
     }));
   }
 
+  // Separate customer fields from order fields
+  const customerFields = {};
+  const orderFields = {};
+
+  // Define which fields belong to customers_profiles vs service_orders
+  const customerFieldMappings = {
+    name: 'name',
+    contact: 'contact',
+    email: 'email',
+    address: 'address',
+    firstName: 'firstName',
+    lastName: 'lastName',
+    barangay: 'barangay',
+    street: 'street',
+    blockLot: 'blockLot',
+    landmark: 'landmark'
+  };
+
+  // Split fields into customer and order updates
+  Object.keys(updates).forEach(key => {
+    if (customerFieldMappings[key] && updates[key] !== undefined) {
+      customerFields[customerFieldMappings[key]] = updates[key];
+    } else if (updates[key] !== undefined) {
+      orderFields[key] = updates[key];
+    }
+  });
+
+  // Remove customer fields from orderFields to prevent them from being added to order updates
+  Object.keys(customerFieldMappings).forEach(customerKey => {
+    delete orderFields[customerKey];
+  });
+
   // Transform camelCase field names to snake_case for database compatibility
-  // Only include fields that are actually provided (not undefined)
-  const transformedUpdates = {};
+  const transformedOrderUpdates = {};
 
   // Helper function to add field if provided
   const addIfProvided = (snakeKey, value) => {
     if (value !== undefined) {
-      transformedUpdates[snakeKey] = value;
+      transformedOrderUpdates[snakeKey] = value;
     }
   };
 
-  // Add provided fields
-  addIfProvided('service_type', updates.service_type || updates.serviceType);
-  addIfProvided('load_count', updates.load_count || updates.loadCount);
-  addIfProvided('payment_method', updates.payment_method || updates.paymentMethod);
-  addIfProvided('payment_status', updates.payment_status || updates.paymentStatus);
-  addIfProvided('dry_cleaning_services', updates.dry_cleaning_services || updates.dryCleaningServices);
-  addIfProvided('pickup_date', updates.pickup_date || updates.pickupDate);
-  addIfProvided('pickup_time', updates.pickup_time || updates.pickupTime);
-  addIfProvided('laundry_photos', updates.laundry_photos || updates.laundryPhoto);
-  addIfProvided('rejection_reason', updates.rejection_reason || updates.rejectionReason);
-  addIfProvided('service_option', updates.service_option || updates.serviceOption);
-  addIfProvided('delivery_fee', updates.delivery_fee || updates.deliveryFee);
-  addIfProvided('total_price', updates.total_price || updates.totalPrice);
-  addIfProvided('payment_proof', updates.payment_proof || updates.paymentProof);
-  addIfProvided('reference_id', updates.reference_id || updates.referenceId);
-  addIfProvided('payment_review_status', updates.payment_review_status || updates.paymentReviewStatus);
-  addIfProvided('timer_start', updates.timer_start || updates.timerStart);
-  addIfProvided('timer_end', updates.timer_end || updates.timerEnd);
-  addIfProvided('auto_advance_enabled', updates.auto_advance_enabled || updates.autoAdvanceEnabled);
-  addIfProvided('current_timer_status', updates.current_timer_status || updates.currentTimerStatus);
-  addIfProvided('moved_to_history_at', updates.moved_to_history_at || updates.movedToHistoryAt);
-  addIfProvided('is_deleted', updates.is_deleted || updates.isDeleted);
-  addIfProvided('deleted_at', updates.deleted_at || updates.deletedAt);
+  // Add order-specific fields
+  addIfProvided('service_type', orderFields.service_type || orderFields.serviceType);
+  addIfProvided('load_count', orderFields.load_count || orderFields.loadCount);
+  addIfProvided('payment_method', orderFields.payment_method || orderFields.paymentMethod);
+  addIfProvided('payment_status', orderFields.payment_status || orderFields.paymentStatus);
+  addIfProvided('dry_cleaning_services', orderFields.dry_cleaning_services || orderFields.dryCleaningServices);
+  addIfProvided('pickup_date', orderFields.pickup_date || orderFields.pickupDate);
+  addIfProvided('pickup_time', orderFields.pickup_time || orderFields.pickupTime);
+  addIfProvided('laundry_photos', orderFields.laundry_photos || orderFields.laundryPhoto);
+  addIfProvided('rejection_reason', orderFields.rejection_reason || orderFields.rejectionReason);
+  addIfProvided('service_option', orderFields.service_option || orderFields.serviceOption);
+  addIfProvided('delivery_fee', orderFields.delivery_fee || orderFields.deliveryFee);
+  addIfProvided('total_price', orderFields.total_price || orderFields.totalPrice);
+  addIfProvided('payment_proof', orderFields.payment_proof || orderFields.paymentProof);
+  addIfProvided('reference_id', orderFields.reference_id || orderFields.referenceId);
+  addIfProvided('payment_review_status', orderFields.payment_review_status || orderFields.paymentReviewStatus);
+  addIfProvided('timer_start', orderFields.timer_start || orderFields.timerStart);
+  addIfProvided('timer_end', orderFields.timer_end || orderFields.timerEnd);
+  addIfProvided('auto_advance_enabled', orderFields.auto_advance_enabled || orderFields.autoAdvanceEnabled);
+  addIfProvided('current_timer_status', orderFields.current_timer_status || orderFields.currentTimerStatus);
+  addIfProvided('moved_to_history_at', orderFields.moved_to_history_at || orderFields.movedToHistoryAt);
+  addIfProvided('is_deleted', orderFields.is_deleted || orderFields.isDeleted);
+  addIfProvided('deleted_at', orderFields.deleted_at || orderFields.deletedAt);
+  addIfProvided('status', orderFields.status);
+  addIfProvided('instructions', orderFields.instructions);
+  addIfProvided('kilos', orderFields.kilos);
 
-  // Add direct fields if provided
-  Object.keys(updates).forEach(key => {
-    if (!transformedUpdates[key] && updates[key] !== undefined) {
-      transformedUpdates[key] = updates[key];
+  // Add any remaining direct fields
+  Object.keys(orderFields).forEach(key => {
+    if (!transformedOrderUpdates[key] && orderFields[key] !== undefined) {
+      transformedOrderUpdates[key] = orderFields[key];
     }
   });
 
   // Remove dryCleaningPrices from updates to avoid database errors
-  delete transformedUpdates.dryCleaningPrices;
-  delete transformedUpdates.dry_cleaning_prices;
+  delete transformedOrderUpdates.dryCleaningPrices;
+  delete transformedOrderUpdates.dry_cleaning_prices;
 
   // Remove the original camelCase keys to avoid conflicts
-  Object.keys(transformedUpdates).forEach(key => {
+  Object.keys(transformedOrderUpdates).forEach(key => {
     if (key.includes('_')) {
       const camelKey = key.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase());
-      if (transformedUpdates[camelKey] !== undefined) {
-        delete transformedUpdates[camelKey];
+      if (transformedOrderUpdates[camelKey] !== undefined) {
+        delete transformedOrderUpdates[camelKey];
       }
     }
   });
 
   // Filter out undefined values to prevent setting NOT NULL columns to NULL
-  const filteredUpdates = {};
-  Object.keys(transformedUpdates).forEach(key => {
-    if (transformedUpdates[key] !== undefined) {
-      filteredUpdates[key] = transformedUpdates[key];
+  const filteredOrderUpdates = {};
+  Object.keys(transformedOrderUpdates).forEach(key => {
+    if (transformedOrderUpdates[key] !== undefined) {
+      filteredOrderUpdates[key] = transformedOrderUpdates[key];
     }
   });
 
@@ -195,7 +275,27 @@ export const updateOrder = (db) => async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    await serviceOrderModel.update(orderId, filteredUpdates);
+    // Update customer information if any customer fields were provided
+    if (Object.keys(customerFields).length > 0 && orderBefore.customer_id) {
+      const customerSql = `
+        UPDATE customers_profiles
+        SET ${Object.keys(customerFields).map(key => `${key} = ?`).join(', ')}, updated_at = CURRENT_TIMESTAMP
+        WHERE customer_id = ?
+      `;
+      const customerValues = [...Object.values(customerFields), orderBefore.customer_id];
+
+      await new Promise((resolve, reject) => {
+        db.query(customerSql, customerValues, (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        });
+      });
+    }
+
+    // Update order information if any order fields were provided
+    if (Object.keys(filteredOrderUpdates).length > 0) {
+      await serviceOrderModel.update(orderId, filteredOrderUpdates);
+    }
 
     const orderAfter = await serviceOrderModel.getById(orderId);
 
