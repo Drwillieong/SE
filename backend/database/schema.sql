@@ -75,7 +75,7 @@ CREATE TABLE service_orders (
   service_orders_id INT NOT NULL AUTO_INCREMENT,
 
   -- Customer reference
-  customer_id INT NOT NULL,
+  customer_id INT NULL,
 
   -- Service details (flexible for booking and order phases)
   service_type ENUM('fullService', 'washDryFold', 'washFold', 'dryCleaning', 'hangDry') NOT NULL,

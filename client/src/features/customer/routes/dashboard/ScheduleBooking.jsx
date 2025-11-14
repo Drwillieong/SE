@@ -119,6 +119,10 @@ const ScheduleBooking = () => {
     serviceOption: 'pickupAndDelivery' // New field: 'pickupOnly', 'deliveryOnly', 'pickupAndDelivery'
   });
 
+  // Conflict detection state
+  const [hasConflict, setHasConflict] = useState(false);
+  const [conflictMessage, setConflictMessage] = useState('');
+
   // Separate main services and dry cleaning services
   const mainServices = [
     {
@@ -354,9 +358,51 @@ const ScheduleBooking = () => {
     setPickupDates(getPickupDates(formData.pickupDate));
   }, [formData.pickupDate]);
 
-  const handleChange = (e) => {
+  // Function to check for booking conflicts
+  const checkForBookingConflict = async (pickupDate, pickupTime) => {
+    if (!pickupDate || !pickupTime || !userData?.user_id) {
+      return false;
+    }
+
+    try {
+      const response = await apiClient.get('/api/customer/orders?page=1&limit=100');
+      const ordersData = response.data.orders || [];
+
+      // Check if user already has a booking for this date and time
+      const conflict = ordersData.some(order =>
+        order.pickup_date === pickupDate &&
+        order.pickup_time === pickupTime &&
+        order.status !== 'completed' &&
+        order.status !== 'cancelled' &&
+        order.status !== 'rejected'
+      );
+
+      return conflict;
+    } catch (error) {
+      console.error('Error checking for booking conflicts:', error);
+      return false; // Allow booking if check fails
+    }
+  };
+
+  const handleChange = async (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+
+    // Check for conflicts when date or time changes
+    if (name === 'pickupDate' || name === 'pickupTime') {
+      const hasConflict = await checkForBookingConflict(
+        name === 'pickupDate' ? value : formData.pickupDate,
+        name === 'pickupTime' ? value : formData.pickupTime
+      );
+
+      setHasConflict(hasConflict);
+      if (hasConflict) {
+        setConflictMessage('You already have a booking at this date and time.');
+      } else {
+        setConflictMessage('');
+      }
+    }
   };
 
 
@@ -392,6 +438,12 @@ const ScheduleBooking = () => {
       return;
     }
 
+    // Check for booking conflicts before proceeding
+    if (hasConflict) {
+      alert(conflictMessage);
+      return;
+    }
+
     // Show confirmation before final submission
     setShowConfirmation(true);
   };
@@ -424,8 +476,18 @@ const ScheduleBooking = () => {
       };
 
       if (editingOrder) {
-        // Update existing service order
-        await apiClient.put(`/api/customer/orders/${editingOrder.id}`, bookingPayload);
+        // Update existing service order - only send order-specific fields
+        const orderUpdatePayload = {
+          service_type: formData.mainService,
+          dry_cleaning_services: JSON.stringify(formData.dryCleaningServices || []),
+          pickup_date: formData.pickupDate,
+          pickup_time: formData.pickupTime,
+          load_count: formData.loadCount,
+          instructions: formData.instructions,
+          service_option: formData.serviceOption,
+          delivery_fee: formData.serviceOption === 'pickupOnly' ? 0 : deliveryFee,
+        };
+        await apiClient.put(`/api/customer/orders/${editingOrder.id}`, orderUpdatePayload);
         alert('Order updated successfully!');
       } else {
         // Create new service order (as a booking request)
@@ -964,10 +1026,17 @@ const ScheduleBooking = () => {
                 </div>
               </div>
 
+              {/* Conflict Alert */}
+              {hasConflict && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm font-medium text-red-800">{conflictMessage}</p>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={loading || !formData.pickupDate}
+                disabled={loading || !formData.pickupDate || hasConflict}
                 className="w-full bg-pink-600 hover:bg-pink-700 text-white font-medium py-3 px-4 rounded-md disabled:opacity-50"
               >
                 {loading ? 'Processing...' : editingOrder ? 'Update Order' : 'Review Order'}

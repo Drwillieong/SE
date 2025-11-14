@@ -225,6 +225,35 @@ export const createCustomerBooking = (db) => async (req, res) => {
     }
   }
 
+  // Check if user already has a booking for this date and time
+  if (req.user.role !== 'admin') {
+    try {
+      const conflictSql = `
+        SELECT so.service_orders_id
+        FROM service_orders so
+        LEFT JOIN customers_profiles cp ON so.customer_id = cp.customer_id
+        WHERE cp.user_id = ? AND so.pickup_date = ? AND so.pickup_time = ?
+        AND so.status NOT IN ('completed', 'cancelled', 'rejected')
+        AND so.moved_to_history_at IS NULL
+        AND so.is_deleted = FALSE
+      `;
+      const [conflictResults] = await db.promise().query(conflictSql, [
+        req.user.user_id,
+        bookingData.pickup_date,
+        bookingData.pickup_time
+      ]);
+
+      if (conflictResults.length > 0) {
+        return res.status(400).json({
+          message: 'You already have a booking at this date and time. Please choose a different date or time slot.'
+        });
+      }
+    } catch (error) {
+      console.error('Error checking for booking conflicts:', error);
+      return res.status(500).json({ message: 'Server error checking booking conflicts' });
+    }
+  }
+
   try {
     // Calculate total price in backend to ensure accuracy
     const loadCount = Math.min(bookingData.load_count || 1, 5);
@@ -642,8 +671,28 @@ export const updateCustomerOrder = (db) => async (req, res) => {
       return res.status(400).json({ message: 'Only pending booking orders can be updated' });
     }
 
-    // Remove status from updateData to prevent accidental status changes
-    delete updateData.status;
+    // Filter to only allow updating order-related fields
+    const allowedFields = [
+      'service_type',
+      'dry_cleaning_services',
+      'pickup_date',
+      'pickup_time',
+      'load_count',
+      'instructions',
+      'service_option',
+      'delivery_fee',
+      'payment_method'
+    ];
+
+    const filteredUpdateData = {};
+    for (const field of allowedFields) {
+      if (updateData[field] !== undefined) {
+        filteredUpdateData[field] = updateData[field];
+      }
+    }
+
+    // Remove status from filteredUpdateData to prevent accidental status changes
+    delete filteredUpdateData.status;
 
     // Validate service_type if provided
     if (updateData.service_type && !['fullService', 'washDryFold', 'washFold', 'dryCleaning', 'hangDry'].includes(updateData.service_type)) {
@@ -666,6 +715,36 @@ export const updateCustomerOrder = (db) => async (req, res) => {
       }
     }
 
+    // Check if user already has a booking for the new date and time (if both are being changed)
+    if ((updateData.pickup_date && updateData.pickup_date !== order.pickup_date) ||
+        (updateData.pickup_time && updateData.pickup_time !== order.pickup_time)) {
+      const newDate = updateData.pickup_date || order.pickup_date;
+      const newTime = updateData.pickup_time || order.pickup_time;
+
+      const conflictSql = `
+        SELECT so.service_orders_id
+        FROM service_orders so
+        LEFT JOIN customers_profiles cp ON so.customer_id = cp.customer_id
+        WHERE cp.user_id = ? AND so.pickup_date = ? AND so.pickup_time = ?
+        AND so.status NOT IN ('completed', 'cancelled', 'rejected')
+        AND so.moved_to_history_at IS NULL
+        AND so.is_deleted = FALSE
+        AND so.service_orders_id != ?
+      `;
+      const [conflictResults] = await db.promise().query(conflictSql, [
+        userId,
+        newDate,
+        newTime,
+        orderId
+      ]);
+
+      if (conflictResults.length > 0) {
+        return res.status(400).json({
+          message: 'You already have a booking at this date and time. Please choose a different date or time slot.'
+        });
+      }
+    }
+
     // Recalculate total price to ensure accuracy (similar to createCustomerBooking)
     const loadCount = Math.min(updateData.load_count || order.load_count || 1, 5);
     const serviceType = updateData.service_type || order.service_type;
@@ -678,7 +757,7 @@ export const updateCustomerOrder = (db) => async (req, res) => {
     const calculatedTotal = mainServicePrice * loadCount + (updateData.delivery_fee || order.delivery_fee || 0);
 
     const updatedOrder = await serviceOrderModel.update(orderId, {
-      ...updateData,
+      ...filteredUpdateData,
       total_price: calculatedTotal, // Always recalculate total_price for consistency
     });
 

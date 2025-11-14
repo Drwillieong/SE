@@ -140,12 +140,33 @@ const CreateBookingModal = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
               <input
                 type="text"
-                name="name"
-                value={newBooking.name}
-                onChange={handleNewBookingChange}
+                name="firstName"
+                value={newBooking.firstName || ''}
+                onChange={(e) => {
+                  handleNewBookingChange(e);
+                  // Update full name when first name changes
+                  const fullName = `${e.target.value} ${newBooking.lastName || ''}`.trim();
+                  handleNewBookingChange({ target: { name: 'name', value: fullName } });
+                }}
+                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+              <input
+                type="text"
+                name="lastName"
+                value={newBooking.lastName || ''}
+                onChange={(e) => {
+                  handleNewBookingChange(e);
+                  // Update full name when last name changes
+                  const fullName = `${newBooking.firstName || ''} ${e.target.value}`.trim();
+                  handleNewBookingChange({ target: { name: 'name', value: fullName } });
+                }}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 required
               />

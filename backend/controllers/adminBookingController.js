@@ -1,4 +1,5 @@
 import { ServiceOrder } from '../models/ServiceOrder.js';
+import { AdminBooking } from '../models/AdminBooking.js';
 
 // Controller to get a welcome message for the bookings API
 export const getWelcomeMessage = (db) => async (req, res) => {
@@ -81,8 +82,49 @@ export const createAdminBooking = (db) => async (req, res) => {
   const serviceOrderModel = new ServiceOrder(db);
 
   try {
+    // Always create customer profile for admin-created bookings
+    const customerData = {
+      user_id: null, // Admin-created bookings don't have a user account
+      firstName: bookingData.firstName || '',
+      lastName: bookingData.lastName || '',
+      name: bookingData.name || `${bookingData.firstName || ''} ${bookingData.lastName || ''}`.trim() || 'Unknown Customer',
+      contact: bookingData.contact || '',
+      email: bookingData.email || '',
+      address: bookingData.address || '',
+      barangay: bookingData.barangay || '',
+      street: bookingData.street || '',
+      blockLot: bookingData.blockLot || ''
+    };
+
+    // Insert into customers_profiles table
+    const customerSql = `
+      INSERT INTO customers_profiles (user_id, firstName, lastName, name, contact, email, address, barangay, street, blockLot)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    const customerValues = [
+      customerData.user_id,
+      customerData.firstName,
+      customerData.lastName,
+      customerData.name,
+      customerData.contact,
+      customerData.email,
+      customerData.address,
+      customerData.barangay,
+      customerData.street,
+      customerData.blockLot
+    ];
+
+    const customerResult = await new Promise((resolve, reject) => {
+      db.query(customerSql, customerValues, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+
+    const customerId = customerResult.insertId;
+
     const orderData = {
-      user_id: bookingData.user_id || null,
+      customer_id: customerId,
       name: bookingData.name,
       contact: bookingData.contact,
       email: bookingData.email || '',
@@ -305,14 +347,14 @@ export const approveBooking = (db) => async (req, res) => {
 // Controller to get booking counts for specific dates for admin
 export const getBookingCounts = (db) => async (req, res) => {
   const { dates } = req.body;
-  const serviceOrderModel = new ServiceOrder(db);
+  const adminBookingModel = new AdminBooking(db);
 
   if (!dates || !Array.isArray(dates)) {
     return res.status(400).json({ message: 'Dates array is required' });
   }
 
   try {
-    const counts = await serviceOrderModel.getOrderCountsForDates(dates);
+    const counts = await adminBookingModel.getOrderCountsForDates(dates);
     res.json(counts);
   } catch (error) {
     console.error('Error fetching booking counts:', error);
