@@ -310,7 +310,12 @@ export const updateOrder = (db) => async (req, res) => {
             SET count = GREATEST(count - 1, 0)
             WHERE date = ?
           `;
-          await db.promise().query(decrementSql, [orderBefore.pickup_date]);
+          await new Promise((resolve, reject) => {
+            db.query(decrementSql, [orderBefore.pickup_date], (err, result) => {
+              if (err) reject(err);
+              else resolve(result);
+            });
+          });
 
           // Increment count for new date
           const incrementSql = `
@@ -318,7 +323,12 @@ export const updateOrder = (db) => async (req, res) => {
             VALUES (?, 1, 3)
             ON DUPLICATE KEY UPDATE count = count + 1
           `;
-          await db.promise().query(incrementSql, [updates.pickup_date]);
+          await new Promise((resolve, reject) => {
+            db.query(incrementSql, [updates.pickup_date], (err, result) => {
+              if (err) reject(err);
+              else resolve(result);
+            });
+          });
 
           console.log(`Booking count updated: moved from ${orderBefore.pickup_date} to ${updates.pickup_date}`);
 
@@ -331,6 +341,107 @@ export const updateOrder = (db) => async (req, res) => {
           console.error('Error updating booking counts on date change:', countError);
           // Don't fail the update if count update fails
         }
+      }
+    }
+
+    // Update booking counts if status changed from active to non-active
+    const activeStatuses = ['pending', 'pending_booking', 'approved', 'washing', 'drying', 'folding', 'ready'];
+    const nonActiveStatuses = ['cancelled', 'rejected', 'completed'];
+
+    if (updates.status && activeStatuses.includes(orderBefore.status) && nonActiveStatuses.includes(updates.status)) {
+      // Use transaction to ensure atomic decrement and delete operations
+      try {
+        // Begin transaction
+        db.beginTransaction();
+
+        // Decrement the count for this date
+        const decrementSql = `
+          UPDATE booking_counts
+          SET count = GREATEST(count - 1, 0)
+          WHERE date = ?
+        `;
+        await new Promise((resolve, reject) => {
+          db.query(decrementSql, [orderBefore.pickup_date], (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          });
+        });
+
+        // Delete the row if count reaches 0
+        const deleteIfZeroSql = `
+          DELETE FROM booking_counts
+          WHERE date = ? AND count = 0
+        `;
+        await new Promise((resolve, reject) => {
+          db.query(deleteIfZeroSql, [orderBefore.pickup_date], (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          });
+        });
+
+        // Commit transaction
+        db.commit();
+
+        console.log(`Booking count decremented for date: ${orderBefore.pickup_date} due to status change from ${orderBefore.status} to ${updates.status}`);
+
+        // Emit real-time update for booking counts
+        if (req.io) {
+          req.io.emit('booking-counts-updated', { date: orderBefore.pickup_date, change: -1 });
+        }
+      } catch (countError) {
+        // Rollback transaction on error
+        db.rollback();
+        console.error('Error updating booking count on status change:', countError);
+        // Don't fail the update if count update fails
+      }
+    }
+
+    // Update booking counts if status changed from 'approved' to 'pending' (booking converted to order)
+    if (updates.status && orderBefore.status === 'approved' && orderAfter.status === 'pending') {
+      // Use transaction to ensure atomic decrement and delete operations
+      try {
+        // Begin transaction
+        db.beginTransaction();
+
+        // Decrement the count for this date
+        const decrementSql = `
+          UPDATE booking_counts
+          SET count = GREATEST(count - 1, 0)
+          WHERE date = ?
+        `;
+        await new Promise((resolve, reject) => {
+          db.query(decrementSql, [orderBefore.pickup_date], (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          });
+        });
+
+        // Delete the row if count reaches 0
+        const deleteIfZeroSql = `
+          DELETE FROM booking_counts
+          WHERE date = ? AND count = 0
+        `;
+        await new Promise((resolve, reject) => {
+          db.query(deleteIfZeroSql, [orderBefore.pickup_date], (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          });
+        });
+
+        // Commit transaction
+        db.commit();
+
+        console.log(`Booking count decremented for date: ${orderBefore.pickup_date} due to booking converted to order (status change from ${orderBefore.status} to ${orderAfter.status})`);
+
+        // Emit real-time update for booking counts
+        if (req.io) {
+          req.io.emit('booking-counts-updated', { date: orderBefore.pickup_date, change: -1 });
+        }
+      } catch (countError) {
+        // Rollback transaction on error
+        db.rollback();
+        console.error('Error updating booking count on conversion to order:', countError);
+        // Don't fail the update if count update fails
       }
     }
 

@@ -1,23 +1,41 @@
-# Task: Implement Booking Count Decrement on Status Change
+# Booking Count Fix - Task Breakdown
 
-## Information Gathered
-- The `booking_counts` table tracks daily booking limits with columns: `id`, `date`, `count`, `limit_count`
-- Current logic in `adminBookingController.js` deletes the entire row when a booking becomes inactive, which is incorrect
-- Customer controller already has correct decrement logic in some places
-- Admin bookings don't currently increment counts on creation, but should for accurate availability tracking
-- Real-time updates are already implemented in the frontend via Socket.IO
+## Problem
+When orders change status from active states (pending, pending_booking, approved, washing, drying, folding, ready) to non-active states (cancelled, rejected, completed), the booking count for that pickup_date is NOT decremented. This causes the ScheduleBooking.jsx calendar to show incorrect booking counts.
 
-## Plan
-1. **Fix admin booking creation**: Add increment logic to `createAdminBooking` in `adminBookingController.js`
-2. **Fix status change logic**: Update `updateBooking` in `adminBookingController.js` to decrement count instead of deleting row
-3. **Fix deletion logic**: Update `deleteBooking` in `adminBookingController.js` to decrement count instead of deleting row
-4. **Add transaction wrapper**: Wrap decrement/delete operations in database transactions for atomicity
-5. **Ensure consistency**: Verify that all booking status changes properly update counts
+## Solution Overview
+Update backend controllers to properly decrement booking counts when orders transition from any active status to any non-active status. Ensure real-time updates are sent to frontend via WebSocket.
 
-## Dependent Files to be edited
-- `backend/controllers/adminBookingController.js`
+## Tasks
 
-## Followup steps
-- Test the booking count updates work correctly
-- Verify real-time updates reflect in ScheduleBooking.jsx
-- Ensure no race conditions with concurrent updates
+### Backend Fixes
+- [ ] Update `adminOrderController.js` - `updateOrder` function to decrement booking counts for all active->non-active status transitions
+- [ ] Update `adminBookingController.js` - `updateBooking` function to decrement booking counts for all active->non-active status transitions
+- [ ] Ensure booking counts cannot go negative using GREATEST(count - 1, 0)
+- [ ] Delete booking_counts row when count reaches 0
+- [ ] Emit real-time 'booking-counts-updated' events for frontend refresh
+
+### Frontend Verification
+- [ ] Verify ScheduleBooking.jsx properly listens to 'booking-counts-updated' socket events
+- [ ] Confirm booking counts refresh immediately after status changes
+- [ ] Test that calendar shows correct availability after order completion/cancellation
+
+### Testing
+- [ ] Test order status changes from various active states to non-active states
+- [ ] Verify booking counts decrement correctly without double-counting
+- [ ] Ensure no negative counts occur
+- [ ] Confirm real-time updates work properly
+
+## Active Statuses (count toward limit)
+- pending
+- pending_booking
+- approved
+- washing
+- drying
+- folding
+- ready
+
+## Non-Active Statuses (do not count toward limit)
+- cancelled
+- rejected
+- completed

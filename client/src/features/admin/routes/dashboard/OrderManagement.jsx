@@ -507,7 +507,46 @@ const OrderManagement = () => {
 
       // Start a local timer for the new status if it's a processing step
       if (['washing', 'drying', 'folding'].includes(nextStatus)) {
-        startLocalTimer(orderId, nextStatus);
+        await startLocalTimer(orderId, nextStatus);
+        // Reload timer statuses after starting the timer
+        const loadTimerStatuses = async () => {
+          try {
+            const token = localStorage.getItem('token');
+            if (token) {
+              const response = await fetch(`${API_URL}/api/admin/orders/timers/active`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+
+              if (response.ok) {
+                const backendTimers = await response.json();
+                const backendTimerStatuses = {};
+
+                backendTimers.forEach(order => {
+                  if (order.timer_start && order.timer_end) {
+                    const startTime = new Date(order.timer_start).getTime();
+                    const endTime = new Date(order.timer_end).getTime();
+                    const duration = endTime - startTime;
+
+                    backendTimerStatuses[order.service_orders_id] = {
+                      isActive: true,
+                      startTime: startTime,
+                      duration: duration,
+                      autoAdvanceEnabled: order.auto_advance_enabled || false,
+                    };
+                  }
+                });
+
+                setTimerStatuses(backendTimerStatuses);
+                localStorage.setItem('orderTimerStatuses', JSON.stringify(backendTimerStatuses));
+              }
+            }
+          } catch (error) {
+            console.error('Error reloading timer statuses:', error);
+          }
+        };
+        await loadTimerStatuses();
       } else {
         // If moving to 'ready' or another status, deactivate the timer
         setTimerStatuses(prev => ({ ...prev, [orderId]: { ...prev[orderId], isActive: false } }));

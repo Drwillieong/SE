@@ -10,7 +10,6 @@ import {
   approveBooking,
   getBookingCounts,
   sendPickupEmail,
-  sendPickupSMS,
   sendPickupNotification
 } from '../controllers/adminBookingController.js';
 import { verifyToken, requireAdmin } from '../middleware/authMiddleware.js';
@@ -49,10 +48,7 @@ export default (db) => {
     // Send pickup notification email
     router.post('/:id/send-email', verifyToken, requireAdmin, sendPickupEmail(db));
 
-    // Send pickup notification SMS
-    router.post('/:id/send-sms', verifyToken, requireAdmin, sendPickupSMS(db));
-
-    // Send both pickup notification email and SMS
+    // Send pickup notification email
     router.post('/:id/pickup-notification', verifyToken, requireAdmin, sendPickupNotification(db));
 
     return router;

@@ -416,7 +416,8 @@
       LEFT JOIN users u ON cp.user_id = u.user_id
       LEFT JOIN payments p ON so.service_orders_id = p.service_orders_id
       LEFT JOIN order_timers ot ON so.service_orders_id = ot.service_orders_id
-      WHERE ot.timer_start IS NOT NULL AND ot.timer_end IS NULL
+      WHERE ot.timer_start IS NOT NULL
+      AND (ot.timer_end > NOW() OR (ot.timer_end IS NULL AND ot.timer_start > DATE_SUB(NOW(), INTERVAL 2 HOUR)))
       AND so.moved_to_history_at IS NULL
       AND so.is_deleted = FALSE
       ORDER BY ot.timer_start DESC
@@ -516,8 +517,20 @@
   async startTimer(orderId, status) {
     return new Promise((resolve, reject) => {
       const now = new Date();
+
+      // Define durations for each status (in milliseconds)
+      const statusDurations = {
+        washing: 30 * 60 * 1000, // 30 minutes
+        drying: 45 * 60 * 1000,  // 45 minutes
+        folding: 15 * 60 * 1000  // 15 minutes
+      };
+
+      const duration = statusDurations[status] || 30 * 60 * 1000; // default 30 minutes
+      const timer_end = new Date(now.getTime() + duration);
+
       const timerData = {
         timer_start: now,
+        timer_end: timer_end,
         current_timer_status: status,
         auto_advance_enabled: 1
       };
@@ -534,8 +547,8 @@
 
         if (timerExists) {
           // Update existing timer record
-          const updateSql = 'UPDATE order_timers SET timer_start = ?, current_timer_status = ?, auto_advance_enabled = ? WHERE service_orders_id = ?';
-          this.db.query(updateSql, [timerData.timer_start, timerData.current_timer_status, timerData.auto_advance_enabled, orderId], (updateErr, updateResult) => {
+          const updateSql = 'UPDATE order_timers SET timer_start = ?, timer_end = ?, current_timer_status = ?, auto_advance_enabled = ? WHERE service_orders_id = ?';
+          this.db.query(updateSql, [timerData.timer_start, timerData.timer_end, timerData.current_timer_status, timerData.auto_advance_enabled, orderId], (updateErr, updateResult) => {
             if (updateErr) {
               reject(updateErr);
             } else {
@@ -544,8 +557,8 @@
           });
         } else {
           // Insert new timer record
-          const insertSql = 'INSERT INTO order_timers (service_orders_id, timer_start, current_timer_status, auto_advance_enabled) VALUES (?, ?, ?, ?)';
-          this.db.query(insertSql, [orderId, timerData.timer_start, timerData.current_timer_status, timerData.auto_advance_enabled], (insertErr, insertResult) => {
+          const insertSql = 'INSERT INTO order_timers (service_orders_id, timer_start, timer_end, current_timer_status, auto_advance_enabled) VALUES (?, ?, ?, ?, ?)';
+          this.db.query(insertSql, [orderId, timerData.timer_start, timerData.timer_end, timerData.current_timer_status, timerData.auto_advance_enabled], (insertErr, insertResult) => {
             if (insertErr) {
               reject(insertErr);
             } else {

@@ -206,7 +206,10 @@ export const updateBooking = (db) => async (req, res) => {
     await serviceOrderModel.update(bookingId, updates);
 
     // Update booking counts if status changed from active to non-active
-    if (updates.status && (currentBooking.status === 'pending' || currentBooking.status === 'pending_booking' || currentBooking.status === 'approved') && updates.status !== 'pending' && updates.status !== 'pending_booking' && updates.status !== 'approved') {
+    const activeStatuses = ['pending', 'pending_booking', 'approved', 'washing', 'drying', 'folding', 'ready'];
+    const nonActiveStatuses = ['cancelled', 'rejected', 'completed'];
+
+    if (updates.status && activeStatuses.includes(currentBooking.status) && nonActiveStatuses.includes(updates.status)) {
       // Use transaction to ensure atomic decrement and delete operations
       const connection = await db.promise().getConnection();
       try {
@@ -267,7 +270,8 @@ export const deleteBooking = (db) => async (req, res) => {
     }
 
     // Decrement booking count entry for the date if the booking was active
-    if (booking.status === 'pending' || booking.status === 'pending_booking' || booking.status === 'approved') {
+    const activeStatuses = ['pending', 'pending_booking', 'approved', 'washing', 'drying', 'folding', 'ready'];
+    if (activeStatuses.includes(booking.status)) {
       // Use transaction to ensure atomic decrement and delete operations
       const connection = await db.promise().getConnection();
       try {
@@ -439,31 +443,9 @@ export const sendPickupEmail = (db) => async (req, res) => {
   }
 };
 
-// Controller to send pickup notification SMS for admin
-export const sendPickupSMS = (db) => async (req, res) => {
-  const bookingId = req.params.id;
-  const serviceOrderModel = new ServiceOrder(db);
 
-  try {
-    const booking = await serviceOrderModel.getById(bookingId);
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
 
-    if (booking.status !== 'approved') {
-      return res.status(400).json({ message: 'Can only send pickup notification for approved bookings' });
-    }
-
-    // SMS functionality removed - return success without sending
-    console.log(`SMS notification would be sent to ${booking.contact} for booking ${bookingId}`);
-    res.json({ message: 'Pickup notification SMS functionality removed' });
-  } catch (error) {
-    console.error('Error in pickup SMS endpoint:', error);
-    res.status(500).json({ message: error.message || 'Server error' });
-  }
-};
-
-// Controller to send both pickup notification email and SMS for admin
+// Controller to send pickup notification email for admin
 export const sendPickupNotification = (db) => async (req, res) => {
   const bookingId = req.params.id;
   const serviceOrderModel = new ServiceOrder(db);
@@ -478,48 +460,29 @@ export const sendPickupNotification = (db) => async (req, res) => {
       return res.status(400).json({ message: 'Can only send pickup notification for approved bookings' });
     }
 
-    const results = {
-      emailSent: false,
-      smsSent: false,
-      errors: []
-    };
-
     // Try to send email
     if (booking.email) {
       try {
         const { sendPickupEmail: sendEmail } = await import('../utils/email.js');
         await sendEmail(booking.email, booking.name, booking.address);
-        results.emailSent = true;
+
+        res.json({
+          message: 'Pickup notification email sent successfully',
+          results: { emailSent: true }
+        });
       } catch (emailError) {
         console.error('Email sending failed:', emailError.message);
-        results.errors.push(`Email: ${emailError.message}`);
-        // Continue without failing the entire request
+        // Continue with success response even if email fails
+        res.json({
+          message: 'Pickup notification processed (email sending failed but operation completed)',
+          results: { emailSent: false, error: emailError.message }
+        });
       }
-    }
-
-    // SMS functionality removed - mark as sent without actually sending
-    if (booking.contact) {
-      console.log(`SMS notification would be sent to ${booking.contact} for booking ${bookingId}`);
-      results.smsSent = true;
-    }
-
-    if (results.emailSent || results.smsSent) {
-      const successMessage = [];
-      if (results.emailSent) successMessage.push('email');
-      if (results.smsSent) successMessage.push('SMS');
-
-      res.json({
-        message: `Pickup notification sent successfully via ${successMessage.join(' and ')}`,
-        results: results
-      });
     } else {
-      res.status(500).json({
-        message: 'Failed to send any pickup notifications',
-        results: results
-      });
+      res.status(400).json({ message: 'No email address available for this booking' });
     }
   } catch (error) {
-    console.error('Error sending pickup notifications:', error);
-    res.status(500).json({ message: error.message || 'Server error sending pickup notifications' });
+    console.error('Error sending pickup notification:', error);
+    res.status(500).json({ message: error.message || 'Server error sending pickup notification' });
   }
 };
