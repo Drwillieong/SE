@@ -71,8 +71,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Test database connection
-db.connect();
+// Initialize Google OAuth strategy
 initializeGoogleStrategy(db);
 
 const verifyToken = (req, res, next) => {
