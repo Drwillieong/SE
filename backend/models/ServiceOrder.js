@@ -706,5 +706,21 @@
     });
   }
 
+  // Submit payment proof for GCash payments
+  async submitPaymentProof(orderId, paymentProof, referenceId) {
+    const sql = 'UPDATE payments SET payment_proof = ?, reference_id = ?, payment_review_status = ? WHERE service_orders_id = ? AND payment_method = ?';
+    return new Promise((resolve, reject) => {
+      this.db.query(sql, [paymentProof, referenceId, 'pending', orderId, 'gcash'], (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.affectedRows === 0) {
+          reject(new Error('Payment record not found or not a GCash payment'));
+        } else {
+          resolve(result.affectedRows);
+        }
+      });
+    });
+  }
+
 
 }

@@ -196,6 +196,12 @@ const ScheduleBooking = () => {
     return 30;
   };
 
+  // Helper function to normalize date to YYYY-MM-DD format
+  const normalizeDate = (dateString) => {
+    const date = new Date(dateString);
+    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+  };
+
   // Available pickup dates (next 7 days, plus selected date if editing)
   const getPickupDates = (selectedDate = null) => {
     const dates = [];
@@ -203,7 +209,7 @@ const ScheduleBooking = () => {
     for (let i = 0; i < 7; i++) {
       const date = new Date();
       date.setDate(today.getDate() + i);
-      const fullDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+      const fullDate = normalizeDate(date);
       dates.push({
         date: date.getDate(),
         day: date.toLocaleDateString('en-US', { weekday: 'short' }),
@@ -212,15 +218,18 @@ const ScheduleBooking = () => {
     }
 
     // If selectedDate is provided and not already in dates, add it
-    if (selectedDate && !dates.some(d => d.fullDate === selectedDate)) {
-      const selDate = new Date(selectedDate);
-      dates.push({
-        date: selDate.getDate(),
-        day: selDate.toLocaleDateString('en-US', { weekday: 'short' }),
-        fullDate: selectedDate
-      });
-      // Sort dates by fullDate to maintain order
-      dates.sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate));
+    if (selectedDate) {
+      const normalizedSelected = normalizeDate(selectedDate);
+      if (!dates.some(d => d.fullDate === normalizedSelected)) {
+        const selDate = new Date(selectedDate);
+        dates.push({
+          date: selDate.getDate(),
+          day: selDate.toLocaleDateString('en-US', { weekday: 'short' }),
+          fullDate: normalizedSelected
+        });
+        // Sort dates by fullDate to maintain order
+        dates.sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate));
+      }
     }
 
     return dates;

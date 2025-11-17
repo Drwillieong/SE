@@ -33,26 +33,20 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
-const db = mysql.createConnection(connectionConfig);
+const db = mysql.createPool(connectionConfig);
 
-db.connect(err => {
+// Log connection success (pools handle connections automatically)
+console.log("✅ MySQL pool created successfully!");
+
+// ✅ Log all tables in the database (using a connection from the pool)
+db.query("SHOW TABLES;", (err, results) => {
   if (err) {
-    console.error("❌ Database connection failed:", err.message);
+    console.error("❌ Error fetching tables:", err.message);
   } else {
-    console.log("✅ Connected to Aiven MySQL successfully!");
-
-    // ✅ Log all tables in the database
-    const query = "SHOW TABLES;";
-    db.query(query, (err, results) => {
-      if (err) {
-        console.error("❌ Error fetching tables:", err.message);
-      } else {
-        console.log("📋 Tables in the database:");
-        results.forEach(row => {
-          // MySQL returns something like { 'Tables_in_yourdbname': 'table_name' }
-          console.log(" -", Object.values(row)[0]);
-        });
-      }
+    console.log("📋 Tables in the database:");
+    results.forEach(row => {
+      // MySQL returns something like { 'Tables_in_yourdbname': 'table_name' }
+      console.log(" -", Object.values(row)[0]);
     });
   }
 });

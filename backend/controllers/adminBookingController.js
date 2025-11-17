@@ -211,7 +211,7 @@ export const updateBooking = (db) => async (req, res) => {
 
     if (updates.status && activeStatuses.includes(currentBooking.status) && nonActiveStatuses.includes(updates.status)) {
       // Use transaction to ensure atomic decrement and delete operations
-      const connection = await db.promise().getConnection();
+      const connection = await db.getConnection();
       try {
         await connection.beginTransaction();
 
@@ -273,7 +273,7 @@ export const deleteBooking = (db) => async (req, res) => {
     const activeStatuses = ['pending', 'pending_booking', 'approved', 'washing', 'drying', 'folding', 'ready'];
     if (activeStatuses.includes(booking.status)) {
       // Use transaction to ensure atomic decrement and delete operations
-      const connection = await db.promise().getConnection();
+      const connection = await db.getConnection();
       try {
         await connection.beginTransaction();
 
