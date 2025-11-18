@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../../../utils/axios';
 import { Bar, Line, Pie, Doughnut } from 'react-chartjs-2';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 import {
@@ -216,64 +218,74 @@ const AnalyticsDashboard = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Analytics Dashboard</h1>
         <p className="text-gray-600">Comprehensive insights into your laundry operations</p>
 
-        {/* Date Range Picker and Generate Report */}
-        <div className="flex gap-4 mt-4 items-center">
-          <div className="flex gap-2 items-center">
-            <label className="text-sm font-medium text-gray-700">From:</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex gap-2 items-center">
-            <label className="text-sm font-medium text-gray-700">To:</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+        {/* Date Range Picker */}
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+            {/* From Date */}
+            <div className="w-full sm:w-48">
+              <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+              <DatePicker
+                selected={startDate}
+                onChange={(date) => setStartDate(date)}
+                dateFormat="yyyy-MM-dd"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholderText="Select start date"
+              />
+            </div>
 
+            {/* To Date */}
+            <div className="w-full sm:w-48">
+              <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+              <DatePicker
+                selected={endDate}
+                onChange={(date) => setEndDate(date)}
+                dateFormat="yyyy-MM-dd"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholderText="Select end date"
+              />
+            </div>
+
+            {/* Generate Report Button */}
+            <div className="w-full sm:w-auto sm:flex-shrink-0">
+              <button
+                onClick={() => {
+                  if (startDate && endDate) {
+                    // Here you could call a function to generate report with custom date range
+                    console.log('Generating report from', startDate, 'to', endDate);
+                    // For now, just show an alert
+                    alert(`Report generated for date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+                  } else {
+                    alert('Please select both start and end dates');
+                  }
+                }}
+                className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Generate Report
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Export Buttons */}
+        <div className="flex gap-2">
           <button
-            onClick={() => {
-              if (startDate && endDate) {
-                // Here you could call a function to generate report with custom date range
-                console.log('Generating report from', startDate, 'to', endDate);
-                // For now, just show an alert
-                alert(`Report generated for date range: ${startDate} to ${endDate}`);
-              } else {
-                alert('Please select both start and end dates');
-              }
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            onClick={() => exportToPDF()}
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
           >
-            Generate Report
+            Export PDF
           </button>
-
-          {/* Export Buttons */}
-          <div className="ml-auto flex gap-2">
-            <button
-              onClick={() => exportToPDF()}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-            >
-              Export PDF
-            </button>
-            <button
-              onClick={() => exportToExcel()}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-            >
-              Export Excel
-            </button>
-          </div>
+          <button
+            onClick={() => exportToExcel()}
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+          >
+            Export Excel
+          </button>
         </div>
       </div>
 
@@ -371,7 +383,7 @@ const AnalyticsDashboard = () => {
               responsive: true,
               plugins: {
                 legend: {
-                  position: 'top',
+                  position: 'bottom',
                 },
                 title: {
                   display: false,
@@ -400,7 +412,7 @@ const AnalyticsDashboard = () => {
               responsive: true,
               plugins: {
                 legend: {
-                  position: 'right',
+                  position: 'bottom',
                 },
                 title: {
                   display: false,
@@ -419,7 +431,7 @@ const AnalyticsDashboard = () => {
               responsive: true,
               plugins: {
                 legend: {
-                  position: 'right',
+                  position: 'bottom',
                 },
                 title: {
                   display: false,
@@ -438,7 +450,7 @@ const AnalyticsDashboard = () => {
               responsive: true,
               plugins: {
                 legend: {
-                  position: 'right',
+                  position: 'bottom',
                 },
                 title: {
                   display: false,

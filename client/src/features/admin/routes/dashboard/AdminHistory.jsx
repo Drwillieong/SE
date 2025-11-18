@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from 'react-modal';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import OrderDetailsModal from '../../components/OrderDetailsModal';
 import apiClient from '../../../../utils/axios';
 
@@ -56,6 +58,8 @@ const AdminHistory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [actionLoading, setActionLoading] = useState({});
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
 
   useEffect(() => {
     console.log('AdminHistory component mounted/updated');
@@ -113,7 +117,7 @@ const AdminHistory = () => {
     setFilteredItems(filtered);
   }, [historyItems, typeFilter, searchTerm, sortBy]);
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (start = null, end = null) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -123,7 +127,13 @@ const AdminHistory = () => {
       }
 
       console.log('Fetching history from API...');
-      const response = await fetch(`${API_URL}/api/admin/history`, {
+      let url = `${API_URL}/api/admin/history`;
+      if (start && end) {
+        const startStr = start.toISOString().split('T')[0];
+        const endStr = end.toISOString().split('T')[0];
+        url += `?startDate=${startStr}&endDate=${endStr}`;
+      }
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -330,6 +340,45 @@ const AdminHistory = () => {
               {historyItems.filter(item => item.is_deleted).length}
             </div>
             <div className="text-sm text-gray-600">Deleted</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Date Range Picker */}
+      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+          {/* From Date */}
+          <div className="w-full sm:w-48">
+            <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+            <DatePicker
+              selected={startDate}
+              onChange={(date) => setStartDate(date)}
+              dateFormat="yyyy-MM-dd"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholderText="Select start date"
+            />
+          </div>
+
+          {/* To Date */}
+          <div className="w-full sm:w-48">
+            <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+            <DatePicker
+              selected={endDate}
+              onChange={(date) => setEndDate(date)}
+              dateFormat="yyyy-MM-dd"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholderText="Select end date"
+            />
+          </div>
+
+          {/* Generate History Button */}
+          <div className="w-full sm:w-auto sm:flex-shrink-0">
+            <button
+              onClick={() => fetchHistory(startDate, endDate)}
+              className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Generate History
+            </button>
           </div>
         </div>
       </div>

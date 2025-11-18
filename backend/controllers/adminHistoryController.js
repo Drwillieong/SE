@@ -5,8 +5,18 @@ import { Timer } from '../models/Timer.js';
 export const getHistory = (db) => async (req, res) => {
   const adminHistoryModel = new AdminHistory(db);
 
+  const { startDate, endDate } = req.query;
+  let start = null;
+  let end = null;
+  if (startDate) {
+    start = new Date(startDate);
+  }
+  if (endDate) {
+    end = new Date(endDate);
+  }
+
   try {
-    const history = await adminHistoryModel.getHistory();
+    const history = await adminHistoryModel.getHistory(start, end);
     res.json(history);
   } catch (error) {
     console.error('Error fetching history:', error);

@@ -25,8 +25,8 @@ export class AdminHistory {
   }
 
   // Get all history items (completed service orders and deleted items)
-  async getHistory() {
-    const sql = `
+  async getHistory(startDate = null, endDate = null) {
+    let sql = `
       SELECT
         so.service_orders_id as id,
         'service_order' as type,
@@ -54,9 +54,19 @@ export class AdminHistory {
       LEFT JOIN payments p ON so.service_orders_id = p.service_orders_id
       WHERE so.status = 'completed' OR so.is_deleted = TRUE
     `;
+    const params = [];
+
+    if (startDate && endDate) {
+      sql += ` AND (
+        (so.moved_to_history_at IS NOT NULL AND so.moved_to_history_at BETWEEN ? AND ?)
+        OR
+        (so.is_deleted = TRUE AND so.deleted_at BETWEEN ? AND ?)
+      )`;
+      params.push(startDate, endDate, startDate, endDate);
+    }
 
     return new Promise((resolve, reject) => {
-      this.db.query(sql, (err, results) => {
+      this.db.query(sql, params, (err, results) => {
         if (err) {
           reject(err);
           return;
