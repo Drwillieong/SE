@@ -11,7 +11,7 @@ const freePickupBarangays = [
 ];
 
 const calambaBarangays = [
-  "Banlic", "Barandal", "Batino", "Bubuyan", "Bucal", "Bunggo", 
+  "Banlic", "Barandal", "Batino", "Bubuyan", "Bucal", "Bunggo", "Bañadero", 
   "Burol", "Camaligan", "Canlubang", "Halang", "Hornalan", 
   "Kay-Anlog", "La Mesa", "Laguerta", "Lawa", "Lecheria", 
   "Lingga", "Looc", "Mabato", "Majada Labas", "Makiling", 

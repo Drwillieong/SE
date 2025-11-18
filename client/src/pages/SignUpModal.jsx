@@ -464,7 +464,7 @@ const SignUpModal = ({ showSignUpModal, setShowSignUpModal }) => {
               type="tel"
               id="contact"
               name="contact"
-              placeholder="09123456789"
+              placeholder="09XXXXXXXXX"
               pattern="^09[0-9]{9}$"  // must start with 09 and have 11 digits total (strict Philippine mobile format)
               inputMode="numeric"
               maxLength="11"

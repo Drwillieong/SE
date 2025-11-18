@@ -61,12 +61,12 @@ export default function AboutService() {
   return (
     <div className="min-h-screen bg-white py-16 px-6">
       {/* Navigation */}
-      <nav className="bg-pink-100 p-4 flex space-x-6 text-gray-700 font-semibold mb-8">
+      <nav className="bg-pink-100 p-4 flex flex-wrap space-x-2 md:space-x-6 text-gray-700 font-semibold mb-8">
         {Object.keys(services).map((service) => (
           <button
             key={service}
             onClick={() => setSelectedService(service)}
-            className={`px-4 py-2 transition duration-300 border-b-2 ${
+            className={`px-2 md:px-4 py-2 transition duration-300 border-b-2 ${
               selectedService === service
                 ? "border-pink-500 text-pink-400"
                 : "border-transparent hover:border-gray-400"
@@ -102,7 +102,7 @@ export default function AboutService() {
           </div>
           <div
           onClick={() => setShowSignUpModal(true)}
-          className="mt-8 flex items-center rounded-full cursor-pointer shadow-md bg-white w-full max-w-[25rem] hover:bg-pink-100 transition duration-300"
+          className="mt-8 flex items-center rounded-full cursor-pointer shadow-md bg-white w-full max-w-[25rem] mx-auto hover:bg-pink-100 transition duration-300"
           >
           <div className="px-4 md:px-8 py-3 border-r text-black font-medium text-sm md:text-base">
           Pickup <br /> Now?
@@ -124,7 +124,7 @@ export default function AboutService() {
         setShowSignUpModal={setShowSignUpModal}
       />
 
-        <div className="ml-20 md:w-1/2 mt-8 md:mt-0 flex justify-center">
+        <div className="md:ml-20 md:w-1/2 mt-8 md:mt-0 flex justify-center">
           <img
             src={services[selectedService].image}
             alt={services[selectedService].title}
