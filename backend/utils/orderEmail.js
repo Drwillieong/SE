@@ -13,6 +13,14 @@ export const sendOrderConfirmationEmail = async (email, name, orderId, kilos, to
     const paymentDisplay = paymentMethod === 'cash' ? 'Cash on Delivery' :
                           paymentMethod === 'gcash' ? 'GCash' : paymentMethod;
 
+    // Calculate estimated time
+    let estimatedTime = '1-2 days'; // default
+    if (kilos < 7 && (serviceType === 'washFold' || serviceType === 'hangDry')) {
+        estimatedTime = '1-2 days';
+    } else if (serviceType === 'dryCleaning') {
+        estimatedTime = '1-2 weeks depending on size';
+    }
+
     const mailOptions = {
         to: email,
         subject: `Order Confirmation - Wash It Izzy #${orderId}`,
@@ -40,12 +48,18 @@ export const sendOrderConfirmationEmail = async (email, name, orderId, kilos, to
                     <p style="margin-bottom: 0;"><strong>Address:</strong> ${address}</p>
                 </div>
 
+                <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                    <h3 style="color: #856404; margin-top: 0;">Estimated Time:</h3>
+                    <p style="margin-bottom: 0;">Your order is expected to be completed in approximately <strong>${estimatedTime}</strong>.</p>
+                </div>
+
                 <p><strong>What happens next?</strong></p>
                 <ul>
 
                     <li>🧺 Your clothes will be professionally cleaned</li>
                     <li>📱 You'll receive updates throughout the process</li>
                     <li>🚚 You'll receive updates when your laundry is done</li>
+                    <li>📧 Please check your email and customer account for the latest updates on your order status</li>
 
                 </ul>
 

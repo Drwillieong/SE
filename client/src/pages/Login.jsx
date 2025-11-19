@@ -22,7 +22,41 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
+  // Handle Google OAuth redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const provider = urlParams.get('provider');
 
+    if (token && provider === 'google') {
+      // Clear URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      // Store token and fetch user data
+      localStorage.setItem('token', token);
+
+      // Fetch user data using the token
+      apiClient.get('/auth/me')
+        .then(response => {
+          const user = response.data;
+          localStorage.setItem('user', JSON.stringify(user));
+
+          // Redirect based on user role
+          if (user.role === "admin") {
+            alert("Google login successful! Redirecting to dashboard...");
+            navigate("/dashboard");
+          } else {
+            alert("Google login successful! Redirecting to your dashboard...");
+            navigate("/customer-dashboard");
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching user data after Google auth:', error);
+          setError("Failed to complete Google authentication. Please try again.");
+          localStorage.removeItem('token');
+        });
+    }
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
