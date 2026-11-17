@@ -1,0 +1,16 @@
+"use client";
+import {useMutation,useQuery} from "convex/react";
+import {api} from "../../../convex/_generated/api";
+import type {Id} from "../../../convex/_generated/dataModel";
+import {useState} from "react";
+import {Money} from "@/components/shared/money";
+import {toast} from "sonner";
+
+export function GcashProofForm({orderId,total}:{orderId:Id<"orders">;total:number}){
+  const details=useQuery(api.payments.gcashDetails,{}),payment=useQuery(api.payments.myPayment,{orderId});
+  const urlMutation=useMutation(api.files.generatePaymentUploadUrl),submit=useMutation(api.payments.submitGcashProof);
+  const [reference,setReference]=useState(""),[file,setFile]=useState<File|null>(null),[busy,setBusy]=useState(false);
+  const canSubmit=payment?.status!=="pending_review"&&payment?.status!=="paid"&&payment?.status!=="refunded";
+  async function send(){if(!file||!reference.trim())return toast.error("Enter the reference number and choose a proof image.");if(!file.type.startsWith("image/")||file.size>5*1024*1024)return toast.error("Choose an image no larger than 5 MB.");setBusy(true);try{const uploadUrl=await urlMutation({}),response=await fetch(uploadUrl,{method:"POST",headers:{"Content-Type":file.type},body:file});if(!response.ok)throw new Error("Upload failed.");const {storageId}=await response.json() as {storageId:Id<"_storage">};const result=await submit({orderId,referenceNumber:reference,proofStorageId:storageId});toast.success("GCash proof submitted.");if(result.duplicateReferenceWarning)toast.warning("This reference number appears on another order. The shop will verify it.");}catch(e){toast.error(e instanceof Error?e.message:"Could not submit payment proof.");}finally{setBusy(false);}}
+  return <section className="mt-5 rounded-2xl border bg-white p-5 dark:border-white/10 dark:bg-slate-900"><h2 className="font-bold">GCash payment</h2><p className="mt-2 text-sm">Amount due: <strong><Money cents={total}/></strong></p>{details&&<div className="mt-3 rounded-xl bg-pink-50 p-4 text-sm dark:bg-pink-500/10"><p>Send to <strong>{details.accountName}</strong></p><p className="mt-1 font-mono">{details.number}</p>{details.qrUrl&&<img src={details.qrUrl} alt="Shop GCash QR code" className="mt-3 size-40 rounded-lg object-contain"/>}</div>}{payment?.status&&<p className="mt-3 text-sm font-semibold capitalize">Payment status: {payment.status.replaceAll("_"," ")}</p>}{payment?.reviewNote&&<p className="mt-2 rounded-lg bg-red-50 p-3 text-sm text-red-800">Review note: {payment.reviewNote}</p>}{canSubmit&&<div className="mt-4 grid gap-3"><label className="grid gap-1 text-sm font-medium">Reference number<input value={reference} onChange={e=>setReference(e.target.value)} className="rounded-lg border px-3 py-2" maxLength={64}/></label><label className="grid gap-1 text-sm font-medium">Payment proof image<input type="file" accept="image/*" onChange={e=>setFile(e.target.files?.[0]??null)} className="rounded-lg border p-2"/></label>{file&&<p className="text-xs text-slate-500">Selected: {file.name}</p>}<button disabled={busy} onClick={send} className="rounded-xl bg-pink-600 px-4 py-3 font-bold text-white disabled:opacity-60">{busy?"Uploading…":payment?.status==="rejected"?"Resubmit proof":"Submit proof"}</button></div>}</section>;
+}

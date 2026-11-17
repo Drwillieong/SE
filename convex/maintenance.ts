@@ -1,0 +1,4 @@
+import {internalMutation} from "./_generated/server";
+import {v} from "convex/values";
+import {addDays,todayManila} from "./lib/dates";
+export const archiveCompleted=internalMutation({args:{},returns:v.object({archived:v.number()}),handler:async(ctx)=>{const settings=await ctx.db.query("settings").withIndex("by_key",q=>q.eq("key","shop")).unique();if(!settings||settings.autoArchiveDays<=0)return {archived:0};const cutoff=addDays(todayManila(),-settings.autoArchiveDays),rows=await ctx.db.query("orders").withIndex("by_status",q=>q.eq("status","completed")).take(500);let archived=0;for(const order of rows){if(order.archivedAt===undefined&&order.completedAt!==undefined&&todayManila(new Date(order.completedAt))<=cutoff){await ctx.db.patch(order._id,{archivedAt:Date.now()});archived++;}}return {archived};}});

@@ -40,3 +40,20 @@ Laundry booking foundation for Wash It Izzy in Calamba City, Laguna. The app use
 The current foundation includes email/password verification and recovery, Google OAuth wiring, customer onboarding, catalog and delivery queries, booking and order mutations, staff order transitions, intake uploads, timers, walk-in creation, and initial customer/admin screens. Payment review, in-app/email notifications, advanced admin filters and calendar/Kanban views, analytics, profile address editing, order rebooking/edit UI, and production OAuth/Resend credentials remain deployment/operator work or later scope. The notifications function is a logging stub. The booking UI displays availability for the selected date; it does not include the full month capacity calendar.
 
 For the Part 2 unit tests, run `npm test`. The current suite covers pure pricing, status and Manila date helpers; Convex integration tests and Playwright E2E are not included yet. Convex Auth v2 applies its built-in rate limits; the requested custom 15-minute failed-login lockout is not configured. The local Convex deployment must be running for `npx convex run seed:seed` and interactive app flows.
+
+## Part 3 implementation status
+
+Implemented: GCash proof submission and review, cash payment recording, refunds, in-app notifications, admin/staff dashboards, shop/payment/capacity settings, daily completion statistics, the daily archive cron, and legacy export/mapping helpers. The Convex backend protects these operations by role and customer ownership. Configure the shop's GCash details before accepting payments.
+
+Known gaps: outbound transactional emails and email previews/logging, complete analytics charts and exports, service/zone/staff/promo settings CRUD, promo and loyalty redemption, rush booking, review submission, receipts and QR bag labels, pickup reminders, full legacy import and rollback, PWA/offline shell, Filipino translations, command palette, accessibility audit, and Convex/Playwright integration suites. The app is not ready for live payment processing or legacy migration until these are completed and exercised.
+
+## Go-live checklist
+
+- [ ] Rotate every credential used by the legacy system.
+- [ ] Set production Convex and Vercel environment variables, including `ADMIN_EMAIL`, `SITE_URL`, `AUTH_RESEND_KEY`, `EMAIL_FROM`, and Google OAuth credentials.
+- [ ] Verify the email sender domain and test verification/password recovery.
+- [ ] Replace placeholder GCash number, account name, QR image, shop details, delivery zones, prices, and capacity settings.
+- [ ] Complete and rehearse the legacy importer on a disposable deployment; compare counts and totals and verify rollback before importing production data.
+- [ ] Run build, type check, lint, unit, Convex, and browser end-to-end suites against the release candidate.
+- [ ] Smoke-test signup, booking, proof upload, admin review, payment status, completion, notifications, and customer data access.
+- [ ] Review the production deployment target, then deploy with `npx convex deploy` and deploy the web app to Vercel.

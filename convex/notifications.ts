@@ -1,0 +1,10 @@
+import {paginationOptsValidator,paginationResultValidator} from "convex/server";
+import {v} from "convex/values";
+import {internalMutation,mutation,query} from "./_generated/server";
+import {requireUser} from "./lib/auth";
+const doc=v.object({_id:v.id("notifications"),_creationTime:v.number(),userId:v.id("users"),type:v.string(),title:v.string(),body:v.string(),orderId:v.optional(v.id("orders")),readAt:v.optional(v.number())});
+export const list=query({args:{paginationOpts:paginationOptsValidator},returns:paginationResultValidator(doc),handler:async(ctx,args)=>{const user=await requireUser(ctx);return ctx.db.query("notifications").withIndex("by_user_read",q=>q.eq("userId",user._id)).order("desc").paginate(args.paginationOpts);}});
+export const unreadCount=query({args:{},returns:v.number(),handler:async(ctx)=>{const user=await requireUser(ctx);return (await ctx.db.query("notifications").withIndex("by_user_read",q=>q.eq("userId",user._id).eq("readAt",undefined)).take(100)).length;}});
+export const markRead=mutation({args:{notificationId:v.id("notifications")},returns:v.null(),handler:async(ctx,args)=>{const user=await requireUser(ctx),row=await ctx.db.get(args.notificationId);if(row?.userId===user._id&&!row.readAt)await ctx.db.patch(row._id,{readAt:Date.now()});return null;}});
+export const markAllRead=mutation({args:{},returns:v.null(),handler:async(ctx)=>{const user=await requireUser(ctx),rows=await ctx.db.query("notifications").withIndex("by_user_read",q=>q.eq("userId",user._id).eq("readAt",undefined)).take(100);for(const row of rows)await ctx.db.patch(row._id,{readAt:Date.now()});return null;}});
+export const push=internalMutation({args:{userId:v.id("users"),type:v.string(),title:v.string(),body:v.string(),orderId:v.optional(v.id("orders"))},returns:v.id("notifications"),handler:async(ctx,args)=>ctx.db.insert("notifications",args)});
