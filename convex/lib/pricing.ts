@@ -3,6 +3,9 @@ export type QuoteSelection={serviceId:string;quantity:number};
 export type QuoteZone={isFreeZone:boolean;freeMinLoads:number;fee:number}|null;
 export type QuoteLine={serviceId:string;name:string;pricingType:PricingService["pricingType"];unitPrice:number;quantity:number;subtotal:number;startingPrice?:number};
 export function computeQuote(input:{services:PricingService[];selections:QuoteSelection[];loads:number;serviceOption:"pickupOnly"|"pickupAndDelivery";zone:QuoteZone;kilos?:number}){
+  if(!Number.isInteger(input.loads)||input.loads<1)throw new Error("Loads must be a positive whole number.");
+  if(input.selections.some(selection=>!Number.isInteger(selection.quantity)||selection.quantity<1))throw new Error("Service quantities must be positive whole numbers.");
+  if(input.serviceOption==="pickupAndDelivery"&&!input.zone)throw new Error("Select a delivery barangay to calculate the fee.");
   let hasPendingQuote=false;
   const lines:QuoteLine[]=input.selections.map(selection=>{
     const service=input.services.find(item=>item._id===selection.serviceId);

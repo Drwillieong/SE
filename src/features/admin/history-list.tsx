@@ -1,0 +1,13 @@
+"use client";
+import {usePaginatedQuery,useMutation,useQuery} from "convex/react";
+import {api} from "../../../convex/_generated/api";
+import type {Id} from "../../../convex/_generated/dataModel";
+import {StatusBadge} from "@/components/shared/status-badge";
+import {toast} from "sonner";
+export function AdminHistoryList(){
+  const {results,status,loadMore}=usePaginatedQuery(api.adminOrders.list,{includeArchived:true,includeDeleted:false},{initialNumItems:30});
+  const me=useQuery(api.users.me,{}),restore=useMutation(api.adminOrders.restore),softDelete=useMutation(api.adminOrders.softDelete),purge=useMutation(api.adminOrders.purge);
+  const history=results?.filter(order=>order.status==="completed"||order.status==="rejected"||order.status==="cancelled"||order.archivedAt!==undefined);
+  async function act(action:"restore"|"delete"|"purge",id:Id<"orders">){if(action==="purge"&&!window.confirm("Permanently delete this order and its photos? This cannot be undone."))return;try{if(action==="restore")await restore({orderId:id});else if(action==="delete")await softDelete({orderId:id});else await purge({orderId:id});toast.success(action==="restore"?"Order restored.":action==="delete"?"Order hidden from history.":"Order permanently deleted.");}catch(error){toast.error(error instanceof Error?error.message:"Action failed.");}}
+  return <main className="p-5 sm:p-8"><h1 className="font-heading text-3xl font-extrabold">History & archive</h1><p className="mt-1 text-slate-500">Completed, rejected, cancelled and archived orders.</p><div className="mt-6 grid gap-3">{history?.map(order=><article key={order._id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-white p-5 dark:border-white/10 dark:bg-slate-900"><div><div className="flex flex-wrap items-center gap-3"><strong>{order.orderNumber}</strong><StatusBadge status={order.status}/></div><p className="mt-2 text-sm text-slate-500">{order.addressSnapshot.fullName} · {order.pickupDate} · {order.addressSnapshot.barangay}</p></div><div className="flex gap-2"><button onClick={()=>act("restore",order._id)} className="rounded-lg border px-3 py-2 text-sm font-bold">Restore</button><button onClick={()=>act("delete",order._id)} className="rounded-lg border px-3 py-2 text-sm font-bold">Hide</button>{me?.user.role==="admin"&&<button onClick={()=>act("purge",order._id)} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white">Purge</button>}</div></article>)}</div>{history?.length===0&&<p className="mt-6 rounded-2xl border p-8 text-center text-slate-500">No archived orders.</p>}{status==="CanLoadMore"&&<button onClick={()=>loadMore(30)} className="mt-4 rounded-xl border px-4 py-2 font-bold">Load more</button>}</main>;
+}

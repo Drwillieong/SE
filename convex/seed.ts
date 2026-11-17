@@ -1,8 +1,8 @@
 import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-const free = new Set(["Brgy. 1", "Brgy. 2", "Brgy. 3", "Brgy. 4", "Brgy. 5", "Brgy. 6", "Brgy. 7", "Lecheria", "San Juan", "San Jose", "Looc", "BaÑadero", "Palingon", "Lingga", "Sampiruhan", "Parian"]);
-const barangays = ["Brgy. 1", "Brgy. 2", "Brgy. 3", "Brgy. 4", "Brgy. 5", "Brgy. 6", "Brgy. 7", "Banlic", "Barandal", "Batino", "Bubuyan", "Bucal", "Bunggo", "BaÑadero", "Burol", "Camaligan", "Canlubang", "Halang", "Hornalan", "Kay-Anlog", "La Mesa", "Laguerta", "Lawa", "Lecheria", "Lingga", "Looc", "Mabato", "Majada Labas", "Makiling", "Mapagong", "Masili", "Maunong", "Mayapa", "Paciano Rizal", "Palingon", "Palo-Alto", "Pansol", "Parian", "Prinza", "Punta", "Puting Lupa", "Real", "Saimsim", "Sampiruhan", "San Cristobal", "San Jose", "San Juan", "Sirang Lupa", "Sucol", "Turbina", "Ulango", "Uwisan"];
+const free = new Set(["Brgy. 1", "Brgy. 2", "Brgy. 3", "Brgy. 4", "Brgy. 5", "Brgy. 6", "Brgy. 7", "Lecheria", "San Juan", "San Jose", "Looc", "Ba\u00f1adero", "Palingon", "Lingga", "Sampiruhan", "Parian"]);
+const barangays = ["Brgy. 1", "Brgy. 2", "Brgy. 3", "Brgy. 4", "Brgy. 5", "Brgy. 6", "Brgy. 7", "Banlic", "Barandal", "Batino", "Bubuyan", "Bucal", "Bunggo", "Ba\u00f1adero", "Burol", "Camaligan", "Canlubang", "Halang", "Hornalan", "Kay-Anlog", "La Mesa", "Laguerta", "Lawa", "Lecheria", "Lingga", "Looc", "Mabato", "Majada Labas", "Makiling", "Mapagong", "Masili", "Maunong", "Mayapa", "Paciano Rizal", "Palingon", "Palo-Alto", "Pansol", "Parian", "Prinza", "Punta", "Puting Lupa", "Real", "Saimsim", "Sampiruhan", "San Cristobal", "San Jose", "San Juan", "Sirang Lupa", "Sucol", "Turbina", "Ulango", "Uwisan"];
 const services = [
   { key:"fullService",name:"Full Service (Wash, Dry & Fold)",category:"laundry" as const,pricingType:"per_load" as const,price:19900,description:"Detergent, fabcon and colorsafe bleach included.",includesSupplies:true,active:true,sortOrder:1 },
   { key:"washDryFold",name:"Wash, Dry & Fold",category:"laundry" as const,pricingType:"per_load" as const,price:17900,description:"Bring your own detergent and fabcon.",includesSupplies:false,active:true,sortOrder:2 },
@@ -15,6 +15,8 @@ const services = [
 export const seed = internalMutation({
   args: {}, returns: v.null(),
   handler: async (ctx) => {
+    const adminEmail=process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    if(adminEmail){const admin=await ctx.db.query("users").withIndex("email",q=>q.eq("email",adminEmail)).unique();if(admin&&admin.role!=="admin")await ctx.db.patch(admin._id,{role:"admin"});}
     for (const service of services) {
       const existing = await ctx.db.query("services").withIndex("by_key", q=>q.eq("key", service.key)).unique();
       if (!existing) await ctx.db.insert("services", service);

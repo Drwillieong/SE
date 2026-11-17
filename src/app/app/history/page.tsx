@@ -1,1 +1,2 @@
-export default function Page(){return <main className="mx-auto max-w-5xl p-6"><h1 className="font-heading text-3xl font-extrabold">Order history</h1><section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-slate-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-300">Coming in Part 2/3</section></main>}
+import {OrdersList} from "@/features/customer/orders-list";
+export default function HistoryPage(){return <OrdersList history/>}

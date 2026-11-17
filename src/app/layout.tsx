@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Suspense } from "react";
+import { ConvexAuthNextjsServerProvider } from "@/lib/convexAuth";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -24,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${inter.variable} ${jakarta.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><Providers>{children}</Providers></body>
+      <body className="min-h-full flex flex-col"><Suspense><ConvexAuthNextjsServerProvider><Providers>{children}</Providers></ConvexAuthNextjsServerProvider></Suspense></body>
     </html>
   );
 }

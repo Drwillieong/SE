@@ -1,0 +1,15 @@
+"use client";
+import {usePaginatedQuery,useMutation} from "convex/react";
+import {api} from "../../../convex/_generated/api";
+import {Money} from "@/components/shared/money";
+import {StatusBadge} from "@/components/shared/status-badge";
+import {toast} from "sonner";
+import Link from "next/link";
+import {IntakeForm} from "./intake-form";
+import type {Id} from "../../../convex/_generated/dataModel";
+export function OrdersTable(){
+  const {results,status,loadMore}=usePaginatedQuery(api.adminOrders.list,{includeArchived:false,includeDeleted:false},{initialNumItems:25});
+  const advance=useMutation(api.adminOrders.advance),pickedUp=useMutation(api.adminOrders.markPickedUp);
+  async function move(id:Id<"orders">,action:"advance"|"pickedUp"){try{if(action==="pickedUp")await pickedUp({orderId:id});else await advance({orderId:id});toast.success(action==="pickedUp"?"Pickup recorded.":"Order advanced.");}catch(error){toast.error(error instanceof Error?error.message:"Could not update order.");}}
+  return <div className="p-5 sm:p-8"><div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><h1 className="font-heading text-3xl font-extrabold">Orders</h1><p className="mt-1 text-slate-500">Track active laundry through every stage.</p></div><Link href="/admin/orders/new" className="rounded-xl bg-pink-600 px-4 py-3 font-bold text-white">New walk-in order</Link></div><div className="overflow-x-auto rounded-2xl border bg-white dark:border-white/10 dark:bg-slate-900"><table className="w-full min-w-[900px] text-left text-sm"><thead className="sticky top-0 bg-slate-50 dark:bg-slate-800"><tr>{["Order","Customer","Pickup","Loads","Total","Status","Action"].map(label=><th key={label} className="px-4 py-3 font-bold">{label}</th>)}</tr></thead><tbody>{results?.map(order=><tr key={order._id} className="border-t align-top dark:border-white/10"><td className="px-4 py-3 font-bold">{order.orderNumber}</td><td className="px-4 py-3">{order.addressSnapshot.fullName}</td><td className="px-4 py-3">{order.pickupDate}</td><td className="px-4 py-3 tabular-nums">{order.kilos?`${order.kilos} kg`:`${order.loads} loads`}</td><td className="px-4 py-3"><Money cents={order.total}/></td><td className="px-4 py-3"><StatusBadge status={order.status}/></td><td className="px-4 py-3">{order.status==="picked_up"?<IntakeForm orderId={order._id}/>:order.status==="approved"?<button onClick={()=>move(order._id,"pickedUp")} className="rounded-lg bg-pink-600 px-3 py-2 font-bold text-white">Mark picked up</button>:["received","washing","drying","folding","ready","out_for_delivery"].includes(order.status)?<button onClick={()=>move(order._id,"advance")} className="rounded-lg bg-pink-600 px-3 py-2 font-bold text-white">Advance</button>:null}</td></tr>)}</tbody></table>{results?.length===0&&<p className="p-8 text-center text-slate-500">No active orders.</p>}</div>{status==="CanLoadMore"&&<button onClick={()=>loadMore(25)} className="mt-4 rounded-xl border px-4 py-2 font-bold">Load more</button>}</div>;
+}
