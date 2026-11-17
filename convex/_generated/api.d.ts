@@ -13,6 +13,7 @@ import type * as adminOrders from "../adminOrders.js";
 import type * as auth from "../auth.js";
 import type * as availability from "../availability.js";
 import type * as catalog from "../catalog.js";
+import type * as files from "../files.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_changeStatus from "../lib/changeStatus.js";
 import type * as lib_dates from "../lib/dates.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   availability: typeof availability;
   catalog: typeof catalog;
+  files: typeof files;
   "lib/auth": typeof lib_auth;
   "lib/changeStatus": typeof lib_changeStatus;
   "lib/dates": typeof lib_dates;
