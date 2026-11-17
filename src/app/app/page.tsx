@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function CustomerHome(){return <main className="mx-auto max-w-5xl p-6"><p className="text-sm font-bold text-pink-600">YOUR WASH IT IZZY</p><h1 className="mt-2 text-3xl font-extrabold">Welcome to your laundry hub</h1><p className="mt-3 text-slate-600">Bookings and order updates will appear here.</p><Link className="mt-6 inline-flex rounded-xl bg-pink-600 px-5 py-3 font-bold text-white" href="/app/book">Book a pickup</Link></main>}

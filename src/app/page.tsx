@@ -1,69 +1,30 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, Check, Clock3, Droplets, Shirt, Sparkles, Truck } from "lucide-react";
+import { Money } from "@/components/shared/money";
+import { DeliveryChecker } from "@/components/marketing/delivery-checker";
+import { ServiceCatalog } from "@/components/marketing/service-catalog";
+const steps = ["We begin with a thorough check, including pockets.", "We follow your preferences and care for every item.", "We deliver your laundry, fresh and perfectly folded."];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="overflow-hidden">
+      <header className="sticky top-0 z-20 border-b border-pink-100/70 bg-white/85 backdrop-blur-xl dark:border-white/10 dark:bg-[#0b0b10]/85">
+        <nav className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 lg:px-8" aria-label="Main navigation">
+          <Link href="/" className="flex items-center gap-2 font-heading text-xl font-extrabold tracking-tight"><span className="grid size-9 place-items-center rounded-xl bg-pink-600 text-white"><Droplets size={19}/></span>Wash It <span className="-ml-2 text-pink-600">Izzy</span></Link>
+          <div className="hidden items-center gap-8 text-sm font-semibold text-slate-600 md:flex dark:text-slate-300"><a href="#how-it-works">How it works</a><a href="#services">Services</a><a href="#delivery">Delivery</a><a href="#faq">FAQs</a></div>
+          <div className="flex items-center gap-3"><Link className="hidden rounded-xl px-3 py-2 text-sm font-semibold sm:inline-flex" href="/login">Log in</Link><Link className="rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-pink-600/20 transition hover:bg-pink-700" href="/signup">Book a pickup <ArrowRight className="ml-1 inline" size={16}/></Link></div>
+        </nav>
+      </header>
+      <section className="relative isolate mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 md:min-h-[600px] md:grid-cols-[1.05fr_.95fr] md:py-20 lg:px-8">
+        <div className="absolute -left-40 top-10 -z-10 size-96 rounded-full bg-pink-200/45 blur-3xl dark:bg-pink-900/20"/><div className="absolute right-0 top-8 -z-10 size-80 rounded-full bg-cyan-100/70 blur-3xl dark:bg-cyan-900/20"/>
+        <div className="max-w-xl"><span className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-bold text-emerald-800"><Truck size={16}/> Free pickup & delivery on 2+ loads</span><h1 className="font-heading text-5xl font-extrabold leading-[1.06] tracking-[-.045em] text-slate-950 sm:text-6xl lg:text-7xl dark:text-white">Laundry day, <span className="text-pink-600">made lovely.</span></h1><p className="mt-6 max-w-lg text-lg leading-8 text-slate-600 dark:text-slate-300">Fresh, folded laundry without the fuss. We pick up from your doorstep in Calamba and bring it back ready to wear.</p><div className="mt-8 flex flex-wrap gap-3"><Link href="/signup" className="rounded-2xl bg-pink-600 px-6 py-4 font-bold text-white shadow-xl shadow-pink-600/20 transition hover:-translate-y-0.5 hover:bg-pink-700">Schedule a pickup <ArrowRight className="ml-2 inline" size={18}/></Link><a href="#services" className="rounded-2xl border border-slate-200 bg-white/80 px-6 py-4 font-bold text-slate-800 dark:border-white/15 dark:bg-white/5 dark:text-white">Explore services</a></div><div className="mt-8 flex items-center gap-2 text-sm text-slate-500"><Check size={16} className="text-emerald-600"/> Careful service from your neighbors in Calamba</div></div>
+        <div className="relative mx-auto w-full max-w-lg"><div className="absolute -right-4 top-10 size-24 rounded-full bg-cyan-200/70 blur-2xl"/><div className="relative rounded-[2rem] border border-white/80 bg-gradient-to-br from-pink-100 via-white to-cyan-50 p-5 shadow-[0_28px_90px_-30px_rgba(219,39,119,.28)] dark:border-white/10 dark:from-pink-950/50 dark:via-slate-900 dark:to-cyan-950/40"><div className="flex items-center justify-between rounded-2xl bg-white/80 p-4 dark:bg-white/5"><div><div className="text-xs font-bold uppercase tracking-wider text-slate-400">Your laundry, handled</div><div className="mt-1 font-heading text-xl font-bold">Freshness is on the way</div></div><span className="grid size-11 place-items-center rounded-2xl bg-pink-100 text-pink-600 dark:bg-pink-500/15"><Sparkles/></span></div><div className="my-5 flex aspect-[1.2] items-center justify-center overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-pink-200 via-white to-cyan-100 dark:from-pink-900/40 dark:via-slate-800 dark:to-cyan-900/40"><div className="relative grid size-56 place-items-center rounded-full bg-white/60 shadow-inner dark:bg-white/5"><div className="absolute size-44 rounded-full border border-white/70"/><div className="absolute size-32 rounded-full border border-white/70"/><div className="grid size-24 place-items-center rounded-[2rem] bg-pink-600 text-white shadow-2xl shadow-pink-700/30"><Droplets size={44}/></div><span className="absolute -right-2 top-7 grid size-12 place-items-center rounded-2xl bg-white text-cyan-600 shadow-lg"><Sparkles/></span><span className="absolute -bottom-1 left-3 grid size-12 place-items-center rounded-2xl bg-white text-pink-600 shadow-lg"><Shirt/></span></div></div><div className="grid grid-cols-2 gap-3"><div className="rounded-2xl bg-white/85 p-4 dark:bg-white/5"><div className="text-sm text-slate-500">Starting at</div><div className="mt-1 font-heading text-xl font-extrabold"><Money cents={17900}/><span className="text-sm font-medium text-slate-500"> / load</span></div></div><div className="rounded-2xl bg-white/85 p-4 dark:bg-white/5"><div className="text-sm text-slate-500">Turnaround</div><div className="mt-1 flex items-center gap-2 font-heading text-xl font-extrabold"><Clock3 size={18} className="text-cyan-600"/>24–48 hrs</div></div></div></div><div className="absolute -left-7 top-1/3 hidden rounded-2xl border border-pink-100 bg-white p-4 shadow-xl sm:block dark:border-white/10 dark:bg-slate-900"><div className="flex items-center gap-2 text-sm font-bold"><span className="grid size-8 place-items-center rounded-xl bg-emerald-100 text-emerald-700"><Check size={17}/></span>Pickup confirmed</div></div></div>
+      </section>
+      <section id="how-it-works" className="border-y border-pink-100/70 bg-white/70 py-16 dark:border-white/10 dark:bg-white/[.02]"><div className="mx-auto max-w-7xl px-5 lg:px-8"><div className="mx-auto max-w-2xl text-center"><p className="font-bold uppercase tracking-[.18em] text-pink-600">Simple as one, two, clean</p><h2 className="mt-3 font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">More weekend. Less laundry.</h2></div><div className="mt-10 grid gap-5 md:grid-cols-3">{steps.map((step, index) => <article key={step} className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900"><span className="grid size-11 place-items-center rounded-2xl bg-pink-50 font-heading text-lg font-extrabold text-pink-600 dark:bg-pink-500/10">0{index+1}</span><p className="mt-5 text-lg font-semibold leading-7">{step}</p></article>)}</div></div></section>
+      <section id="services" className="mx-auto max-w-7xl px-5 py-20 lg:px-8"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="font-bold uppercase tracking-[.18em] text-pink-600">A little care goes a long way</p><h2 className="mt-3 font-heading text-3xl font-extrabold sm:text-4xl">Find your fresh</h2></div><p className="max-w-md text-slate-600 dark:text-slate-300">Thoughtful laundry care for everyday favorites and special pieces alike.</p></div><ServiceCatalog/></section>
+      <section id="delivery" className="bg-pink-50/70 py-16 dark:bg-pink-950/15"><div className="mx-auto grid max-w-7xl gap-8 px-5 md:grid-cols-2 md:items-center lg:px-8"><div><p className="font-bold uppercase tracking-[.18em] text-pink-600">At your doorstep</p><h2 className="mt-3 font-heading text-3xl font-extrabold">Easy pickup across Calamba</h2><p className="mt-3 max-w-lg leading-7 text-slate-600 dark:text-slate-300">Pickup and delivery starts at ₱30. Get delivery on us when you book two or more loads in select areas.</p></div><DeliveryChecker/></div></section>
+      <section id="faq" className="mx-auto max-w-4xl px-5 py-20"><div className="text-center"><p className="font-bold uppercase tracking-[.18em] text-pink-600">Good to know</p><h2 className="mt-3 font-heading text-3xl font-extrabold">A few fresh answers</h2></div><div className="mt-8 divide-y divide-slate-200 rounded-3xl border border-slate-200 bg-white px-6 dark:divide-white/10 dark:border-white/10 dark:bg-slate-900">{[["How long does laundry take?","Most orders are ready in 24–48 hours."],["How much does it cost?","Wash, dry and fold starts at ₱179 per load. Final pricing can depend on the service and laundry weight."],["Where is delivery free?","Pickup and delivery is free for two or more loads in selected barangays. Other areas have a ₱30 fee."],["How can I pay?","Pay with cash or GCash." ]].map(([q,a])=><details key={q} className="group py-5"><summary className="cursor-pointer list-none font-bold marker:content-none">{q}<span className="float-right text-pink-600 transition group-open:rotate-45">+</span></summary><p className="mt-3 leading-7 text-slate-600 dark:text-slate-300">{a}</p></details>)}</div></section>
+      <footer className="border-t border-slate-200 bg-white py-8 dark:border-white/10 dark:bg-[#0b0b10]"><div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8"><Link href="/" className="font-heading text-base font-extrabold text-slate-900 dark:text-white">Wash It Izzy</Link><span>Calamba City, Laguna · Hours to be announced</span><span>© {new Date().getFullYear()} Wash It Izzy</span></div></footer>
+    </main>
   );
 }
